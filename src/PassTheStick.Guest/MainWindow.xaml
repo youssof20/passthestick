@@ -1,0 +1,15 @@
+<Window x:Class="PassTheStick.Guest.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="PassTheStick (guest)"
+        Height="220" Width="360"
+        WindowStartupLocation="CenterScreen">
+    <StackPanel Margin="16">
+        <TextBlock Text="Room code:" Margin="0,0,0,4"/>
+        <TextBox x:Name="RoomCodeBox" MaxLength="4" Width="80" HorizontalAlignment="Left" Margin="0,0,0,12"/>
+        <TextBlock Text="Your name:" Margin="0,0,0,4"/>
+        <TextBox x:Name="NameBox" MaxLength="32" Width="200" HorizontalAlignment="Left" Margin="0,0,0,12"/>
+        <Button x:Name="JoinButton" Content="Join" Click="JoinButton_Click" Width="100" HorizontalAlignment="Left"/>
+        <TextBlock x:Name="StatusText" Text="" Foreground="#666" FontSize="12" Margin="0,16,0,0" TextWrapping="Wrap"/>
+    </StackPanel>
+</Window>

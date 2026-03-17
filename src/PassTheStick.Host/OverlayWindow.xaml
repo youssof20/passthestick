@@ -1,0 +1,16 @@
+<Window x:Class="PassTheStick.Host.OverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title=""
+        Width="200" Height="36"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        MouseLeftButtonDown="OverlayWindow_MouseLeftButtonDown">
+    <Border x:Name="PillBorder" CornerRadius="18" Background="#E6000000" Padding="16,6" HorizontalAlignment="Left" VerticalAlignment="Top">
+        <TextBlock x:Name="PlayerNameText" Text="Host" Foreground="White" FontSize="14" VerticalAlignment="Center"/>
+    </Border>
+</Window>

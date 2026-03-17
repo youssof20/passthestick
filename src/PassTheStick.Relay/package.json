@@ -1,0 +1,9 @@
+{
+  "name": "passthestick-relay",
+  "version": "0.1.0",
+  "description": "WebSocket relay for PassTheStick",
+  "main": "server.js",
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
