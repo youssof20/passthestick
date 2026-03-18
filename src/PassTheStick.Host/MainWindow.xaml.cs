@@ -146,10 +146,17 @@ public partial class MainWindow : Window
             try
             {
                 _connVm.AddLog("Starting local relay server…");
-                var port = StartRelayServerAndGetPort();
-                _connVm.AddLog($"Waiting for relay to be ready on port {port}…");
-                var ok = await WaitForLocalPortAsync(port, TimeSpan.FromSeconds(8));
-                _connVm.AddLog(ok ? "Relay looks ready." : "Relay did not become ready in time.");
+                _relayProcess ??= new RelayProcessManager();
+                var port = await _relayProcess.StartRelayWithPortFallbackAsync(
+                    AppContext.BaseDirectory,
+                    8080,
+                    8082,
+                    _connVm.AddLog,
+                    CancellationToken.None);
+                var s = SettingsStore.Load();
+                s.RelayUrlOverride = $"ws://localhost:{port}";
+                SettingsStore.Save(s);
+                _connVm.AddLog($"Using relay URL: ws://localhost:{port}");
             }
             finally
             {
@@ -396,9 +403,7 @@ public partial class MainWindow : Window
         ShowConnectionStatus();
     }
 
-    private void StartRelayServerFromTray() => _ = StartRelayServerAndGetPort();
-
-    private int StartRelayServerAndGetPort()
+    private void StartRelayServerFromTray()
     {
         try
         {
@@ -408,7 +413,6 @@ public partial class MainWindow : Window
             s.RelayUrlOverride = $"ws://localhost:{port}";
             SettingsStore.Save(s);
             _tray?.ShowToast("PassTheStick", $"Relay server started on ws://localhost:{port}");
-            return port;
         }
         catch
         {
@@ -417,7 +421,6 @@ public partial class MainWindow : Window
                 "PassTheStick",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
-            return 8080;
         }
     }
 
@@ -520,22 +523,5 @@ public partial class MainWindow : Window
         TakeStickBack();
     }
 
-    private static async Task<bool> WaitForLocalPortAsync(int port, TimeSpan timeout)
-    {
-        var sw = Stopwatch.StartNew();
-        while (sw.Elapsed < timeout)
-        {
-            try
-            {
-                using var client = new TcpClient();
-                var connectTask = client.ConnectAsync("127.0.0.1", port);
-                var finished = await Task.WhenAny(connectTask, Task.Delay(300));
-                if (finished == connectTask && client.Connected)
-                    return true;
-            }
-            catch { }
-            await Task.Delay(200);
-        }
-        return false;
-    }
+    // Port readiness checks are handled inside RelayProcessManager now.
 }
