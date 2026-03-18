@@ -1,4 +1,6 @@
 using System.IO;
+using System.Net.Sockets;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
@@ -114,7 +116,11 @@ public partial class MainWindow : Window
     private void TakeStickBack()
     {
         if (_relay == null || string.IsNullOrWhiteSpace(_relay.MyId))
+        {
+            StatusText.Text = "Not connected — can't take stick back yet.";
+            ShowConnectionStatus();
             return;
+        }
         _relay.SendPassStickAsync(_relay.MyId);
         _sessionManager.SetActivePlayer(_relay.MyId);
         _overlay?.SetPlayerName("Host");
@@ -140,13 +146,19 @@ public partial class MainWindow : Window
             try
             {
                 _connVm.AddLog("Starting local relay server…");
-                StartRelayServerFromTray();
+                var port = StartRelayServerFromTray();
+                _connVm.AddLog($"Waiting for relay to be ready on port {port}…");
+                var ok = await WaitForLocalPortAsync(port, TimeSpan.FromSeconds(8));
+                _connVm.AddLog(ok ? "Relay looks ready." : "Relay did not become ready in time.");
             }
             finally
             {
                 _connVm.IsBusy = false;
             }
-            await Task.CompletedTask;
+
+            // After starting (and waiting), automatically retry.
+            if (_connVm.RetryAsync != null)
+                await _connVm.RetryAsync();
         };
         _connVm.RetryAsync = async () =>
         {
@@ -236,6 +248,7 @@ public partial class MainWindow : Window
             try
             {
                 _connVm.StatusText = attempt == 1 ? "Connecting…" : $"Retrying… (attempt {attempt} of 5)";
+                _connVm.AddLog(_connVm.StatusText);
                 _relay = new RelayClient();
                 _relay.PlayerListReceived += OnPlayerList;
                 _relay.PassStickReceived += OnPassStickBroadcast;
@@ -306,7 +319,12 @@ public partial class MainWindow : Window
 
     private void OnPickGuest(PlayerInfo p)
     {
-        if (_relay == null) return;
+        if (_relay == null || !_relay.IsConnected)
+        {
+            StatusText.Text = "Not connected — start the relay server first.";
+            ShowConnectionStatus();
+            return;
+        }
         _relay.SendPassStickAsync(p.Id);
         _sessionManager.SetActivePlayer(p.Id);
         _overlay?.SetPlayerName(p.Name);
@@ -321,7 +339,7 @@ public partial class MainWindow : Window
             _sessionManager.UpdatePlayers(players);
             PlayersList.ItemsSource = null;
             PlayersList.ItemsSource = _sessionManager.Players;
-            PassStickButton.IsEnabled = _sessionStarted && _gameTracker.IsPinned && _sessionManager.Players.Count > 0;
+            PassStickButton.IsEnabled = _sessionStarted && _gameTracker.IsPinned && PlayersList.SelectedItem is PlayerInfo;
             _picker?.SetPlayers(_sessionManager.Players);
             UpdateOverlayName();
         });
@@ -365,13 +383,20 @@ public partial class MainWindow : Window
     {
         Dispatcher.Invoke(() =>
         {
-            StatusText.Text = "Connection lost — reconnecting…";
+            StatusText.Text = "Connection lost — open connection status to retry.";
             _overlay?.SetBanner("Connection lost — reconnecting…");
+            SetRelayIndicator("Not connected — click to view connection status", "#C33");
+            PlayersList.ItemsSource = null;
+            PassStickButton.IsEnabled = false;
         });
-        StartReconnectLoop();
+        // Make retry work again by allowing session restart.
+        _sessionStarted = false;
+        _relay?.Dispose();
+        _relay = null;
+        ShowConnectionStatus();
     }
 
-    private void StartRelayServerFromTray()
+    private int StartRelayServerFromTray()
     {
         try
         {
@@ -381,6 +406,7 @@ public partial class MainWindow : Window
             s.RelayUrlOverride = $"ws://localhost:{port}";
             SettingsStore.Save(s);
             _tray?.ShowToast("PassTheStick", $"Relay server started on ws://localhost:{port}");
+            return port;
         }
         catch
         {
@@ -389,6 +415,7 @@ public partial class MainWindow : Window
                 "PassTheStick",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
+            return 8080;
         }
     }
 
@@ -473,9 +500,9 @@ public partial class MainWindow : Window
 
     private void PlayersList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        // Enable based on selection/pin/session; if not connected, we'll show a friendly message on pass attempt.
         PassStickButton.IsEnabled =
             _sessionStarted &&
-            _relay != null &&
             _gameTracker.IsPinned &&
             PlayersList.SelectedItem is PlayerInfo;
     }
@@ -489,5 +516,24 @@ public partial class MainWindow : Window
     private void TakeStickBackButton_Click(object sender, RoutedEventArgs e)
     {
         TakeStickBack();
+    }
+
+    private static async Task<bool> WaitForLocalPortAsync(int port, TimeSpan timeout)
+    {
+        var sw = Stopwatch.StartNew();
+        while (sw.Elapsed < timeout)
+        {
+            try
+            {
+                using var client = new TcpClient();
+                var connectTask = client.ConnectAsync("127.0.0.1", port);
+                var finished = await Task.WhenAny(connectTask, Task.Delay(300));
+                if (finished == connectTask && client.Connected)
+                    return true;
+            }
+            catch { }
+            await Task.Delay(200);
+        }
+        return false;
     }
 }
