@@ -19,7 +19,7 @@
             <Run Text="Make sure the relay is running, or check your PTS_RELAY_URL setting."/>
             <LineBreak/>
             <LineBreak/>
-            <Run Text="Default address: "/><Run Text="{Binding DefaultWs}" FontWeight="SemiBold"/>
+            <Run Text="Default address: "/><Run Text="{Binding DefaultWs, Mode=OneWay}" FontWeight="SemiBold"/>
             <LineBreak/>
             <LineBreak/>
             <Run Text="To run the relay locally:"/>
