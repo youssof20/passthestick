@@ -4,7 +4,7 @@
 ; Note: relay runtime is bundled under {app}\relay for one-click local sessions.
 
 #define MyAppName "PassTheStick"
-#define MyAppVersion "0.1.0"
+#define AppVersion "0.1.1"
 #define MyAppPublisher "PassTheStick"
 #define MyAppURL "https://github.com/passthestick/passthestick"
 #define MyAppExeName "PassTheStick.exe"
@@ -12,7 +12,7 @@
 [Setup]
 AppId={{A1B2C3D4-E5F6-7890-ABCD-PASSTHESTICK}
 AppName={#MyAppName}
-AppVersion={#MyAppVersion}
+AppVersion={#AppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
@@ -21,7 +21,7 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir=..\output
-OutputBaseFilename=PassTheStick-Setup-{#MyAppVersion}
+OutputBaseFilename=PassTheStick-Setup-{#AppVersion}
 Compression=lzma
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
