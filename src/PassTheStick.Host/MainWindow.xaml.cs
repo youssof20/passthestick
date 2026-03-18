@@ -1,7 +1,9 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using PassTheStick.Shared;
+using WinForms = System.Windows.Forms;
 
 namespace PassTheStick.Host;
 
@@ -203,7 +205,7 @@ public partial class MainWindow : Window
         }
         catch
         {
-            MessageBox.Show(
+            System.Windows.MessageBox.Show(
                 "Can't start the relay server.\n\nMake sure PassTheStick was installed with the bundled relay runtime, or run the relay manually:\n\ncd src/PassTheStick.Relay\nnpm install && node server.js",
                 "PassTheStick",
                 MessageBoxButton.OK,

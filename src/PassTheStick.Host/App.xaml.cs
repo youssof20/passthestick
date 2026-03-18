@@ -1,4 +1,6 @@
+using System.IO;
 using System.Windows;
+using WinForms = System.Windows.Forms;
 
 namespace PassTheStick.Host;
 
@@ -8,7 +10,7 @@ public partial class App : System.Windows.Application
     {
         if (!ElevationHelper.IsRunningAsAdmin())
         {
-            var result = MessageBox.Show(
+            var result = System.Windows.MessageBox.Show(
                 "Some games require admin rights to receive input. Restart as administrator?",
                 "PassTheStick",
                 MessageBoxButton.YesNo,

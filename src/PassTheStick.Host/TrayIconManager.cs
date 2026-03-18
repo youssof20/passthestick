@@ -1,5 +1,7 @@
+using System.IO;
 using System.Windows;
 using PassTheStick.Shared;
+using WinForms = System.Windows.Forms;
 using NotifyIcon = System.Windows.Forms.NotifyIcon;
 using ContextMenuStrip = System.Windows.Forms.ContextMenuStrip;
 using ToolStripMenuItem = System.Windows.Forms.ToolStripMenuItem;
@@ -49,14 +51,14 @@ public sealed class TrayIconManager : IDisposable
         };
 
         _notifyIcon.ContextMenuStrip = BuildMenu();
-        _notifyIcon.DoubleClick += (_, _) => Application.Current.Dispatcher.Invoke(() => _pinGame());
+        _notifyIcon.DoubleClick += (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(() => _pinGame());
     }
 
     private ContextMenuStrip BuildMenu()
     {
         var menu = new ContextMenuStrip();
 
-        menu.Items.Add(new ToolStripMenuItem("Pin current window as game", null, (_, _) => Application.Current.Dispatcher.Invoke(_pinGame)));
+        menu.Items.Add(new ToolStripMenuItem("Pin current window as game", null, (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(_pinGame)));
         menu.Items.Add(new ToolStripSeparator());
 
         _playersHeader = new ToolStripMenuItem("Pass stick to:")
@@ -75,9 +77,9 @@ public sealed class TrayIconManager : IDisposable
         });
         menu.Items.Add(_relayItem);
 
-        menu.Items.Add(new ToolStripMenuItem("Solo test mode", null, (_, _) => Application.Current.Dispatcher.Invoke(_soloTest)));
+        menu.Items.Add(new ToolStripMenuItem("Solo test mode", null, (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(_soloTest)));
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(new ToolStripMenuItem("Exit", null, (_, _) => Application.Current.Dispatcher.Invoke(() => Application.Current.Shutdown())));
+        menu.Items.Add(new ToolStripMenuItem("Exit", null, (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(() => System.Windows.Application.Current.Shutdown())));
 
         return menu;
     }
@@ -88,7 +90,9 @@ public sealed class TrayIconManager : IDisposable
             _relayItem.Text = _isRelayRunning() ? "Relay running (stop)" : "Start relay server";
 
         // Remove old player entries (items between header and next separator)
-        int headerIndex = menu.Items.IndexOf(_playersHeader);
+        var header = _playersHeader;
+        if (header == null) return;
+        int headerIndex = menu.Items.IndexOf(header);
         if (headerIndex < 0) return;
 
         int i = headerIndex + 1;
@@ -98,7 +102,7 @@ public sealed class TrayIconManager : IDisposable
         var players = _getPlayers();
         foreach (var p in players)
         {
-            var item = new ToolStripMenuItem(p.Name, null, (_, _) => Application.Current.Dispatcher.Invoke(() => _passStickTo(p)))
+            var item = new ToolStripMenuItem(p.Name, null, (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(() => _passStickTo(p)))
             {
                 Tag = "player",
                 Enabled = true

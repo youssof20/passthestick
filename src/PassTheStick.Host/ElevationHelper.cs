@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using System.IO;
 using System.Windows;
+using WinForms = System.Windows.Forms;
 
 namespace PassTheStick.Host;
 
@@ -23,14 +25,14 @@ public static class ElevationHelper
     {
         var startInfo = new ProcessStartInfo
         {
-            FileName = Environment.ProcessPath ?? Application.ResourceAssembly.Location,
+            FileName = Environment.ProcessPath ?? System.Windows.Application.ResourceAssembly.Location,
             UseShellExecute = true,
             Verb = "runas"
         };
         try
         {
             Process.Start(startInfo);
-            Application.Current.Shutdown();
+            System.Windows.Application.Current.Shutdown();
         }
         catch
         {
