@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using PassTheStick.Shared;
 
 namespace PassTheStick.Host;
 
@@ -43,6 +44,12 @@ public sealed class GameWindowTracker
     {
         if (!IsPinned) return false;
         var fg = GetForegroundWindow();
+        GetWindowThreadProcessId(fg, out var fgPid);
+
+        var matchPid = fgPid == _gameProcessId;
+        if (InputDebugLog.Enabled)
+            InputDebugLog.Log($"Foreground PID={fgPid} GamePID={_gameProcessId} match={matchPid}");
+
         return fg == _gameHwnd;
     }
 

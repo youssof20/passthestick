@@ -27,9 +27,23 @@ public partial class MainWindow : Window
     private PassTheStick.Shared.RelayConnectionDialog? _connDialog;
     private CancellationTokenSource? _connectCts;
 
+    public void ShowUpdateNotification(string latestVersion, string url)
+    {
+        try
+        {
+            _tray?.ShowUpdateToast(
+                "PassTheStick update available",
+                $"Version {latestVersion} is ready. Click the balloon to download.",
+                url);
+        }
+        catch { }
+    }
+
     public MainWindow()
     {
         InitializeComponent();
+        InputDebugLog.Enabled = false;
+        InputDebugLog.OnInputLog += AppendInputLog;
         _sessionManager = new SessionManager();
         _gameTracker = new GameWindowTracker();
         _hookManager = new HookManager(_sessionManager, _gameTracker);
@@ -43,11 +57,43 @@ public partial class MainWindow : Window
             _hotkey.Dispose();
             _overlay?.Close();
             _picker?.Close();
+            InputDebugLog.OnInputLog -= AppendInputLog;
             _hookManager.Dispose();
             _vigem.Dispose();
             _relay?.Dispose();
         };
         Loaded += MainWindow_Loaded;
+    }
+
+    private void InputLogExpander_Expanded(object sender, RoutedEventArgs e)
+    {
+        InputDebugLog.Enabled = true;
+    }
+
+    private void InputLogExpander_Collapsed(object sender, RoutedEventArgs e)
+    {
+        InputDebugLog.Enabled = false;
+    }
+
+    private void ClearLog_Click(object sender, RoutedEventArgs e)
+    {
+        InputLogText.Text = string.Empty;
+    }
+
+    private void AppendInputLog(string message)
+    {
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (InputLogText == null) return;
+            var line = $"[{DateTime.Now:HH:mm:ss}] {message}\n";
+            InputLogText.Text += line;
+            LogScrollViewer.ScrollToBottom();
+
+            // Keep max 200 lines to avoid memory bloat.
+            var lines = InputLogText.Text.Split('\n');
+            if (lines.Length > 200)
+                InputLogText.Text = string.Join('\n', lines[^200..]);
+        });
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)

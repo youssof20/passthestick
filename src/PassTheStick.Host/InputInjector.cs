@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using PassTheStick.Shared;
 
 namespace PassTheStick.Host;
 
@@ -19,10 +20,15 @@ public static class InputInjector
     /// <param name="keyDown">True for key down, false for key up.</param>
     public static void InjectKey(ushort scanCode, bool keyDown)
     {
+        var dwFlags = keyDown ? KEYEVENTF_SCANCODE : (KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP);
+
+        InputDebugLog.Log(
+            $"Injecting: sc={scanCode} down={keyDown} flags=0x{dwFlags:X4}");
+
         var ki = new KEYBDINPUT
         {
             wScan = scanCode,
-            dwFlags = keyDown ? KEYEVENTF_SCANCODE : (KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP)
+            dwFlags = dwFlags
         };
         var input = new INPUT
         {
@@ -30,7 +36,12 @@ public static class InputInjector
             u = new InputUnion { ki = ki }
         };
         var inputs = new[] { input };
-        SendInput(1, inputs, Marshal.SizeOf<INPUT>());
+
+        var result = SendInput(1, inputs, Marshal.SizeOf<INPUT>());
+        if (result > 0)
+            InputDebugLog.Log($"SendInput result: {result} (success)");
+        else
+            InputDebugLog.Log($"SendInput result: {result} ERROR: {Marshal.GetLastWin32Error()}");
     }
 
     [StructLayout(LayoutKind.Sequential)]

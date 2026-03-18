@@ -30,6 +30,23 @@
                  SelectionChanged="PlayersList_SelectionChanged"
                  MouseDoubleClick="PlayersList_MouseDoubleClick"/>
 
+        <Expander Header="Input log (debug)" IsExpanded="False" Margin="0,0,0,8"
+                  Expanded="InputLogExpander_Expanded"
+                  Collapsed="InputLogExpander_Collapsed">
+            <Grid>
+                <ScrollViewer Height="120" x:Name="LogScrollViewer" VerticalScrollBarVisibility="Auto">
+                    <TextBlock x:Name="InputLogText"
+                               FontFamily="Consolas"
+                               FontSize="11"
+                               TextWrapping="Wrap"/>
+                </ScrollViewer>
+                <Button Content="Clear" Click="ClearLog_Click"
+                        HorizontalAlignment="Right" VerticalAlignment="Top"
+                        Width="50" Height="20"
+                        Margin="0,0,0,0"/>
+            </Grid>
+        </Expander>
+
         <DockPanel LastChildFill="True">
             <Button x:Name="TakeStickBackButton" Content="Take stick back" Width="120" DockPanel.Dock="Left"
                     Click="TakeStickBackButton_Click" Margin="0,0,8,0"/>

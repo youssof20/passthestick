@@ -6,19 +6,24 @@
 #define MyAppName "PassTheStick"
 ; AppVersion is injected by CI via /DAppVersion=...
 #ifndef AppVersion
-  #define AppVersion "0.0.0"
+  #define AppVersion "0.1.14"
 #endif
 #define MyAppPublisher "PassTheStick"
 #define MyAppURL "https://github.com/passthestick/passthestick"
 #define MyAppExeName "PassTheStick.exe"
 
 [Setup]
-AppId={{A1B2C3D4-E5F6-7890-ABCD-PASSTHESTICK}
+; IMPORTANT: fixed AppId must never change between versions so Windows treats
+; upgrades as the same app (silent upgrade).
+AppId={{6A4F2D8C-2A9E-4E5B-9C5C-7B2D0C3B5A1F}}
 AppName={#MyAppName}
 AppVersion={#AppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
+CloseApplications=yes
+CloseApplicationsFilter=*.exe
+RestartApplications=no
 SetupIconFile=..\assets\passthestick.ico
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}

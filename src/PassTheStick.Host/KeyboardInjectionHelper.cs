@@ -19,6 +19,8 @@ public static class KeyboardInjectionHelper
         uint scanCode = MapVirtualKey((uint)msg.Vk, MAPVK_VK_TO_VSC);
         if (scanCode == 0)
             scanCode = (uint)msg.Sc; // fallback if mapping fails
+
+        InputDebugLog.Log($"Mapping vk={msg.Vk} \u2192 host scan code={scanCode}");
         InputInjector.InjectKey((ushort)scanCode, msg.Down);
     }
 }

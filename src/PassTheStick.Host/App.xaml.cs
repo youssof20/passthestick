@@ -1,4 +1,7 @@
+using System.Net.Http;
 using System.IO;
+using System.Reflection;
+using System.Text.Json;
 using System.Windows;
 using WinForms = System.Windows.Forms;
 
@@ -34,5 +37,54 @@ public partial class App : System.Windows.Application
         var main = new MainWindow();
         main.Show();
         main.Closed += (_, _) => Shutdown();
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(10));
+                await CheckForUpdatesAsync(main);
+            }
+            catch
+            {
+                // Never crash on update check.
+            }
+        });
+    }
+
+    private static async Task CheckForUpdatesAsync(MainWindow main)
+    {
+        try
+        {
+            using var http = new HttpClient();
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("PassTheStick");
+
+            var json = await http.GetStringAsync("https://api.github.com/repos/youssof20/passthestick/releases/latest");
+            using var doc = JsonDocument.Parse(json);
+
+            var tag = doc.RootElement.GetProperty("tag_name").GetString()?.Trim();
+            var htmlUrl = doc.RootElement.GetProperty("html_url").GetString()?.Trim();
+            if (string.IsNullOrWhiteSpace(tag) || string.IsNullOrWhiteSpace(htmlUrl))
+                return;
+
+            var latestVersionText = tag.TrimStart('v');
+            if (!Version.TryParse(latestVersionText, out var latestVersion))
+                return;
+
+            var currentVersion = typeof(App).Assembly.GetName().Version;
+            if (currentVersion == null)
+                return;
+
+            // Compare by major/minor/build (ignore revision).
+            var currentTriplet = new Version(currentVersion.Major, currentVersion.Minor, currentVersion.Build);
+            var latestTriplet = new Version(latestVersion.Major, latestVersion.Minor, latestVersion.Build);
+
+            if (latestTriplet > currentTriplet)
+                main.ShowUpdateNotification(latestTriplet.ToString(3), htmlUrl);
+        }
+        catch
+        {
+            // Never crash on update check failure.
+        }
     }
 }

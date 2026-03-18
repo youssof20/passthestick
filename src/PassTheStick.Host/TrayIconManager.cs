@@ -1,4 +1,5 @@
 using System.IO;
+using System.Diagnostics;
 using System.Windows;
 using PassTheStick.Shared;
 using WinForms = System.Windows.Forms;
@@ -23,6 +24,7 @@ public sealed class TrayIconManager : IDisposable
     private readonly Action _startRelay;
     private readonly Action _stopRelay;
     private readonly Action _exit;
+    private string? _pendingUpdateUrl;
 
     private ToolStripMenuItem? _playersHeader;
     private ToolStripMenuItem? _relayItem;
@@ -68,6 +70,16 @@ public sealed class TrayIconManager : IDisposable
 
         _notifyIcon.ContextMenuStrip = BuildMenu();
         _notifyIcon.DoubleClick += (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(() => _pinGame());
+        _notifyIcon.BalloonTipClicked += (_, _) =>
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(_pendingUpdateUrl)) return;
+                var psi = new System.Diagnostics.ProcessStartInfo(_pendingUpdateUrl) { UseShellExecute = true };
+                System.Diagnostics.Process.Start(psi);
+            }
+            catch { }
+        };
     }
 
     private ContextMenuStrip BuildMenu()
@@ -140,6 +152,14 @@ public sealed class TrayIconManager : IDisposable
         _notifyIcon.BalloonTipTitle = title;
         _notifyIcon.BalloonTipText = message;
         _notifyIcon.ShowBalloonTip(3000);
+    }
+
+    public void ShowUpdateToast(string title, string message, string updateUrl)
+    {
+        _pendingUpdateUrl = updateUrl;
+        _notifyIcon.BalloonTipTitle = title;
+        _notifyIcon.BalloonTipText = message;
+        _notifyIcon.ShowBalloonTip(10000);
     }
 
     public void Dispose()

@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
+using PassTheStick.Shared;
 
 namespace PassTheStick.Host;
 
@@ -48,8 +50,26 @@ public sealed class HookManager : IDisposable
             bool isInjected = (kbd.flags & LLKHF_INJECTED) != 0;
 
             // Never globally suppress the host keyboard: only block while the pinned game is foreground.
-            if (!isInjected && !isHostActive && _gameWindowTracker.IsGameForeground())
-                return (nint)1; // suppress
+            if (!isInjected && !isHostActive)
+            {
+                var isGameForeground = _gameWindowTracker.IsGameForeground();
+                if (isGameForeground)
+                {
+                    if (InputDebugLog.Enabled)
+                        InputDebugLog.Log($"SUPPRESSED local key vk={kbd.vkCode} (guest has stick)");
+                    return (nint)1; // suppress
+                }
+
+                if (InputDebugLog.Enabled)
+                {
+                    var fgHwnd = GetForegroundWindow();
+                    GetWindowThreadProcessId(fgHwnd, out var fgPid);
+                    var foregroundName = TryGetProcessName(fgPid);
+                    var gameName = TryGetProcessName(_gameWindowTracker.GameProcessId);
+                    InputDebugLog.Log(
+                        $"SKIPPED injection - game not foreground (foreground: {foregroundName}, game: {gameName})");
+                }
+            }
         }
         return CallNextHookEx(_hookId, nCode, wParam, lParam);
     }
@@ -79,6 +99,25 @@ public sealed class HookManager : IDisposable
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
     private static extern nint GetModuleHandle(string? lpModuleName);
+
+    [DllImport("user32.dll")]
+    private static extern nint GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(nint hWnd, out uint lpdwProcessId);
+
+    private static string TryGetProcessName(uint pid)
+    {
+        try
+        {
+            using var p = Process.GetProcessById((int)pid);
+            return p.ProcessName;
+        }
+        catch
+        {
+            return "unknown";
+        }
+    }
 
     public void Dispose() => Uninstall();
 }

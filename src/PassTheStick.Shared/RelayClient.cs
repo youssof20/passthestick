@@ -149,7 +149,11 @@ public sealed class RelayClient : IDisposable
                     break;
                 case "KEY_EVENT":
                     var ke = JsonSerializer.Deserialize<KeyEventMessage>(json, JsonOptions);
-                    if (ke != null) KeyEventReceived?.Invoke(ke);
+                    if (ke != null)
+                    {
+                        InputDebugLog.Log($"KEY_EVENT received: vk={ke.Vk} sc={ke.Sc} down={ke.Down}");
+                        KeyEventReceived?.Invoke(ke);
+                    }
                     break;
                 case "PAD_STATE":
                     var ps = JsonSerializer.Deserialize<PadStateMessage>(json, JsonOptions);
