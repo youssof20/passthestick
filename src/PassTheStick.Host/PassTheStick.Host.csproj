@@ -12,7 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PassTheStick.Shared\PassTheStick.Shared.csproj" />
-    <PackageReference Include="Nefarius.ViGEm.Client" Version="1.22.0" />
+    <PackageReference Include="Nefarius.ViGEm.Client" Version="1.21.256" />
     <PackageReference Include="Nefarius.Drivers.HidHide" Version="3.3.0" />
   </ItemGroup>
 
