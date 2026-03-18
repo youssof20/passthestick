@@ -35,6 +35,7 @@ Take turns controlling a single-player game on one person's PC. Everyone watches
 1. Launch PassTheStick — it lives in your system tray
 2. If prompted, restart as administrator
 3. Focus your game window and click **"Pin current window as game"** in the tray
+4. If you're running locally, click **"Start relay server"** in the tray (recommended for first-time setup)
 4. Share the **room code** with friends (e.g. `WOLF`)
 5. Press **Ctrl+Shift+→** to open the pass-stick menu and choose a guest
 
