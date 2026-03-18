@@ -55,7 +55,7 @@ public sealed class RelayClient : IDisposable
         RoomCode = roomCode;
         IsHost = false;
         var tcs = new TaskCompletionSource<bool>(); // true = success, false = error
-        void OnList(List<PlayerInfo> _) { PlayerListReceived -= OnList; PlayerListReceived -= OnErr; tcs.TrySetResult(true); }
+        void OnList(List<PlayerInfo> _) { PlayerListReceived -= OnList; Error -= OnErr; tcs.TrySetResult(true); }
         void OnErr(string _) { Error -= OnErr; PlayerListReceived -= OnList; tcs.TrySetResult(false); }
         PlayerListReceived += OnList;
         Error += OnErr;
