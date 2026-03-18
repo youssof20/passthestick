@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <ApplicationIcon>..\..\assets\passthestick.ico</ApplicationIcon>
     <AssemblyName>PassTheStick</AssemblyName>
     <RootNamespace>PassTheStick.Launcher</RootNamespace>
   </PropertyGroup>
