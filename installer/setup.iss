@@ -4,7 +4,10 @@
 ; Note: relay runtime is bundled under {app}\relay for one-click local sessions.
 
 #define MyAppName "PassTheStick"
-#define AppVersion "0.1.4"
+; AppVersion is injected by CI via /DAppVersion=...
+#ifndef AppVersion
+  #define AppVersion "0.0.0"
+#endif
 #define MyAppPublisher "PassTheStick"
 #define MyAppURL "https://github.com/passthestick/passthestick"
 #define MyAppExeName "PassTheStick.exe"

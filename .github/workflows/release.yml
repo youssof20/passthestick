@@ -91,7 +91,10 @@ jobs:
           Compress-Archive -Path $relayFiles -DestinationPath artifacts/PassTheStick-relay.zip -Force
 
       - name: Build installer
-        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer/setup.iss'
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $ver = $tag.TrimStart('v')
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=$ver installer/setup.iss
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v2

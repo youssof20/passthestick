@@ -4,48 +4,42 @@ namespace PassTheStick.Shared;
 
 public partial class RelayConnectionDialog : Window
 {
-    public string DefaultWs => Constants.DefaultRelayWs;
-    public bool CanStartRelay => StartRelayRequested != null;
-
-    public Action? StartRelayRequested { get; init; }
+    public RelayConnectionViewModel Vm { get; }
 
     public RelayConnectionDialog()
+        : this(new RelayConnectionViewModel())
+    {
+    }
+
+    public RelayConnectionDialog(RelayConnectionViewModel vm)
     {
         InitializeComponent();
-        DataContext = this;
+        Vm = vm;
+        DataContext = Vm;
     }
 
-    public bool ShouldRetry { get; private set; }
-    public bool ShouldChangeUrl { get; private set; }
-
-    private void Retry_Click(object sender, RoutedEventArgs e)
+    private async void Retry_Click(object sender, RoutedEventArgs e)
     {
-        ShouldRetry = true;
-        DialogResult = true;
+        if (Vm.RetryAsync == null) return;
+        await Vm.RetryAsync();
+    }
+
+    private async void StartRelay_Click(object sender, RoutedEventArgs e)
+    {
+        if (Vm.StartRelayAsync == null) return;
+        await Vm.StartRelayAsync();
+    }
+
+    private void SaveUrl_Click(object sender, RoutedEventArgs e)
+    {
+        Vm.SaveRelayUrl?.Invoke(Vm.RelayUrl);
+        Vm.AddLog("Relay URL saved.");
+    }
+
+    private void Close_Click(object sender, RoutedEventArgs e)
+    {
+        Vm.CloseRequested?.Invoke();
         Close();
-    }
-
-    private void Change_Click(object sender, RoutedEventArgs e)
-    {
-        ShouldChangeUrl = true;
-        DialogResult = true;
-        Close();
-    }
-
-    private void StartRelay_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            StartRelayRequested?.Invoke();
-        }
-        catch (Exception ex)
-        {
-            System.Windows.MessageBox.Show(
-                "Couldn't start the local relay server.\n\n" + ex.Message,
-                "PassTheStick",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-        }
     }
 }
 

@@ -17,9 +17,12 @@ public sealed class TrayIconManager : IDisposable
     private readonly Action<PlayerInfo> _passStickTo;
     private readonly Action _pinGame;
     private readonly Action _soloTest;
+    private readonly Action _takeStickBack;
+    private readonly Action _showConnectionStatus;
     private readonly Func<bool> _isRelayRunning;
     private readonly Action _startRelay;
     private readonly Action _stopRelay;
+    private readonly Action _exit;
 
     private ToolStripMenuItem? _playersHeader;
     private ToolStripMenuItem? _relayItem;
@@ -30,18 +33,24 @@ public sealed class TrayIconManager : IDisposable
         Action<PlayerInfo> passStickTo,
         Action pinGame,
         Action soloTest,
+        Action takeStickBack,
+        Action showConnectionStatus,
         Func<bool> isRelayRunning,
         Action startRelay,
-        Action stopRelay)
+        Action stopRelay,
+        Action exit)
     {
         _session = session;
         _getPlayers = getPlayers;
         _passStickTo = passStickTo;
         _pinGame = pinGame;
         _soloTest = soloTest;
+        _takeStickBack = takeStickBack;
+        _showConnectionStatus = showConnectionStatus;
         _isRelayRunning = isRelayRunning;
         _startRelay = startRelay;
         _stopRelay = stopRelay;
+        _exit = exit;
 
         var iconInfo = System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/passthestick.ico"));
         if (iconInfo == null)
@@ -66,6 +75,8 @@ public sealed class TrayIconManager : IDisposable
         var menu = new ContextMenuStrip();
 
         menu.Items.Add(new ToolStripMenuItem("Pin current window as game", null, (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(_pinGame)));
+        menu.Items.Add(new ToolStripMenuItem("Take stick back", null, (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(_takeStickBack)));
+        menu.Items.Add(new ToolStripMenuItem("Connection status…", null, (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(_showConnectionStatus)));
         menu.Items.Add(new ToolStripSeparator());
 
         _playersHeader = new ToolStripMenuItem("Pass stick to:")
@@ -86,7 +97,7 @@ public sealed class TrayIconManager : IDisposable
 
         menu.Items.Add(new ToolStripMenuItem("Solo test mode", null, (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(_soloTest)));
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(new ToolStripMenuItem("Exit", null, (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(() => System.Windows.Application.Current.Shutdown())));
+        menu.Items.Add(new ToolStripMenuItem("Exit", null, (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(_exit)));
 
         return menu;
     }

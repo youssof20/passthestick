@@ -21,6 +21,9 @@ public partial class MainWindow : Window
     private RelayProcessManager? _relayProcess;
     private CancellationTokenSource? _reconnectCts;
     private bool _sessionStarted;
+    private readonly RelayConnectionViewModel _connVm = new();
+    private PassTheStick.Shared.RelayConnectionDialog? _connDialog;
+    private CancellationTokenSource? _connectCts;
 
     public MainWindow()
     {
@@ -31,6 +34,7 @@ public partial class MainWindow : Window
         _hookManager.Install();
         Closed += (_, _) =>
         {
+            _connectCts?.Cancel();
             _reconnectCts?.Cancel();
             _tray?.Dispose();
             _relayProcess?.Dispose();
@@ -53,9 +57,12 @@ public partial class MainWindow : Window
             OnPickGuest,
             () => _gameTracker.PinCurrentForeground(),
             SoloTestModeAsync,
+            TakeStickBack,
+            ShowConnectionStatus,
             () => _relayProcess.IsRunning,
             StartRelayServerFromTray,
-            StopRelayServerFromTray);
+            StopRelayServerFromTray,
+            RequestExit);
 
         var helper = new WindowInteropHelper(this);
         helper.EnsureHandle();
@@ -69,6 +76,91 @@ public partial class MainWindow : Window
         RefreshWindows();
 
         await Task.CompletedTask;
+    }
+
+    private void RequestExit()
+    {
+        try
+        {
+            Close();
+        }
+        catch
+        {
+            System.Windows.Application.Current.Shutdown();
+        }
+    }
+
+    private void ShowConnectionStatus()
+    {
+        EnsureConnectionDialog();
+        _connDialog?.Show();
+        _connDialog?.Activate();
+    }
+
+    private void RelayStatusText_MouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e) =>
+        ShowConnectionStatus();
+
+    private void SetRelayIndicator(string text, string hexColor)
+    {
+        RelayStatusText.Text = text;
+        try
+        {
+            var brush = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString(hexColor);
+            RelayDot.Fill = brush;
+        }
+        catch { }
+    }
+
+    private void TakeStickBack()
+    {
+        if (_relay == null || string.IsNullOrWhiteSpace(_relay.MyId))
+            return;
+        _relay.SendPassStickAsync(_relay.MyId);
+        _sessionManager.SetActivePlayer(_relay.MyId);
+        _overlay?.SetPlayerName("Host");
+        _overlay?.SetBanner(null);
+        StatusText.Text = "Stick taken back.";
+    }
+
+    private void EnsureConnectionDialog()
+    {
+        _connVm.SaveRelayUrl = url =>
+        {
+            if (!string.IsNullOrWhiteSpace(url))
+            {
+                var s = SettingsStore.Load();
+                s.RelayUrlOverride = url.Trim();
+                SettingsStore.Save(s);
+            }
+        };
+        _connVm.StartRelayAsync = async () =>
+        {
+            if (_connVm.IsBusy) return;
+            _connVm.IsBusy = true;
+            try
+            {
+                _connVm.AddLog("Starting local relay server…");
+                StartRelayServerFromTray();
+            }
+            finally
+            {
+                _connVm.IsBusy = false;
+            }
+            await Task.CompletedTask;
+        };
+        _connVm.RetryAsync = async () =>
+        {
+            if (_connVm.IsBusy) return;
+            _connectCts?.Cancel();
+            _connectCts = new CancellationTokenSource();
+            await EnsureSessionStartedAsync();
+        };
+
+        if (_connDialog == null)
+        {
+            _connDialog = new PassTheStick.Shared.RelayConnectionDialog(_connVm) { Owner = this };
+            _connDialog.Closed += (_, _) => _connDialog = null;
+        }
     }
 
     private void RefreshWindows()
@@ -126,10 +218,24 @@ public partial class MainWindow : Window
             return;
         }
 
-        while (true)
+        EnsureConnectionDialog();
+        _connVm.RelayUrl = Constants.RelayWebSocketUrl;
+        _connVm.IsConnected = false;
+        _connVm.StatusText = "Connecting…";
+        _connVm.AddLog("Connecting to " + _connVm.RelayUrl);
+        Dispatcher.Invoke(() => SetRelayIndicator("Connecting…", "#D9A200")); // amber
+
+        _connDialog?.Show();
+        _connDialog?.Activate();
+
+        _connectCts ??= new CancellationTokenSource();
+        var ct = _connectCts.Token;
+
+        for (int attempt = 1; attempt <= 5 && !ct.IsCancellationRequested; attempt++)
         {
             try
             {
+                _connVm.StatusText = attempt == 1 ? "Connecting…" : $"Retrying… (attempt {attempt} of 5)";
                 _relay = new RelayClient();
                 _relay.PlayerListReceived += OnPlayerList;
                 _relay.PassStickReceived += OnPassStickBroadcast;
@@ -152,34 +258,25 @@ public partial class MainWindow : Window
                 StatusText.Text = "Connected. Use Ctrl+Shift+Right to pass the stick.";
                 _tray?.ShowToast("PassTheStick", "Host session started. Share the room code with friends.");
                 _sessionStarted = true;
+                _connVm.IsConnected = true;
+                _connVm.StatusText = "Connected!";
+                _connVm.AddLog("Connected.");
+                Dispatcher.Invoke(() => SetRelayIndicator("Connected — relay ready", "#2E8B57")); // green
+                _connDialog?.Close();
                 break;
             }
             catch
             {
-                var dlg = new PassTheStick.Shared.RelayConnectionDialog
+                _connVm.AddLog("Connection failed.");
+                if (attempt >= 5)
                 {
-                    Owner = this,
-                    StartRelayRequested = StartRelayServerFromTray
-                };
-                dlg.ShowDialog();
-                if (dlg.ShouldChangeUrl)
-                {
-                    var input = Microsoft.VisualBasic.Interaction.InputBox(
-                        "Enter relay URL (ws://... or wss://...).",
-                        "PassTheStick",
-                        PassTheStick.Shared.Constants.RelayWebSocketUrl);
-                    if (!string.IsNullOrWhiteSpace(input))
-                    {
-                        var s = PassTheStick.Shared.SettingsStore.Load();
-                        s.RelayUrlOverride = input.Trim();
-                        PassTheStick.Shared.SettingsStore.Save(s);
-                    }
-                }
-                if (!dlg.ShouldRetry && !dlg.ShouldChangeUrl)
-                {
+                    _connVm.StatusText = "Could not connect after 5 attempts.";
                     StatusText.Text = "Can't reach the relay server.";
-                    break;
+                    Dispatcher.Invoke(() => SetRelayIndicator("Not connected — click to view connection status", "#C33"));
+                    return;
                 }
+                _connVm.AddLog("Retrying in 3 seconds…");
+                await Task.Delay(TimeSpan.FromSeconds(3), ct);
             }
         }
     }
@@ -372,5 +469,25 @@ public partial class MainWindow : Window
         }
         if (PlayersList.SelectedItem is not PlayerInfo p) return;
         OnPickGuest(p);
+    }
+
+    private void PlayersList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        PassStickButton.IsEnabled =
+            _sessionStarted &&
+            _relay != null &&
+            _gameTracker.IsPinned &&
+            PlayersList.SelectedItem is PlayerInfo;
+    }
+
+    private void PlayersList_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (PlayersList.SelectedItem is PlayerInfo p && PassStickButton.IsEnabled)
+            OnPickGuest(p);
+    }
+
+    private void TakeStickBackButton_Click(object sender, RoutedEventArgs e)
+    {
+        TakeStickBack();
     }
 }

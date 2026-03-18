@@ -8,6 +8,19 @@ public partial class App : System.Windows.Application
 {
     private void App_OnStartup(object sender, StartupEventArgs e)
     {
+        SessionEnding += (_, args) =>
+        {
+            try
+            {
+                Current.MainWindow?.Close();
+            }
+            finally
+            {
+                args.Cancel = false;
+                Shutdown();
+            }
+        };
+
         if (!ElevationHelper.IsRunningAsAdmin())
         {
             var result = System.Windows.MessageBox.Show(
@@ -20,5 +33,6 @@ public partial class App : System.Windows.Application
         }
         var main = new MainWindow();
         main.Show();
+        main.Closed += (_, _) => Shutdown();
     }
 }

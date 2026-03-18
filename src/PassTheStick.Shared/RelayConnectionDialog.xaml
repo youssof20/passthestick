@@ -2,34 +2,52 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="PassTheStick"
-        Width="520" Height="300"
+        Width="620" Height="420"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize">
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Text="Can't reach the relay server."
+        <TextBlock Text="Connecting to relay server…"
                    FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
 
-        <TextBlock Grid.Row="1" TextWrapping="Wrap" Foreground="#333">
-            <Run Text="Make sure the relay is running, or check your PTS_RELAY_URL setting."/>
-            <LineBreak/>
-            <LineBreak/>
-            <Run Text="Default address: "/><Run Text="{Binding DefaultWs, Mode=OneWay}" FontWeight="SemiBold"/>
-            <LineBreak/>
-            <LineBreak/>
-            <Run Text="If you installed PassTheStick, you can start a local relay server from the app."/>
-        </TextBlock>
+        <TextBlock Grid.Row="1" Text="{Binding StatusText, Mode=OneWay}"
+                   FontSize="13" Foreground="#333" Margin="0,0,0,10"/>
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+        <Border Grid.Row="2" Background="#F6F6F6" BorderBrush="#DDD" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,10">
+            <StackPanel>
+                <TextBlock Text="Relay URL:" Foreground="#666" FontSize="12" Margin="0,0,0,4"/>
+                <DockPanel>
+                    <TextBox x:Name="RelayUrlBox" Text="{Binding RelayUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             Height="26" VerticalContentAlignment="Center" Margin="0,0,8,0"/>
+                    <Button Content="Save" Width="80" Click="SaveUrl_Click" IsEnabled="{Binding CanClickButtons, Mode=OneWay}"/>
+                </DockPanel>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="3" Background="#0D0D0D" CornerRadius="6" Padding="8" Margin="0,0,0,12">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding LogLines, Mode=OneWay}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}" Foreground="#DDD" FontFamily="Consolas" FontSize="12" TextWrapping="Wrap"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="Start relay server" Width="140" Margin="0,0,8,0"
-                    Click="StartRelay_Click" IsEnabled="{Binding CanStartRelay, Mode=OneWay}"/>
-            <Button Content="Change relay URL" Width="140" Margin="0,0,8,0" Click="Change_Click"/>
-            <Button Content="Retry" Width="90" IsDefault="True" Click="Retry_Click"/>
+                    Click="StartRelay_Click" IsEnabled="{Binding CanClickButtons, Mode=OneWay}"/>
+            <Button Content="Retry" Width="90" Margin="0,0,8,0" Click="Retry_Click" IsEnabled="{Binding CanClickButtons, Mode=OneWay}"/>
+            <Button Content="Close" Width="90" Click="Close_Click"/>
         </StackPanel>
     </Grid>
 </Window>
