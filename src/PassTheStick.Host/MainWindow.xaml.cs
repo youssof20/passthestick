@@ -146,7 +146,7 @@ public partial class MainWindow : Window
             try
             {
                 _connVm.AddLog("Starting local relay server…");
-                var port = StartRelayServerFromTray();
+                var port = StartRelayServerAndGetPort();
                 _connVm.AddLog($"Waiting for relay to be ready on port {port}…");
                 var ok = await WaitForLocalPortAsync(port, TimeSpan.FromSeconds(8));
                 _connVm.AddLog(ok ? "Relay looks ready." : "Relay did not become ready in time.");
@@ -396,7 +396,9 @@ public partial class MainWindow : Window
         ShowConnectionStatus();
     }
 
-    private int StartRelayServerFromTray()
+    private void StartRelayServerFromTray() => _ = StartRelayServerAndGetPort();
+
+    private int StartRelayServerAndGetPort()
     {
         try
         {

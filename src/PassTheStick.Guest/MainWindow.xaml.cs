@@ -105,6 +105,6 @@ public partial class MainWindow : Window
     {
         if (string.IsNullOrWhiteSpace(id)) return "Host";
         var p = _players.FirstOrDefault(x => x.Id == id);
-        return !string.IsNullOrWhiteSpace(p.Name) ? p.Name : "Host";
+        return !string.IsNullOrWhiteSpace(p?.Name) ? p.Name : "Host";
     }
 }
