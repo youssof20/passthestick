@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Windows;
 
 namespace PassTheStick.Shared;
@@ -16,6 +17,8 @@ public sealed class RelayConnectionViewModel : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public ObservableCollection<string> LogLines { get; } = new();
+
+    public string LogText => string.Join(Environment.NewLine, LogLines);
 
     public string StatusText
     {
@@ -64,10 +67,15 @@ public sealed class RelayConnectionViewModel : INotifyPropertyChanged
         if (disp == null || disp.CheckAccess())
         {
             LogLines.Add(msg);
+            OnPropertyChanged(nameof(LogText));
             return;
         }
 
-        disp.BeginInvoke(() => LogLines.Add(msg));
+        disp.BeginInvoke(() =>
+        {
+            LogLines.Add(msg);
+            OnPropertyChanged(nameof(LogText));
+        });
     }
 
     private void OnPropertyChanged([CallerMemberName] string? name = null) =>

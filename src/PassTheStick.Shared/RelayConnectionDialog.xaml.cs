@@ -41,5 +41,18 @@ public partial class RelayConnectionDialog : Window
         Vm.CloseRequested?.Invoke();
         Close();
     }
+
+    private void CopyLogs_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Clipboard.SetText(Vm.LogText ?? string.Empty);
+            Vm.AddLog("Logs copied to clipboard.");
+        }
+        catch
+        {
+            // ignore clipboard failures
+        }
+    }
 }
 

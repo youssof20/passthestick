@@ -32,18 +32,22 @@
         </Border>
 
         <Border Grid.Row="3" Background="#0D0D0D" CornerRadius="6" Padding="8" Margin="0,0,0,12">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <ItemsControl ItemsSource="{Binding LogLines, Mode=OneWay}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding}" Foreground="#DDD" FontFamily="Consolas" FontSize="12" TextWrapping="Wrap"/>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
+            <TextBox Text="{Binding LogText, Mode=OneWay}"
+                     Background="#0D0D0D"
+                     Foreground="#DDD"
+                     BorderThickness="0"
+                     FontFamily="Consolas"
+                     FontSize="12"
+                     IsReadOnly="True"
+                     IsReadOnlyCaretVisible="True"
+                     AcceptsReturn="True"
+                     TextWrapping="Wrap"
+                     VerticalScrollBarVisibility="Auto"
+                     HorizontalScrollBarVisibility="Auto"/>
         </Border>
 
         <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Copy logs" Width="110" Margin="0,0,8,0" Click="CopyLogs_Click"/>
             <Button Content="Start relay server" Width="140" Margin="0,0,8,0"
                     Click="StartRelay_Click" IsEnabled="{Binding CanClickButtons, Mode=OneWay}"/>
             <Button Content="Retry" Width="90" Margin="0,0,8,0" Click="Retry_Click" IsEnabled="{Binding CanClickButtons, Mode=OneWay}"/>
