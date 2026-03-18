@@ -11,7 +11,10 @@
         ShowInTaskbar="False"
         ResizeMode="NoResize"
         MouseLeftButtonDown="OverlayWindow_MouseLeftButtonDown">
-    <Border x:Name="PillBorder" CornerRadius="18" Background="#E6000000" Padding="16,6" HorizontalAlignment="Left" VerticalAlignment="Top">
-        <TextBlock x:Name="PlayerNameText" Text="Host" Foreground="White" FontSize="14" VerticalAlignment="Center"/>
+    <Border x:Name="PillBorder" CornerRadius="18" Background="#E6000000" Padding="12,6" HorizontalAlignment="Left" VerticalAlignment="Top">
+        <StackPanel>
+            <TextBlock x:Name="PlayerNameText" Text="Host" Foreground="White" FontSize="14" VerticalAlignment="Center"/>
+            <TextBlock x:Name="BannerText" Text="" Foreground="#CCFFFFFF" FontSize="11" Margin="0,2,0,0" Visibility="Collapsed"/>
+        </StackPanel>
     </Border>
 </Window>

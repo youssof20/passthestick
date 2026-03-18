@@ -32,40 +32,63 @@ public partial class MainWindow : Window
         }
         JoinButton.IsEnabled = false;
         StatusText.Text = "Connecting…";
-        try
+        while (true)
         {
-            _relay = new RelayClient();
-            _relay.YouHaveItReceived += () =>
+            try
             {
-                _haveStick = true;
-                Dispatcher.Invoke(() => StatusText.Text = "You have the stick!");
-            };
-            _relay.Disconnected += _ =>
-            {
-                _haveStick = false;
-                Dispatcher.Invoke(() => { StatusText.Text = "Disconnected."; JoinButton.IsEnabled = true; });
-            };
-            _relay.Error += msg => Dispatcher.Invoke(() => StatusText.Text = "Error: " + msg);
-            await _relay.ConnectAsync();
-            await _relay.JoinRoomAsync(code, name);
-            _keyboardCapture = new KeyboardCapture(
-                () => _haveStick,
-                async (vk, sc, down) =>
+                _relay = new RelayClient();
+                _relay.YouHaveItReceived += () =>
                 {
-                    if (_relay?.IsConnected == true)
-                        await _relay.SendKeyEventAsync(vk, sc, down);
-                });
-            _keyboardCapture.Install();
-            _controllerCapture = new ControllerCapture(
-                () => _haveStick,
-                async msg => { if (_relay?.IsConnected == true) await _relay.SendPadStateAsync(msg); });
-            _controllerCapture.Start();
-            StatusText.Text = "Joined. Wait for the host to pass you the stick.";
-        }
-        catch (Exception ex)
-        {
-            StatusText.Text = "Failed: " + ex.Message;
-            JoinButton.IsEnabled = true;
+                    _haveStick = true;
+                    Dispatcher.Invoke(() => StatusText.Text = "You have the stick!");
+                };
+                _relay.Disconnected += _ =>
+                {
+                    _haveStick = false;
+                    Dispatcher.Invoke(() => { StatusText.Text = "Connection lost."; JoinButton.IsEnabled = true; });
+                };
+                await _relay.ConnectAsync();
+                await _relay.JoinRoomAsync(code, name);
+                _keyboardCapture = new KeyboardCapture(
+                    () => _haveStick,
+                    async (vk, sc, down) =>
+                    {
+                        if (_relay?.IsConnected == true)
+                            await _relay.SendKeyEventAsync(vk, sc, down);
+                    });
+                _keyboardCapture.Install();
+                _controllerCapture = new ControllerCapture(
+                    () => _haveStick,
+                    async msg => { if (_relay?.IsConnected == true) await _relay.SendPadStateAsync(msg); });
+                _controllerCapture.Start();
+                StatusText.Text = "Joined. Wait for the host to pass you the stick.";
+                break;
+            }
+            catch
+            {
+                var dlg = new RelayConnectionDialog { Owner = this };
+                dlg.ShowDialog();
+                if (dlg.ShouldChangeUrl)
+                {
+                    var input = Microsoft.VisualBasic.Interaction.InputBox(
+                        "Enter relay URL (ws://... or wss://...).",
+                        "PassTheStick",
+                        Constants.RelayWebSocketUrl);
+                    if (!string.IsNullOrWhiteSpace(input))
+                    {
+                        var s = SettingsStore.Load();
+                        s.RelayUrlOverride = input.Trim();
+                        SettingsStore.Save(s);
+                    }
+                }
+
+                if (!dlg.ShouldRetry && !dlg.ShouldChangeUrl)
+                {
+                    StatusText.Text = "Can't reach the relay server.";
+                    JoinButton.IsEnabled = true;
+                    break;
+                }
+            }
         }
     }
 }

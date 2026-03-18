@@ -57,6 +57,26 @@ jobs:
           -p:EnableCompressionInSingleFile=true
           -o publish/app
 
+      - name: Bundle relay runtime (Node + ws)
+        run: |
+          $relayOut = "publish/app/relay"
+          New-Item -ItemType Directory -Force $relayOut | Out-Null
+
+          Copy-Item -Force src/PassTheStick.Relay/server.js $relayOut/
+          Copy-Item -Force src/PassTheStick.Relay/package.json $relayOut/
+
+          Push-Location src/PassTheStick.Relay
+          npm ci --omit=dev
+          Pop-Location
+
+          Copy-Item -Recurse -Force src/PassTheStick.Relay/node_modules $relayOut/
+
+          $nodeZip = "node-win-x64.zip"
+          $nodeUrl = "https://nodejs.org/dist/v22.14.0/node-v22.14.0-win-x64.zip"
+          Invoke-WebRequest -Uri $nodeUrl -OutFile $nodeZip
+          Expand-Archive -Path $nodeZip -DestinationPath node-extract -Force
+          Copy-Item -Force node-extract/node-v22.14.0-win-x64/node.exe $relayOut/node.exe
+
       - name: Package relay
         run: |
           New-Item -ItemType Directory -Force artifacts | Out-Null

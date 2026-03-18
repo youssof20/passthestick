@@ -1,0 +1,38 @@
+<Window x:Class="PassTheStick.Shared.RelayConnectionDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="PassTheStick"
+        Width="520" Height="300"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="Can't reach the relay server."
+                   FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+
+        <TextBlock Grid.Row="1" TextWrapping="Wrap" Foreground="#333">
+            <Run Text="Make sure the relay is running, or check your PTS_RELAY_URL setting."/>
+            <LineBreak/>
+            <LineBreak/>
+            <Run Text="Default address: "/><Run Text="{Binding DefaultWs}" FontWeight="SemiBold"/>
+            <LineBreak/>
+            <LineBreak/>
+            <Run Text="To run the relay locally:"/>
+            <LineBreak/>
+            <Run Text="Open a terminal in src/PassTheStick.Relay and run:"/>
+            <LineBreak/>
+            <Run Text="npm install && node server.js" FontFamily="Consolas"/>
+        </TextBlock>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="Change relay URL" Width="140" Margin="0,0,8,0" Click="Change_Click"/>
+            <Button Content="Retry" Width="90" IsDefault="True" Click="Retry_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>
+

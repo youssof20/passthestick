@@ -2,6 +2,9 @@ namespace PassTheStick.Shared;
 
 public static class Constants
 {
+    public const string DefaultRelayHttp = "http://localhost:8080";
+    public const string DefaultRelayWs = "ws://localhost:8080";
+
     /// <summary>
     /// Relay WebSocket URL. Set PTS_RELAY_URL environment variable for production (e.g. wss://xxx.fly.dev);
     /// defaults to ws://localhost:8080 for local dev.
@@ -10,7 +13,13 @@ public static class Constants
     {
         get
         {
-            var url = Environment.GetEnvironmentVariable("PTS_RELAY_URL")?.Trim() ?? "http://localhost:8080";
+            var settings = SettingsStore.Load();
+            var url =
+                (settings.RelayUrlOverride ?? string.Empty).Trim();
+
+            if (string.IsNullOrEmpty(url))
+                url = Environment.GetEnvironmentVariable("PTS_RELAY_URL")?.Trim() ?? DefaultRelayHttp;
+
             if (url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                 return "wss://" + url.Substring(8);
             if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase))

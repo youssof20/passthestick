@@ -15,6 +15,20 @@ public partial class OverlayWindow : Window
         PlayerNameText.Text = string.IsNullOrEmpty(name) ? "Host" : name;
     }
 
+    public void SetBanner(string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            BannerText.Text = string.Empty;
+            BannerText.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            BannerText.Text = message;
+            BannerText.Visibility = Visibility.Visible;
+        }
+    }
+
     private void OverlayWindow_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.LeftButton == MouseButtonState.Pressed)
