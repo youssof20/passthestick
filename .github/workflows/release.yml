@@ -68,7 +68,7 @@ jobs:
           Copy-Item -Force src/PassTheStick.Relay/package.json $relayOut/
 
           Push-Location src/PassTheStick.Relay
-          npm ci --omit=dev
+          npm install --omit=dev
           Pop-Location
 
           Copy-Item -Recurse -Force src/PassTheStick.Relay/node_modules $relayOut/
