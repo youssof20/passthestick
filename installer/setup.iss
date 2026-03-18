@@ -32,9 +32,9 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
-; Run: dotnet publish Launcher; copy Host and Guest outputs into Launcher publish folder, then run this installer.
-; Or use a single publish\ folder containing PassTheStick.exe, PassTheStick.Host.exe, PassTheStick.Guest.exe and their dependencies.
-Source: "..\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
+; Use a single publish\app\ folder containing PassTheStick.exe, PassTheStick.Host.exe, PassTheStick.Guest.exe
+; and shared self-contained runtime files (so the runtime isn't duplicated per app).
+Source: "..\publish\app\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
