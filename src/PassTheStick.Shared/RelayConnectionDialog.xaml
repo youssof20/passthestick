@@ -22,14 +22,12 @@
             <Run Text="Default address: "/><Run Text="{Binding DefaultWs, Mode=OneWay}" FontWeight="SemiBold"/>
             <LineBreak/>
             <LineBreak/>
-            <Run Text="To run the relay locally:"/>
-            <LineBreak/>
-            <Run Text="Open a terminal in src/PassTheStick.Relay and run:"/>
-            <LineBreak/>
-            <Run Text="npm install &amp;&amp; node server.js" FontFamily="Consolas"/>
+            <Run Text="If you installed PassTheStick, you can start a local relay server from the app."/>
         </TextBlock>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="Start relay server" Width="140" Margin="0,0,8,0"
+                    Click="StartRelay_Click" IsEnabled="{Binding CanStartRelay, Mode=OneWay}"/>
             <Button Content="Change relay URL" Width="140" Margin="0,0,8,0" Click="Change_Click"/>
             <Button Content="Retry" Width="90" IsDefault="True" Click="Retry_Click"/>
         </StackPanel>

@@ -87,7 +87,11 @@ public partial class MainWindow : Window
             }
             catch
             {
-                var dlg = new PassTheStick.Shared.RelayConnectionDialog { Owner = this };
+                var dlg = new PassTheStick.Shared.RelayConnectionDialog
+                {
+                    Owner = this,
+                    StartRelayRequested = StartRelayServerFromTray
+                };
                 dlg.ShowDialog();
                 if (dlg.ShouldChangeUrl)
                 {
@@ -197,7 +201,8 @@ public partial class MainWindow : Window
     {
         try
         {
-            var port = _relayProcess?.StartRelayWithPortFallback(AppContext.BaseDirectory, 8080, 8082) ?? 8080;
+            _relayProcess ??= new RelayProcessManager();
+            var port = _relayProcess.StartRelayWithPortFallback(AppContext.BaseDirectory, 8080, 8082);
             var s = SettingsStore.Load();
             s.RelayUrlOverride = $"ws://localhost:{port}";
             SettingsStore.Save(s);
@@ -206,7 +211,7 @@ public partial class MainWindow : Window
         catch
         {
             System.Windows.MessageBox.Show(
-                "Can't start the relay server.\n\nMake sure PassTheStick was installed with the bundled relay runtime, or run the relay manually:\n\ncd src/PassTheStick.Relay\nnpm install && node server.js",
+                "Can't start the relay server.\n\nMake sure PassTheStick was installed with the bundled relay runtime.",
                 "PassTheStick",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);

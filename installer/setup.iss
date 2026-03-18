@@ -37,6 +37,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 ; Use a single publish\app\ folder containing PassTheStick.exe, PassTheStick.Host.exe, PassTheStick.Guest.exe
 ; and shared self-contained runtime files (so the runtime isn't duplicated per app).
 Source: "..\publish\app\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
+; Explicitly include the bundled relay runtime (produced into publish\app\relay\ by CI).
+Source: "..\publish\app\relay\*"; DestDir: "{app}\relay"; Flags: ignoreversion recursesubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
