@@ -8,11 +8,12 @@ on:
 permissions:
   contents: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   release:
     runs-on: windows-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
     defaults:
       run:
         shell: pwsh
@@ -37,7 +38,6 @@ jobs:
           dotnet publish src/PassTheStick.Launcher/PassTheStick.Launcher.csproj
           -c Release -r win-x64 --self-contained true
           -p:PublishSingleFile=true
-          -p:PublishTrimmed=true
           -p:EnableCompressionInSingleFile=true
           -o publish/launcher
 
@@ -46,7 +46,6 @@ jobs:
           dotnet publish src/PassTheStick.Host/PassTheStick.Host.csproj
           -c Release -r win-x64 --self-contained true
           -p:PublishSingleFile=true
-          -p:PublishTrimmed=true
           -p:EnableCompressionInSingleFile=true
           -o publish/host
 
@@ -55,7 +54,6 @@ jobs:
           dotnet publish src/PassTheStick.Guest/PassTheStick.Guest.csproj
           -c Release -r win-x64 --self-contained true
           -p:PublishSingleFile=true
-          -p:PublishTrimmed=true
           -p:EnableCompressionInSingleFile=true
           -o publish/guest
 
