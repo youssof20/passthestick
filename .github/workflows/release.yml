@@ -1,0 +1,83 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore solution
+        run: dotnet restore PassTheStick.sln
+
+      - name: Build solution
+        run: dotnet build PassTheStick.sln --configuration Release --no-restore
+
+      - name: Publish launcher
+        run: >
+          dotnet publish src/PassTheStick.Launcher/PassTheStick.Launcher.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true
+          -p:PublishTrimmed=true
+          -p:EnableCompressionInSingleFile=true
+          -o publish/launcher
+
+      - name: Publish host
+        run: >
+          dotnet publish src/PassTheStick.Host/PassTheStick.Host.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true
+          -p:PublishTrimmed=true
+          -p:EnableCompressionInSingleFile=true
+          -o publish/host
+
+      - name: Publish guest
+        run: >
+          dotnet publish src/PassTheStick.Guest/PassTheStick.Guest.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true
+          -p:PublishTrimmed=true
+          -p:EnableCompressionInSingleFile=true
+          -o publish/guest
+
+      - name: Package relay
+        run: |
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          $relayFiles = @(
+            "src/PassTheStick.Relay/server.js",
+            "src/PassTheStick.Relay/Dockerfile",
+            "src/PassTheStick.Relay/fly.toml",
+            "src/PassTheStick.Relay/package.json"
+          )
+          Compress-Archive -Path $relayFiles -DestinationPath artifacts/PassTheStick-relay.zip -Force
+
+      - name: Build installer
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer/setup.iss'
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          files: |
+            output/PassTheStick-Setup-*.exe
+            artifacts/PassTheStick-relay.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
