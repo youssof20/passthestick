@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Windows;
 
 namespace PassTheStick.Shared;
 
@@ -56,7 +57,17 @@ public sealed class RelayConnectionViewModel : INotifyPropertyChanged
     public void AddLog(string line)
     {
         var ts = DateTime.Now.ToString("HH:mm:ss");
-        LogLines.Add($"{ts} - {line}");
+        var msg = $"{ts} - {line}";
+
+        // Node stdout/stderr callbacks arrive on background threads; marshal to UI thread.
+        var disp = Application.Current?.Dispatcher;
+        if (disp == null || disp.CheckAccess())
+        {
+            LogLines.Add(msg);
+            return;
+        }
+
+        disp.BeginInvoke(() => LogLines.Add(msg));
     }
 
     private void OnPropertyChanged([CallerMemberName] string? name = null) =>
