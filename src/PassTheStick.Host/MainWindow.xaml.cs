@@ -212,7 +212,6 @@ public partial class MainWindow : Window
         if (_relay == null) return;
         _relay.SendPassStickAsync(p.Id);
         _sessionManager.SetActivePlayer(p.Id);
-        StickToggle.IsChecked = false;
         _overlay?.SetPlayerName(p.Name);
         _overlay?.SetBanner(null);
         StatusText.Text = "Stick passed to " + p.Name;
@@ -307,12 +306,10 @@ public partial class MainWindow : Window
         _tray?.ShowToast("PassTheStick", "Solo test starting…");
         await Task.Delay(TimeSpan.FromSeconds(2));
         _sessionManager.SetActivePlayer("__test__");
-        StickToggle.IsChecked = false;
         _overlay?.SetPlayerName("Test Player");
         _overlay?.SetBanner("Test Player has the stick");
         await Task.Delay(TimeSpan.FromSeconds(5));
         _sessionManager.SetActivePlayer(_sessionManager.LocalPlayerId);
-        StickToggle.IsChecked = true;
         _overlay?.SetPlayerName("Host");
         _overlay?.SetBanner(null);
         _tray?.ShowToast("PassTheStick", "Solo test complete — keyboard blocking and passing both work correctly.");
