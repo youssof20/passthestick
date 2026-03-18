@@ -29,6 +29,9 @@ public sealed class RelayClient : IDisposable
     public async Task ConnectAsync()
     {
         var uri = new Uri(Constants.RelayWebSocketUrl);
+        // Bypass system proxy settings; localhost relay should connect directly.
+        _ws.Options.Proxy = null;
+        _ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(20);
         await _ws.ConnectAsync(uri, _cts.Token);
         MyId = null;
         Connected?.Invoke();

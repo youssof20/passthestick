@@ -285,9 +285,11 @@ public partial class MainWindow : Window
                 _connDialog?.Close();
                 break;
             }
-            catch
+            catch (Exception ex)
             {
-                _connVm.AddLog("Connection failed.");
+                _connVm.AddLog("Connection failed: " + ex.Message);
+                if (ex.InnerException != null)
+                    _connVm.AddLog("Inner: " + ex.InnerException.Message);
                 if (attempt >= 5)
                 {
                     _connVm.StatusText = "Could not connect after 5 attempts.";
