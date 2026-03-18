@@ -16,4 +16,8 @@
     <PackageReference Include="SharpDX.XInput" Version="4.2.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Resource Include="..\..\assets\passthestick.ico" Link="passthestick.ico" />
+  </ItemGroup>
+
 </Project>

@@ -11,4 +11,8 @@
     <RootNamespace>PassTheStick.Launcher</RootNamespace>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Resource Include="..\..\assets\passthestick.ico" Link="passthestick.ico" />
+  </ItemGroup>
+
 </Project>

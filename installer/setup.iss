@@ -4,7 +4,7 @@
 ; Note: relay runtime is bundled under {app}\relay for one-click local sessions.
 
 #define MyAppName "PassTheStick"
-#define AppVersion "0.1.1"
+#define AppVersion "0.1.3"
 #define MyAppPublisher "PassTheStick"
 #define MyAppURL "https://github.com/passthestick/passthestick"
 #define MyAppExeName "PassTheStick.exe"

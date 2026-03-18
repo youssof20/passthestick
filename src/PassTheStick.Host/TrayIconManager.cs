@@ -43,11 +43,18 @@ public sealed class TrayIconManager : IDisposable
         _startRelay = startRelay;
         _stopRelay = stopRelay;
 
+        var iconInfo = System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/passthestick.ico"));
+        if (iconInfo == null)
+            throw new InvalidOperationException("Missing embedded resource: passthestick.ico");
+
+        using var iconStream = iconInfo.Stream;
+        var trayIcon = new System.Drawing.Icon(iconStream);
+
         _notifyIcon = new NotifyIcon
         {
             Visible = true,
             Text = "PassTheStick",
-            Icon = new System.Drawing.Icon(Path.Combine(AppContext.BaseDirectory, "passthestick.ico"))
+            Icon = trayIcon
         };
 
         _notifyIcon.ContextMenuStrip = BuildMenu();
