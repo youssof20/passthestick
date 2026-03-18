@@ -52,32 +52,43 @@ public partial class MainWindow : Window
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
-        _relayProcess = new RelayProcessManager();
-        _tray = new TrayIconManager(
-            _sessionManager,
-            () => _sessionManager.Players,
-            OnPickGuest,
-            () => _gameTracker.PinCurrentForeground(),
-            SoloTestModeAsync,
-            TakeStickBack,
-            ShowConnectionStatus,
-            () => _relayProcess.IsRunning,
-            StartRelayServerFromTray,
-            StopRelayServerFromTray,
-            RequestExit);
+        try
+        {
+            _relayProcess = new RelayProcessManager();
+            _tray = new TrayIconManager(
+                _sessionManager,
+                () => _sessionManager.Players,
+                OnPickGuest,
+                () => _gameTracker.PinCurrentForeground(),
+                SoloTestModeAsync,
+                TakeStickBack,
+                ShowConnectionStatus,
+                () => _relayProcess.IsRunning,
+                StartRelayServerFromTray,
+                StopRelayServerFromTray,
+                RequestExit);
 
-        var helper = new WindowInteropHelper(this);
-        helper.EnsureHandle();
-        _hotkey.Register(helper.Handle);
-        var src = HwndSource.FromHwnd(helper.Handle);
-        src?.AddHook(WndProc);
+            var helper = new WindowInteropHelper(this);
+            helper.EnsureHandle();
+            _hotkey.Register(helper.Handle);
+            var src = HwndSource.FromHwnd(helper.Handle);
+            src?.AddHook(WndProc);
 
-        RoomCodeLabel.Text = "Room code: —";
-        StatusText.Text = "Select and pin your game window to start a session.";
-        PassStickButton.IsEnabled = false;
-        RefreshWindows();
+            RoomCodeLabel.Text = "Room code: —";
+            StatusText.Text = "Select and pin your game window to start a session.";
+            PassStickButton.IsEnabled = false;
+            RefreshWindows();
 
-        await Task.CompletedTask;
+            await Task.CompletedTask;
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                "PassTheStick couldn't start.\n\n" + ex.Message,
+                "PassTheStick",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
     }
 
     private void RequestExit()
@@ -201,22 +212,32 @@ public partial class MainWindow : Window
 
     private async void PinSelectedButton_Click(object sender, RoutedEventArgs e)
     {
-        if (WindowPicker.SelectedItem is not WindowInfo wi)
-        {
-            System.Windows.MessageBox.Show(
-                "Please select a game window first.",
-                "PassTheStick",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-            return;
-        }
-
         try
         {
+            if (WindowPicker.SelectedItem is not WindowInfo wi)
+            {
+                System.Windows.MessageBox.Show(
+                    "Please select a game window first.",
+                    "PassTheStick",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
             _gameTracker.PinWindow(wi.Hwnd);
             PinnedGameLabel.Text = "Game: " + wi.Title;
             StatusText.Text = "Game pinned. Starting session…";
             await EnsureSessionStartedAsync();
+        }
+        catch (TaskCanceledException)
+        {
+            StatusText.Text = "Connection attempt cancelled.";
+            SetRelayIndicator("Not connected — click to view connection status", "#C33");
+        }
+        catch (OperationCanceledException)
+        {
+            StatusText.Text = "Connection attempt cancelled.";
+            SetRelayIndicator("Not connected — click to view connection status", "#C33");
         }
         catch (Exception ex)
         {
@@ -230,76 +251,101 @@ public partial class MainWindow : Window
 
     private async Task EnsureSessionStartedAsync()
     {
-        if (_sessionStarted) return;
-        if (!_gameTracker.IsPinned)
+        try
         {
-            StatusText.Text = "Please pin a game window first.";
-            return;
-        }
-
-        EnsureConnectionDialog();
-        _connVm.RelayUrl = Constants.RelayWebSocketUrl;
-        _connVm.IsConnected = false;
-        _connVm.StatusText = "Connecting…";
-        _connVm.AddLog("Connecting to " + _connVm.RelayUrl);
-        Dispatcher.Invoke(() => SetRelayIndicator("Connecting…", "#D9A200")); // amber
-
-        _connDialog?.Show();
-        _connDialog?.Activate();
-
-        _connectCts ??= new CancellationTokenSource();
-        var ct = _connectCts.Token;
-
-        for (int attempt = 1; attempt <= 5 && !ct.IsCancellationRequested; attempt++)
-        {
-            try
+            if (_sessionStarted) return;
+            if (!_gameTracker.IsPinned)
             {
-                _connVm.StatusText = attempt == 1 ? "Connecting…" : $"Retrying… (attempt {attempt} of 5)";
-                _connVm.AddLog(_connVm.StatusText);
-                _relay = new RelayClient();
-                _relay.PlayerListReceived += OnPlayerList;
-                _relay.PassStickReceived += OnPassStickBroadcast;
-                _relay.KeyEventReceived += OnKeyEvent;
-                _relay.PadStateReceived += OnPadState;
-                _relay.Disconnected += OnDisconnected;
-                await _relay.ConnectAsync();
-                var code = await _relay.CreateRoomAsync();
-                _sessionManager.LocalPlayerId = _relay.MyId;
-                _sessionManager.SetActivePlayer(_relay.MyId);
-
-                _overlay = new OverlayWindow();
-                _overlay.SetPlayerName("Host");
-                _overlay.Show();
-
-                _picker = new PassStickPickerWindow(OnPickGuest);
-                _picker.SetPlayers(_sessionManager.Players);
-
-                RoomCodeLabel.Text = "Room code: " + code;
-                StatusText.Text = "Connected. Use Ctrl+Shift+Right to pass the stick.";
-                _tray?.ShowToast("PassTheStick", "Host session started. Share the room code with friends.");
-                _sessionStarted = true;
-                _connVm.IsConnected = true;
-                _connVm.StatusText = "Connected!";
-                _connVm.AddLog("Connected.");
-                Dispatcher.Invoke(() => SetRelayIndicator("Connected — relay ready", "#2E8B57")); // green
-                _connDialog?.Close();
-                break;
+                StatusText.Text = "Please pin a game window first.";
+                return;
             }
-            catch (Exception ex)
+
+            EnsureConnectionDialog();
+            _connVm.RelayUrl = Constants.RelayWebSocketUrl;
+            _connVm.IsConnected = false;
+            _connVm.StatusText = "Connecting…";
+            _connVm.AddLog("Connecting to " + _connVm.RelayUrl);
+            Dispatcher.Invoke(() => SetRelayIndicator("Connecting…", "#D9A200")); // amber
+
+            _connDialog?.Show();
+            _connDialog?.Activate();
+
+            _connectCts ??= new CancellationTokenSource();
+            var ct = _connectCts.Token;
+
+            for (int attempt = 1; attempt <= 5 && !ct.IsCancellationRequested; attempt++)
             {
-                _connVm.AddLog("Connection failed: " + ex.Message);
-                if (ex.InnerException != null)
-                    _connVm.AddLog("Inner: " + ex.InnerException.Message);
-                if (attempt >= 5)
+                try
                 {
-                    _connVm.StatusText = "Could not connect after 5 attempts.";
-                    StatusText.Text = "Can't reach the relay server.";
-                    Dispatcher.Invoke(() => SetRelayIndicator("Not connected — click to view connection status", "#C33"));
-                    return;
+                    _connVm.StatusText = attempt == 1 ? "Connecting…" : $"Retrying… (attempt {attempt} of 5)";
+                    _connVm.AddLog(_connVm.StatusText);
+                    _relay = new RelayClient();
+                    _relay.PlayerListReceived += OnPlayerList;
+                    _relay.PassStickReceived += OnPassStickBroadcast;
+                    _relay.KeyEventReceived += OnKeyEvent;
+                    _relay.PadStateReceived += OnPadState;
+                    _relay.Disconnected += OnDisconnected;
+                    await _relay.ConnectAsync();
+                    var code = await _relay.CreateRoomAsync();
+                    _sessionManager.LocalPlayerId = _relay.MyId;
+                    _sessionManager.SetActivePlayer(_relay.MyId);
+
+                    _overlay = new OverlayWindow();
+                    _overlay.SetPlayerName("Host");
+                    _overlay.Show();
+
+                    _picker = new PassStickPickerWindow(OnPickGuest);
+                    _picker.SetPlayers(_sessionManager.Players);
+
+                    RoomCodeLabel.Text = "Room code: " + code;
+                    StatusText.Text = "Connected. Use Ctrl+Shift+Right to pass the stick.";
+                    _tray?.ShowToast("PassTheStick", "Host session started. Share the room code with friends.");
+                    _sessionStarted = true;
+                    _connVm.IsConnected = true;
+                    _connVm.StatusText = "Connected!";
+                    _connVm.AddLog("Connected.");
+                    Dispatcher.Invoke(() => SetRelayIndicator("Connected — relay ready", "#2E8B57")); // green
+                    _connDialog?.Close();
+                    break;
                 }
-                _connVm.AddLog("Retrying in 3 seconds…");
-                await Task.Delay(TimeSpan.FromSeconds(3), ct);
+                catch (TaskCanceledException)
+                {
+                    _connVm.AddLog("Connection attempt cancelled.");
+                    throw;
+                }
+                catch (OperationCanceledException)
+                {
+                    _connVm.AddLog("Connection attempt cancelled.");
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    _connVm.AddLog("Connection failed: " + ex.Message);
+                    if (ex.InnerException != null)
+                        _connVm.AddLog("Inner: " + ex.InnerException.Message);
+                    if (attempt >= 5)
+                    {
+                        _connVm.StatusText = "Could not connect after 5 attempts.";
+                        StatusText.Text = "Can't reach the relay server.";
+                        Dispatcher.Invoke(() => SetRelayIndicator("Not connected — click to view connection status", "#C33"));
+                        return;
+                    }
+                    _connVm.AddLog("Retrying in 3 seconds…");
+                    await Task.Delay(TimeSpan.FromSeconds(3), ct);
+                }
             }
+        }
+        catch (TaskCanceledException)
+        {
+            _connVm.StatusText = "Cancelled.";
+            StatusText.Text = "Cancelled.";
+            SetRelayIndicator("Not connected — click to view connection status", "#C33");
+        }
+        catch (OperationCanceledException)
+        {
+            _connVm.StatusText = "Cancelled.";
+            StatusText.Text = "Cancelled.";
+            SetRelayIndicator("Not connected — click to view connection status", "#C33");
         }
     }
 
@@ -434,16 +480,23 @@ public partial class MainWindow : Window
 
     private async void SoloTestModeAsync()
     {
-        _tray?.ShowToast("PassTheStick", "Solo test starting…");
-        await Task.Delay(TimeSpan.FromSeconds(2));
-        _sessionManager.SetActivePlayer("__test__");
-        _overlay?.SetPlayerName("Test Player");
-        _overlay?.SetBanner("Test Player has the stick");
-        await Task.Delay(TimeSpan.FromSeconds(5));
-        _sessionManager.SetActivePlayer(_sessionManager.LocalPlayerId);
-        _overlay?.SetPlayerName("Host");
-        _overlay?.SetBanner(null);
-        _tray?.ShowToast("PassTheStick", "Solo test complete — keyboard blocking and passing both work correctly.");
+        try
+        {
+            _tray?.ShowToast("PassTheStick", "Solo test starting…");
+            await Task.Delay(TimeSpan.FromSeconds(2));
+            _sessionManager.SetActivePlayer("__test__");
+            _overlay?.SetPlayerName("Test Player");
+            _overlay?.SetBanner("Test Player has the stick");
+            await Task.Delay(TimeSpan.FromSeconds(5));
+            _sessionManager.SetActivePlayer(_sessionManager.LocalPlayerId);
+            _overlay?.SetPlayerName("Host");
+            _overlay?.SetBanner(null);
+            _tray?.ShowToast("PassTheStick", "Solo test complete — keyboard blocking and passing both work correctly.");
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = "Solo test failed: " + ex.Message;
+        }
     }
 
     private void StartReconnectLoop()
