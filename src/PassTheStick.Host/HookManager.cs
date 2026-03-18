@@ -10,12 +10,14 @@ public sealed class HookManager : IDisposable
     private const int WH_KEYBOARD_LL = 13;
 
     private readonly SessionManager _sessionManager;
+    private readonly GameWindowTracker _gameWindowTracker;
     private nint _hookId = nint.Zero;
     private readonly LowLevelKeyboardProc _keyboardHookProc; // keep delegate alive for GC
 
-    public HookManager(SessionManager sessionManager)
+    public HookManager(SessionManager sessionManager, GameWindowTracker gameWindowTracker)
     {
         _sessionManager = sessionManager;
+        _gameWindowTracker = gameWindowTracker;
         _keyboardHookProc = KeyboardHookCallback;
     }
 
@@ -45,7 +47,8 @@ public sealed class HookManager : IDisposable
             var kbd = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
             bool isInjected = (kbd.flags & LLKHF_INJECTED) != 0;
 
-            if (!isInjected && !isHostActive)
+            // Never globally suppress the host keyboard: only block while the pinned game is foreground.
+            if (!isInjected && !isHostActive && _gameWindowTracker.IsGameForeground())
                 return (nint)1; // suppress
         }
         return CallNextHookEx(_hookId, nCode, wParam, lParam);

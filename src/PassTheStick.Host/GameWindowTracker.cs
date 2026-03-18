@@ -3,11 +3,14 @@ using System.Runtime.InteropServices;
 namespace PassTheStick.Host;
 
 /// <summary>
-/// Tracks the game window: foreground HWND/PID. Only inject when game is foreground.
+/// Tracks the pinned game window. Used to scope injection and suppression to the game only.
 /// </summary>
 public sealed class GameWindowTracker
 {
+    private nint _gameHwnd;
     private uint _gameProcessId;
+
+    public bool IsPinned => _gameHwnd != nint.Zero && _gameProcessId != 0 && IsWindow(_gameHwnd);
 
     public uint GameProcessId
     {
@@ -15,21 +18,32 @@ public sealed class GameWindowTracker
         set => _gameProcessId = value;
     }
 
+    public nint GameHwnd => _gameHwnd;
+
+    /// <summary>Pin a specific window as the game target.</summary>
+    public void PinWindow(nint hwnd)
+    {
+        if (hwnd == nint.Zero || !IsWindow(hwnd))
+            throw new InvalidOperationException("Selected window is no longer available.");
+
+        GetWindowThreadProcessId(hwnd, out uint pid);
+        _gameHwnd = hwnd;
+        _gameProcessId = pid;
+    }
+
     /// <summary>Set the current foreground window as the game target.</summary>
     public void PinCurrentForeground()
     {
         var fg = GetForegroundWindow();
-        GetWindowThreadProcessId(fg, out uint pid);
-        _gameProcessId = pid;
+        PinWindow(fg);
     }
 
-    /// <summary>True if the foreground window belongs to the pinned game process.</summary>
+    /// <summary>True if the pinned game window is currently foreground.</summary>
     public bool IsGameForeground()
     {
-        if (_gameProcessId == 0) return true; // no game pinned, allow inject anyway for testing
+        if (!IsPinned) return false;
         var fg = GetForegroundWindow();
-        GetWindowThreadProcessId(fg, out uint fgPid);
-        return fgPid == _gameProcessId;
+        return fg == _gameHwnd;
     }
 
     [DllImport("user32.dll")]
@@ -37,4 +51,7 @@ public sealed class GameWindowTracker
 
     [DllImport("user32.dll")]
     private static extern uint GetWindowThreadProcessId(nint hWnd, out uint lpdwProcessId);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindow(nint hWnd);
 }

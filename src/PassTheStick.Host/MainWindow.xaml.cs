@@ -20,16 +20,15 @@ public partial class MainWindow : Window
     private TrayIconManager? _tray;
     private RelayProcessManager? _relayProcess;
     private CancellationTokenSource? _reconnectCts;
+    private bool _sessionStarted;
 
     public MainWindow()
     {
         InitializeComponent();
         _sessionManager = new SessionManager();
-        _hookManager = new HookManager(_sessionManager);
         _gameTracker = new GameWindowTracker();
+        _hookManager = new HookManager(_sessionManager, _gameTracker);
         _hookManager.Install();
-        StickToggle.Checked += (_, _) => _sessionManager.SetActivePlayer(_sessionManager.LocalPlayerId);
-        StickToggle.Unchecked += (_, _) => _sessionManager.SetActivePlayer("__remote__");
         Closed += (_, _) =>
         {
             _reconnectCts?.Cancel();
@@ -47,12 +46,93 @@ public partial class MainWindow : Window
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
+        _relayProcess = new RelayProcessManager();
+        _tray = new TrayIconManager(
+            _sessionManager,
+            () => _sessionManager.Players,
+            OnPickGuest,
+            () => _gameTracker.PinCurrentForeground(),
+            SoloTestModeAsync,
+            () => _relayProcess.IsRunning,
+            StartRelayServerFromTray,
+            StopRelayServerFromTray);
+
+        var helper = new WindowInteropHelper(this);
+        helper.EnsureHandle();
+        _hotkey.Register(helper.Handle);
+        var src = HwndSource.FromHwnd(helper.Handle);
+        src?.AddHook(WndProc);
+
+        RoomCodeLabel.Text = "Room code: —";
+        StatusText.Text = "Select and pin your game window to start a session.";
+        PassStickButton.IsEnabled = false;
+        RefreshWindows();
+
+        await Task.CompletedTask;
+    }
+
+    private void RefreshWindows()
+    {
+        try
+        {
+            var items = WindowEnumerator.GetCandidateWindows();
+            WindowPicker.ItemsSource = items;
+            if (items.Count > 0)
+                WindowPicker.SelectedIndex = 0;
+        }
+        catch
+        {
+            WindowPicker.ItemsSource = Array.Empty<WindowInfo>();
+        }
+    }
+
+    private void RefreshWindowsButton_Click(object sender, RoutedEventArgs e) => RefreshWindows();
+
+    private async void PinSelectedButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (WindowPicker.SelectedItem is not WindowInfo wi)
+        {
+            System.Windows.MessageBox.Show(
+                "Please select a game window first.",
+                "PassTheStick",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            _gameTracker.PinWindow(wi.Hwnd);
+            PinnedGameLabel.Text = "Game: " + wi.Title;
+            StatusText.Text = "Game pinned. Starting session…";
+            await EnsureSessionStartedAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                "Couldn't pin that window.\n\n" + ex.Message,
+                "PassTheStick",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+    }
+
+    private async Task EnsureSessionStartedAsync()
+    {
+        if (_sessionStarted) return;
+        if (!_gameTracker.IsPinned)
+        {
+            StatusText.Text = "Please pin a game window first.";
+            return;
+        }
+
         while (true)
         {
             try
             {
                 _relay = new RelayClient();
                 _relay.PlayerListReceived += OnPlayerList;
+                _relay.PassStickReceived += OnPassStickBroadcast;
                 _relay.KeyEventReceived += OnKeyEvent;
                 _relay.PadStateReceived += OnPadState;
                 _relay.Disconnected += OnDisconnected;
@@ -60,29 +140,18 @@ public partial class MainWindow : Window
                 var code = await _relay.CreateRoomAsync();
                 _sessionManager.LocalPlayerId = _relay.MyId;
                 _sessionManager.SetActivePlayer(_relay.MyId);
-                RoomCodeLabel.Text = "Room code: " + code;
-                StatusText.Text = "Connected. Pin your game window. Use Ctrl+Shift+Right to pass the stick.";
+
                 _overlay = new OverlayWindow();
                 _overlay.SetPlayerName("Host");
                 _overlay.Show();
+
                 _picker = new PassStickPickerWindow(OnPickGuest);
                 _picker.SetPlayers(_sessionManager.Players);
-                _relayProcess = new RelayProcessManager();
-                _tray = new TrayIconManager(
-                    _sessionManager,
-                    () => _sessionManager.Players,
-                    OnPickGuest,
-                    () => _gameTracker.PinCurrentForeground(),
-                    SoloTestModeAsync,
-                    () => _relayProcess.IsRunning,
-                    StartRelayServerFromTray,
-                    StopRelayServerFromTray);
-                _tray.ShowToast("PassTheStick", "Host session started. Share the room code with friends.");
-                var helper = new WindowInteropHelper(this);
-                helper.EnsureHandle();
-                _hotkey.Register(helper.Handle);
-                var src = HwndSource.FromHwnd(helper.Handle);
-                src?.AddHook(WndProc);
+
+                RoomCodeLabel.Text = "Room code: " + code;
+                StatusText.Text = "Connected. Use Ctrl+Shift+Right to pass the stick.";
+                _tray?.ShowToast("PassTheStick", "Host session started. Share the room code with friends.");
+                _sessionStarted = true;
                 break;
             }
             catch
@@ -113,6 +182,15 @@ public partial class MainWindow : Window
                 }
             }
         }
+    }
+
+    private void OnPassStickBroadcast(string toId)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            _sessionManager.SetActivePlayer(toId);
+            UpdateOverlayName();
+        });
     }
 
     private nint WndProc(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)
@@ -147,7 +225,7 @@ public partial class MainWindow : Window
             _sessionManager.UpdatePlayers(players);
             PlayersList.ItemsSource = null;
             PlayersList.ItemsSource = _sessionManager.Players;
-            PassStickButton.IsEnabled = _sessionManager.Players.Count > 0;
+            PassStickButton.IsEnabled = _sessionStarted && _gameTracker.IsPinned && _sessionManager.Players.Count > 0;
             _picker?.SetPlayers(_sessionManager.Players);
             UpdateOverlayName();
         });
@@ -255,6 +333,7 @@ public partial class MainWindow : Window
                     _relay?.Dispose();
                     _relay = new RelayClient();
                     _relay.PlayerListReceived += OnPlayerList;
+                    _relay.PassStickReceived += OnPassStickBroadcast;
                     _relay.KeyEventReceived += OnKeyEvent;
                     _relay.PadStateReceived += OnPadState;
                     _relay.Disconnected += OnDisconnected;
@@ -281,21 +360,20 @@ public partial class MainWindow : Window
         }, ct);
     }
 
-    private void PinGameButton_Click(object sender, RoutedEventArgs e)
-    {
-        _gameTracker.PinCurrentForeground();
-        StatusText.Text = "Game window pinned. Focus the game and pass the stick to test.";
-            if (!ElevationHelper.IsRunningAsAdmin())
-            {
-                _tray?.ShowToast(
-                    "PassTheStick",
-                    "This game may need PassTheStick to run as administrator. Right-click the app and choose Run as administrator.");
-            }
-    }
-
     private void PassStickButton_Click(object sender, RoutedEventArgs e)
     {
-        if (PlayersList.SelectedItem is not PlayerInfo p || _relay == null) return;
+        if (!_sessionStarted || _relay == null)
+            return;
+        if (!_gameTracker.IsPinned)
+        {
+            System.Windows.MessageBox.Show(
+                "Please pin a game window first.",
+                "PassTheStick",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+        if (PlayersList.SelectedItem is not PlayerInfo p) return;
         OnPickGuest(p);
     }
 }

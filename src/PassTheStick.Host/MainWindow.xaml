@@ -6,12 +6,24 @@
         Height="340" Width="380"
         WindowStartupLocation="CenterScreen">
     <StackPanel Margin="16">
-        <CheckBox x:Name="StickToggle" Content="I have the stick (local test)" IsChecked="True"
-                  FontSize="14" Margin="0,0,0,8"/>
         <TextBlock x:Name="RoomCodeLabel" Text="Room code: —" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-        <Button x:Name="PinGameButton" Content="Pin current window as game" Click="PinGameButton_Click" Margin="0,0,0,8"/>
+
+        <TextBlock Text="Select your game window:" Margin="0,0,0,4"/>
+        <DockPanel Margin="0,0,0,8">
+            <Button x:Name="RefreshWindowsButton" Content="Refresh" DockPanel.Dock="Right" Width="80" Margin="8,0,0,0"
+                    Click="RefreshWindowsButton_Click"/>
+            <ComboBox x:Name="WindowPicker"
+                      Height="26"
+                      IsEditable="False"
+                      DisplayMemberPath="Display"
+                      SelectedValuePath="Hwnd"/>
+        </DockPanel>
+
+        <Button x:Name="PinSelectedButton" Content="Pin selected window" Click="PinSelectedButton_Click" Margin="0,0,0,4"/>
+        <TextBlock x:Name="PinnedGameLabel" Text="Game: (not pinned)" Foreground="#666" FontSize="12" Margin="0,0,0,8"/>
+
         <TextBlock Text="Pass stick to:" Margin="0,8,0,4"/>
-        <ListBox x:Name="PlayersList" Height="100" Margin="0,0,0,8"/>
+        <ListBox x:Name="PlayersList" Height="100" Margin="0,0,0,8" DisplayMemberPath="Name"/>
         <Button x:Name="PassStickButton" Content="Pass stick to selected" Click="PassStickButton_Click" IsEnabled="False"/>
         <TextBlock x:Name="StatusText" Text="" Foreground="#666" FontSize="12" Margin="0,12,0,0" TextWrapping="Wrap"/>
     </StackPanel>

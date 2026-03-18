@@ -42,6 +42,19 @@ public partial class MainWindow : Window
                     _haveStick = true;
                     Dispatcher.Invoke(() => StatusText.Text = "You have the stick!");
                 };
+                _relay.PassStickReceived += toId =>
+                {
+                    // Relay broadcasts PASS_STICK to everyone; clear stick UI when it moves away.
+                    var mine = _relay?.MyId;
+                    var nowHaveStick = !string.IsNullOrEmpty(mine) && string.Equals(toId, mine, StringComparison.Ordinal);
+                    _haveStick = nowHaveStick;
+                    Dispatcher.Invoke(() =>
+                    {
+                        StatusText.Text = nowHaveStick
+                            ? "You have the stick!"
+                            : "Joined. Wait for the host to pass you the stick.";
+                    });
+                };
                 _relay.Disconnected += _ =>
                 {
                     _haveStick = false;
