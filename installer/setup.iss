@@ -1,6 +1,7 @@
 ; PassTheStick installer - Inno Setup
 ; Optional components: ViGEmBus, HidHide (install separately or bundle installers)
 ; Install Host + Guest + Launcher to one folder.
+; Note: relay runtime is bundled under {app}\relay for one-click local sessions.
 
 #define MyAppName "PassTheStick"
 #define MyAppVersion "0.1.0"

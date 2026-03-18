@@ -26,7 +26,7 @@
             <LineBreak/>
             <Run Text="Open a terminal in src/PassTheStick.Relay and run:"/>
             <LineBreak/>
-            <Run Text="npm install && node server.js" FontFamily="Consolas"/>
+            <Run Text="npm install &amp;&amp; node server.js" FontFamily="Consolas"/>
         </TextBlock>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">

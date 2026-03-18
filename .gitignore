@@ -22,5 +22,5 @@ Desktop.ini
 *.tmp
 *.log
 
-# Local icon drop (source file is stored in assets/)
+# Local icon drop (source is stored in assets/)
 logo (1).png
