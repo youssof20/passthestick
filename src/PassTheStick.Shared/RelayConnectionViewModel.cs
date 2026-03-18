@@ -13,6 +13,7 @@ public sealed class RelayConnectionViewModel : INotifyPropertyChanged
     private bool _isBusy;
     private bool _isUrlEditorOpen;
     private string _relayUrl = Constants.RelayWebSocketUrl;
+    private bool _showAdvanced;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -48,6 +49,12 @@ public sealed class RelayConnectionViewModel : INotifyPropertyChanged
     {
         get => _relayUrl;
         set { _relayUrl = value; OnPropertyChanged(); }
+    }
+
+    public bool ShowAdvanced
+    {
+        get => _showAdvanced;
+        set { _showAdvanced = value; OnPropertyChanged(); }
     }
 
     public bool CanClickButtons => !IsBusy;

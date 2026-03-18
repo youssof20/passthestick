@@ -34,8 +34,7 @@ Take turns controlling a single-player game on one person's PC. Everyone watches
 
 1. Launch PassTheStick — it lives in your system tray
 2. If prompted, restart as administrator
-3. Focus your game window and click **"Pin current window as game"** in the tray
-4. If you're running locally, click **"Start relay server"** in the tray (recommended for first-time setup)
+3. Select your game window and click **Pin selected window**
 4. Share the **room code** with friends (e.g. `WOLF`)
 5. Press **Ctrl+Shift+→** to open the pass-stick menu and choose a guest
 
@@ -69,33 +68,19 @@ A small always-on-top widget shows whose turn it is. Draggable. Hideable.
 
 ## Relay server
 
-PassTheStick uses a lightweight WebSocket relay to route input between players. A free instance runs on [Fly.io](https://fly.io).
+PassTheStick uses a lightweight WebSocket relay to route input between players.
 
-### Run your own relay (local dev)
-
-```bash
-cd src/PassTheStick.Relay
-npm install
-node server.js
-```
-
-Clients connect to `ws://localhost:8080` by default.
+**No setup is required.** A free cloud relay is used automatically by default.
 
 ### Use a custom relay URL
 
 Set the environment variable before launching:
 
 ```
-PTS_RELAY_URL=wss://your-app.fly.dev
+PTS_RELAY_URL=wss://your-server
 ```
 
-### Deploy to Fly.io (free tier)
-
-```bash
-cd src/PassTheStick.Relay
-fly launch
-fly deploy
-```
+If you want to self-host (optional), point `PTS_RELAY_URL` at your relay.
 
 ---
 

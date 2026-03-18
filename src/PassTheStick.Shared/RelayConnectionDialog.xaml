@@ -5,6 +5,9 @@
         Width="620" Height="420"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Window.Resources>
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -48,8 +51,15 @@
 
         <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="Copy logs" Width="110" Margin="0,0,8,0" Click="CopyLogs_Click"/>
-            <Button Content="Start relay server" Width="140" Margin="0,0,8,0"
-                    Click="StartRelay_Click" IsEnabled="{Binding CanClickButtons, Mode=OneWay}"/>
+            <Expander Header="Advanced" Margin="0,0,8,0" IsExpanded="False" VerticalAlignment="Center"
+                      Visibility="{Binding ShowAdvanced, Mode=OneWay, Converter={StaticResource BoolToVis}}">
+                <StackPanel Margin="0,8,0,0">
+                    <TextBlock Text="If the cloud relay is waking up, it can take 30–60 seconds. Keep retrying first."
+                               Foreground="#666" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <Button Content="Start local relay server" Width="160"
+                            Click="StartRelay_Click" IsEnabled="{Binding CanClickButtons, Mode=OneWay}"/>
+                </StackPanel>
+            </Expander>
             <Button Content="Retry" Width="90" Margin="0,0,8,0" Click="Retry_Click" IsEnabled="{Binding CanClickButtons, Mode=OneWay}"/>
             <Button Content="Close" Width="90" Click="Close_Click"/>
         </StackPanel>

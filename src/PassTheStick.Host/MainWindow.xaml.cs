@@ -263,6 +263,7 @@ public partial class MainWindow : Window
             EnsureConnectionDialog();
             _connVm.RelayUrl = Constants.RelayWebSocketUrl;
             _connVm.IsConnected = false;
+            _connVm.ShowAdvanced = false;
             _connVm.StatusText = "Connecting…";
             _connVm.AddLog("Connecting to " + _connVm.RelayUrl);
             Dispatcher.Invoke(() => SetRelayIndicator("Connecting…", "#D9A200")); // amber
@@ -273,40 +274,48 @@ public partial class MainWindow : Window
             _connectCts ??= new CancellationTokenSource();
             var ct = _connectCts.Token;
 
+            // Cloud relay (Render) can sleep; treat initial failures as "waking up" and retry.
+            var cloudUrl = Constants.DefaultCloudRelayWs;
+            bool isCloud = string.Equals(_connVm.RelayUrl.Trim(), cloudUrl, StringComparison.OrdinalIgnoreCase);
+
+            if (isCloud)
+            {
+                // Up to 2 minutes, retry every 10 seconds with countdown.
+                var deadline = DateTime.UtcNow.AddMinutes(2);
+                int attempt = 0;
+                while (DateTime.UtcNow < deadline && !ct.IsCancellationRequested)
+                {
+                    attempt++;
+                    var remaining = (int)Math.Ceiling((deadline - DateTime.UtcNow).TotalSeconds);
+                    _connVm.StatusText = "Relay is waking up…";
+                    _connVm.AddLog($"Connecting… (cloud wakeup attempt {attempt})");
+                    if (await TryConnectOnceAsync())
+                        return;
+
+                    // Countdown to next retry
+                    for (int s = 10; s >= 1 && !ct.IsCancellationRequested; s--)
+                    {
+                        _connVm.StatusText = $"Relay is waking up… retrying in {s}s (up to {remaining}s)";
+                        await Task.Delay(TimeSpan.FromSeconds(1), ct);
+                    }
+                }
+
+                _connVm.AddLog("Cloud relay still unreachable after 2 minutes.");
+                _connVm.ShowAdvanced = true;
+                _connVm.StatusText = "Could not reach the relay server.";
+                StatusText.Text = "Can't reach the relay server.";
+                Dispatcher.Invoke(() => SetRelayIndicator("Not connected — click to view connection status", "#C33"));
+                return;
+            }
+
             for (int attempt = 1; attempt <= 5 && !ct.IsCancellationRequested; attempt++)
             {
                 try
                 {
                     _connVm.StatusText = attempt == 1 ? "Connecting…" : $"Retrying… (attempt {attempt} of 5)";
                     _connVm.AddLog(_connVm.StatusText);
-                    _relay = new RelayClient();
-                    _relay.PlayerListReceived += OnPlayerList;
-                    _relay.PassStickReceived += OnPassStickBroadcast;
-                    _relay.KeyEventReceived += OnKeyEvent;
-                    _relay.PadStateReceived += OnPadState;
-                    _relay.Disconnected += OnDisconnected;
-                    await _relay.ConnectAsync();
-                    var code = await _relay.CreateRoomAsync();
-                    _sessionManager.LocalPlayerId = _relay.MyId;
-                    _sessionManager.SetActivePlayer(_relay.MyId);
-
-                    _overlay = new OverlayWindow();
-                    _overlay.SetPlayerName("Host");
-                    _overlay.Show();
-
-                    _picker = new PassStickPickerWindow(OnPickGuest);
-                    _picker.SetPlayers(_sessionManager.Players);
-
-                    RoomCodeLabel.Text = "Room code: " + code;
-                    StatusText.Text = "Connected. Use Ctrl+Shift+Right to pass the stick.";
-                    _tray?.ShowToast("PassTheStick", "Host session started. Share the room code with friends.");
-                    _sessionStarted = true;
-                    _connVm.IsConnected = true;
-                    _connVm.StatusText = "Connected!";
-                    _connVm.AddLog("Connected.");
-                    Dispatcher.Invoke(() => SetRelayIndicator("Connected — relay ready", "#2E8B57")); // green
-                    _connDialog?.Close();
-                    break;
+                    if (await TryConnectOnceAsync())
+                        return;
                 }
                 catch (TaskCanceledException)
                 {
@@ -346,6 +355,38 @@ public partial class MainWindow : Window
             _connVm.StatusText = "Cancelled.";
             StatusText.Text = "Cancelled.";
             SetRelayIndicator("Not connected — click to view connection status", "#C33");
+        }
+
+        async Task<bool> TryConnectOnceAsync()
+        {
+            _relay = new RelayClient();
+            _relay.PlayerListReceived += OnPlayerList;
+            _relay.PassStickReceived += OnPassStickBroadcast;
+            _relay.KeyEventReceived += OnKeyEvent;
+            _relay.PadStateReceived += OnPadState;
+            _relay.Disconnected += OnDisconnected;
+            await _relay.ConnectAsync();
+            var code = await _relay.CreateRoomAsync();
+            _sessionManager.LocalPlayerId = _relay.MyId;
+            _sessionManager.SetActivePlayer(_relay.MyId);
+
+            _overlay = new OverlayWindow();
+            _overlay.SetPlayerName("Host");
+            _overlay.Show();
+
+            _picker = new PassStickPickerWindow(OnPickGuest);
+            _picker.SetPlayers(_sessionManager.Players);
+
+            RoomCodeLabel.Text = "Room code: " + code;
+            StatusText.Text = "Connected. Use Ctrl+Shift+Right to pass the stick.";
+            _tray?.ShowToast("PassTheStick", "Host session started. Share the room code with friends.");
+            _sessionStarted = true;
+            _connVm.IsConnected = true;
+            _connVm.StatusText = "Connected!";
+            _connVm.AddLog("Connected.");
+            Dispatcher.Invoke(() => SetRelayIndicator("Connected — relay ready", "#2E8B57")); // green
+            _connDialog?.Close();
+            return true;
         }
     }
 
