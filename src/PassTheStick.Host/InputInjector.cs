@@ -39,9 +39,19 @@ public static class InputInjector
 
         var result = SendInput(1, inputs, Marshal.SizeOf<INPUT>());
         if (result > 0)
+        {
             InputDebugLog.Log($"SendInput result: {result} (success)");
+        }
         else
-            InputDebugLog.Log($"SendInput result: {result} ERROR: {Marshal.GetLastWin32Error()}");
+        {
+            var err = Marshal.GetLastWin32Error();
+            InputDebugLog.Log($"SendInput result: {result} ERROR: {err}");
+
+            if (err == 5)
+                InputDebugLog.Log("SendInput FAILED: Access denied/elevation mismatch (error 5). Run PassTheStick as administrator.");
+            else if (err == 6)
+                InputDebugLog.Log("SendInput FAILED: Invalid handle (error 6). Game window handle may be invalid.");
+        }
     }
 
     [StructLayout(LayoutKind.Sequential)]

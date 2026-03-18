@@ -9,6 +9,12 @@ public sealed class RelayClient : IDisposable
     private readonly ClientWebSocket _ws = new();
     private readonly CancellationTokenSource _cts = new();
     private Task? _receiveTask;
+    private CancellationTokenSource? _heartbeatCts;
+    private Task? _heartbeatTask;
+    private bool _disconnectNotified;
+    private string? _forcedDisconnectReason;
+    private long _lastPongTs;
+    private long _lastPingTs;
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
     public bool IsHost { get; private set; }
@@ -25,6 +31,9 @@ public sealed class RelayClient : IDisposable
     public event Action<string>? PassStickReceived;
     public event Action<KeyEventMessage>? KeyEventReceived;
     public event Action<PadStateMessage>? PadStateReceived;
+    public event Action<string>? SessionEnded;
+    public event Action<int>? LatencyUpdatedMs;
+    public event Action<string>? HostRejoined;
 
     public async Task ConnectAsync()
     {
@@ -32,10 +41,15 @@ public sealed class RelayClient : IDisposable
         // Bypass system proxy settings; localhost relay should connect directly.
         _ws.Options.Proxy = null;
         _ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(20);
+        _disconnectNotified = false;
+        _forcedDisconnectReason = null;
+        _lastPingTs = 0;
+        _lastPongTs = 0;
         await _ws.ConnectAsync(uri, _cts.Token);
         MyId = null;
         Connected?.Invoke();
         _receiveTask = ReceiveLoopAsync();
+        StartHeartbeatLoop();
     }
 
     public async Task<string> CreateRoomAsync()
@@ -51,6 +65,25 @@ public sealed class RelayClient : IDisposable
         RoomCode = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         IsHost = true;
         return RoomCode;
+    }
+
+    public async Task<string> RejoinHostAsync(string roomCode)
+    {
+        RoomCode = roomCode;
+        IsHost = true;
+
+        var tcs = new TaskCompletionSource<string>();
+        void OnRejoined(string rc)
+        {
+            HostRejoined -= OnRejoined;
+            tcs.TrySetResult(rc);
+        }
+        HostRejoined += OnRejoined;
+
+        await SendAsync(new HostRejoinMessage("HOST_REJOIN", roomCode));
+
+        var ok = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        return ok;
     }
 
     public async Task JoinRoomAsync(string roomCode, string name)
@@ -108,7 +141,11 @@ public sealed class RelayClient : IDisposable
         }
         finally
         {
-            Disconnected?.Invoke(_ws.CloseStatusDescription ?? "Connection closed");
+            if (!_disconnectNotified)
+            {
+                _disconnectNotified = true;
+                Disconnected?.Invoke(_forcedDisconnectReason ?? _ws.CloseStatusDescription ?? "Connection closed");
+            }
         }
     }
 
@@ -151,13 +188,36 @@ public sealed class RelayClient : IDisposable
                     var ke = JsonSerializer.Deserialize<KeyEventMessage>(json, JsonOptions);
                     if (ke != null)
                     {
-                        InputDebugLog.Log($"KEY_EVENT received: vk={ke.Vk} sc={ke.Sc} down={ke.Down}");
+                        InputDebugLog.Log($"KEY_EVENT received fromId={ke.FromId}: vk={ke.Vk} sc={ke.Sc} down={ke.Down}");
                         KeyEventReceived?.Invoke(ke);
                     }
                     break;
                 case "PAD_STATE":
                     var ps = JsonSerializer.Deserialize<PadStateMessage>(json, JsonOptions);
                     if (ps != null) PadStateReceived?.Invoke(ps);
+                    break;
+                case "PONG":
+                    var pong = JsonSerializer.Deserialize<PongMessage>(json, JsonOptions);
+                    if (pong != null)
+                    {
+                        _lastPongTs = pong.Ts;
+                        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                        var latency = (int)(now - pong.Ts);
+                        LatencyUpdatedMs?.Invoke(latency);
+                    }
+                    break;
+                case "SESSION_ENDED":
+                    var ended = JsonSerializer.Deserialize<SessionEndedMessage>(json, JsonOptions);
+                    if (ended != null)
+                        SessionEnded?.Invoke(ended.Reason);
+                    break;
+                case "REJOINED":
+                    if (root.TryGetProperty("roomCode", out var reRoomCodeEl))
+                        RoomCode = reRoomCodeEl.GetString();
+                    if (root.TryGetProperty("id", out var idEl))
+                        MyId = idEl.GetString();
+                    IsHost = true;
+                    HostRejoined?.Invoke(RoomCode ?? "");
                     break;
                 case "ERROR":
                     if (root.TryGetProperty("msg", out var msg))
@@ -171,9 +231,57 @@ public sealed class RelayClient : IDisposable
         }
     }
 
+    private void StartHeartbeatLoop()
+    {
+        _heartbeatCts?.Cancel();
+        _heartbeatCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
+
+        _heartbeatTask = Task.Run(async () =>
+        {
+            try
+            {
+                while (!_heartbeatCts!.IsCancellationRequested && _ws.State == WebSocketState.Open)
+                {
+                    _lastPingTs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                    await SendAsync(new PingMessage("PING", _lastPingTs));
+
+                    var deadline = DateTime.UtcNow.AddSeconds(5);
+                    while (DateTime.UtcNow < deadline && !_heartbeatCts.IsCancellationRequested)
+                    {
+                        if (_lastPongTs == _lastPingTs && _lastPongTs != 0)
+                            break;
+                        await Task.Delay(200, _heartbeatCts.Token);
+                    }
+
+                    if (_lastPongTs != _lastPingTs || _lastPongTs == 0)
+                    {
+                        _forcedDisconnectReason = "[heartbeat] Connection lost — reconnecting...";
+                        _disconnectNotified = true; // prevent ReceiveLoop double invoke
+                        try { _ws.Abort(); } catch { }
+                        Disconnected?.Invoke(_forcedDisconnectReason);
+                        return;
+                    }
+
+                    await Task.Delay(TimeSpan.FromSeconds(20), _heartbeatCts.Token);
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                _forcedDisconnectReason = ex.Message;
+                if (!_disconnectNotified)
+                {
+                    _disconnectNotified = true;
+                    Disconnected?.Invoke(_forcedDisconnectReason);
+                }
+            }
+        }, _heartbeatCts.Token);
+    }
+
     public void Dispose()
     {
         _cts.Cancel();
+        _heartbeatCts?.Cancel();
         _ws.Dispose();
     }
 }

@@ -6,6 +6,11 @@ namespace PassTheStick.Shared;
 public sealed class AppSettings
 {
     public string? RelayUrlOverride { get; set; }
+
+    // Optional session persistence (best-effort; depends on relay room still existing).
+    public string? LastRoomCode { get; set; }
+    public string? LastRelayUrl { get; set; }
+    public string? LastGameExePath { get; set; }
 }
 
 public static class SettingsStore

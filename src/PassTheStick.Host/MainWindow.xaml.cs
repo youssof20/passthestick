@@ -117,6 +117,12 @@ public partial class MainWindow : Window
                 StopRelayServerFromTray,
                 RequestExit);
 
+            _hotkey.HotkeyConflict += msg =>
+            {
+                try { _tray?.ShowToast("PassTheStick", msg); } catch { }
+                InputDebugLog.Log(msg);
+            };
+
             var helper = new WindowInteropHelper(this);
             helper.EnsureHandle();
             _hotkey.Register(helper.Handle);
@@ -186,6 +192,8 @@ public partial class MainWindow : Window
         _overlay?.SetPlayerName("Host");
         _overlay?.SetBanner(null);
         StatusText.Text = "Stick taken back.";
+        _tray?.ShowToast("PassTheStick", "Stick returned to you");
+        InputDebugLog.Log("[hotkey] Host reclaimed stick via Ctrl+Shift+Left");
     }
 
     private void EnsureConnectionDialog()
@@ -275,7 +283,18 @@ public partial class MainWindow : Window
 
             _gameTracker.PinWindow(wi.Hwnd);
             PinnedGameLabel.Text = "Game: " + wi.Title;
-            StatusText.Text = "Game pinned. Starting session…";
+            var gameElevated = _gameTracker.IsPinnedProcessElevated();
+            var hostIsAdmin = ElevationHelper.IsRunningAsAdmin();
+            if (gameElevated && !hostIsAdmin)
+            {
+                _tray?.ShowToast("PassTheStick", "Run as administrator (game is elevated).");
+                StatusText.Text =
+                    "Game pinned. Warning: the game is running as administrator. PassTheStick must also run as administrator for input to work.\nRight-click PassTheStick and choose Run as administrator.";
+            }
+            else
+            {
+                StatusText.Text = "Game pinned. Starting session…";
+            }
             await EnsureSessionStartedAsync();
         }
         catch (TaskCanceledException)
@@ -415,7 +434,33 @@ public partial class MainWindow : Window
             _relay.PadStateReceived += OnPadState;
             _relay.Disconnected += OnDisconnected;
             await _relay.ConnectAsync();
-            var code = await _relay.CreateRoomAsync();
+
+            // Session persistence (best-effort): if we have a last room code, ask user to rejoin.
+            var settings = SettingsStore.Load();
+            var lastRoom = settings.LastRoomCode?.Trim();
+            string code;
+            if (!string.IsNullOrWhiteSpace(lastRoom))
+            {
+                var r = System.Windows.MessageBox.Show(
+                    $"You were in room {lastRoom}.\nDo you want to reconnect?",
+                    "PassTheStick",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (r == MessageBoxResult.Yes)
+                {
+                    code = await _relay.RejoinHostAsync(lastRoom);
+                }
+                else
+                {
+                    code = await _relay.CreateRoomAsync();
+                }
+            }
+            else
+            {
+                code = await _relay.CreateRoomAsync();
+            }
+
             _sessionManager.LocalPlayerId = _relay.MyId;
             _sessionManager.SetActivePlayer(_relay.MyId);
 
@@ -435,6 +480,22 @@ public partial class MainWindow : Window
             _connVm.AddLog("Connected.");
             Dispatcher.Invoke(() => SetRelayIndicator("Connected — relay ready", "#2E8B57")); // green
             _connDialog?.Close();
+
+            // Save session state for best-effort rejoin.
+            try
+            {
+                settings.LastRoomCode = code;
+                settings.LastRelayUrl = Constants.RelayWebSocketUrl;
+                try
+                {
+                    var proc = Process.GetProcessById((int)_gameTracker.GameProcessId);
+                    settings.LastGameExePath = proc.MainModule?.FileName;
+                }
+                catch { }
+                SettingsStore.Save(settings);
+            }
+            catch { }
+
             return true;
         }
     }
@@ -450,12 +511,19 @@ public partial class MainWindow : Window
 
     private nint WndProc(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)
     {
-        if (HotkeyManager.IsHotkeyMessage(msg, wParam))
+        if (HotkeyManager.TryGetHotkey(msg, wParam, out var kind))
         {
             Dispatcher.Invoke(() =>
             {
-                _picker?.SetPlayers(_sessionManager.Players);
-                _picker?.ShowNearCursor();
+                if (kind == HotkeyManager.HotkeyKind.Pass)
+                {
+                    _picker?.SetPlayers(_sessionManager.Players);
+                    _picker?.ShowNearCursor();
+                }
+                else
+                {
+                    TakeStickBack();
+                }
             });
             handled = true;
         }
@@ -505,6 +573,12 @@ public partial class MainWindow : Window
     private void OnKeyEvent(KeyEventMessage msg)
     {
         if (!_gameTracker.IsGameForeground()) return;
+        try
+        {
+            var gameName = Process.GetProcessById((int)_gameTracker.GameProcessId).ProcessName;
+            InputDebugLog.Log($"Injecting KEY_EVENT at foreground: {gameName} (fromId={msg.FromId})");
+        }
+        catch { }
         KeyboardInjectionHelper.InjectKeyEvent(msg);
     }
 
@@ -524,11 +598,13 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OnDisconnected(string _)
+    private void OnDisconnected(string reason)
     {
         Dispatcher.Invoke(() =>
         {
-            StatusText.Text = "Connection lost — open connection status to retry.";
+            StatusText.Text = reason.Contains("heartbeat", StringComparison.OrdinalIgnoreCase)
+                ? "Heartbeat lost — reconnecting…"
+                : "Connection lost — reconnecting…";
             _overlay?.SetBanner("Connection lost — reconnecting…");
             SetRelayIndicator("Not connected — click to view connection status", "#C33");
             PlayersList.ItemsSource = null;
@@ -538,7 +614,8 @@ public partial class MainWindow : Window
         _sessionStarted = false;
         _relay?.Dispose();
         _relay = null;
-        ShowConnectionStatus();
+        // Keep the UX smooth: reconnect automatically.
+        StartReconnectLoop();
     }
 
     private void StartRelayServerFromTray()

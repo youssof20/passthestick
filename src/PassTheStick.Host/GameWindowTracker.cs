@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using PassTheStick.Shared;
 
@@ -28,6 +29,13 @@ public sealed class GameWindowTracker
             throw new InvalidOperationException("Selected window is no longer available.");
 
         GetWindowThreadProcessId(hwnd, out uint pid);
+        if (pid == 0)
+            throw new InvalidOperationException("Selected window is not associated with a process.");
+
+        // Validate process still exists.
+        try { _ = Process.GetProcessById((int)pid); }
+        catch { throw new InvalidOperationException("Selected game process is no longer running."); }
+
         _gameHwnd = hwnd;
         _gameProcessId = pid;
     }
@@ -53,6 +61,20 @@ public sealed class GameWindowTracker
         return fg == _gameHwnd;
     }
 
+    public bool IsPinnedProcessElevated()
+    {
+        if (!IsPinned) return false;
+        try
+        {
+            using var proc = Process.GetProcessById((int)_gameProcessId);
+            return IsProcessElevated(proc.Handle);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     [DllImport("user32.dll")]
     private static extern nint GetForegroundWindow();
 
@@ -61,4 +83,49 @@ public sealed class GameWindowTracker
 
     [DllImport("user32.dll")]
     private static extern bool IsWindow(nint hWnd);
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    private static extern bool OpenProcessToken(IntPtr ProcessHandle, uint DesiredAccess, out IntPtr TokenHandle);
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    private static extern bool GetTokenInformation(
+        IntPtr TokenHandle,
+        int TokenInformationClass,
+        out TOKEN_ELEVATION TokenInformation,
+        int TokenInformationLength,
+        out int ReturnLength);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool CloseHandle(IntPtr hObject);
+
+    private const uint TOKEN_QUERY = 0x0008;
+    private const int TokenElevation = 20;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct TOKEN_ELEVATION
+    {
+        public int TokenIsElevated;
+    }
+
+    private static bool IsProcessElevated(IntPtr processHandle)
+    {
+        IntPtr tokenHandle = IntPtr.Zero;
+        try
+        {
+            if (!OpenProcessToken(processHandle, TOKEN_QUERY, out tokenHandle))
+                return false;
+
+            var elevation = new TOKEN_ELEVATION();
+            var returnedLength = 0;
+            if (!GetTokenInformation(tokenHandle, TokenElevation, out elevation, Marshal.SizeOf<TOKEN_ELEVATION>(), out returnedLength))
+                return false;
+
+            return elevation.TokenIsElevated != 0;
+        }
+        finally
+        {
+            if (tokenHandle != IntPtr.Zero)
+                CloseHandle(tokenHandle);
+        }
+    }
 }

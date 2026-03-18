@@ -10,6 +10,8 @@ public partial class MainWindow : Window
     private ControllerCapture? _controllerCapture;
     private bool _haveStick;
     private List<PlayerInfo> _players = new();
+    private int _lastLatencyMs;
+    private bool _sessionEnded;
 
     public MainWindow()
     {
@@ -24,6 +26,7 @@ public partial class MainWindow : Window
 
     private async void JoinButton_Click(object sender, RoutedEventArgs e)
     {
+        _sessionEnded = false;
         var code = RoomCodeBox.Text.Trim().ToUpperInvariant();
         var name = NameBox.Text.Trim();
         if (string.IsNullOrEmpty(code) || string.IsNullOrEmpty(name))
@@ -34,6 +37,7 @@ public partial class MainWindow : Window
         JoinButton.IsEnabled = false;
         StatusText.Text = "Connecting…";
         StickStatusText.Text = "Connecting…";
+        LatencyText.Text = "Latency: —";
         while (true)
         {
             try
@@ -66,14 +70,62 @@ public partial class MainWindow : Window
                             : $"Waiting — {holder} has the stick";
                     });
                 };
+                _relay.SessionEnded += reason =>
+                {
+                    _sessionEnded = true;
+                    Dispatcher.BeginInvoke(() =>
+                    {
+                        _haveStick = false;
+                        try { _keyboardCapture?.Dispose(); _keyboardCapture = null; } catch { }
+                        try { _controllerCapture?.Dispose(); _controllerCapture = null; } catch { }
+                        try { _relay?.Dispose(); } catch { }
+                        _relay = null;
+
+                        StatusText.Text = "Session ended — enter a new room code to rejoin.";
+                        StickStatusText.Text = "Not connected";
+                        LatencyText.Text = "Latency: —";
+                        RoomCodeBox.Text = "";
+                        _players = new List<PlayerInfo>();
+                        JoinButton.IsEnabled = true;
+                    });
+                };
+                _relay.LatencyUpdatedMs += ms =>
+                {
+                    Dispatcher.BeginInvoke(() =>
+                    {
+                        _lastLatencyMs = ms;
+                        if (ms > 200)
+                            LatencyText.Text = $"High latency ({ms}ms) — input may feel delayed";
+                        else
+                            LatencyText.Text = $"Connected — {ms}ms";
+                    });
+                };
                 _relay.Disconnected += _ =>
                 {
+                    _sessionEnded = true;
                     _haveStick = false;
-                    Dispatcher.Invoke(() => { StatusText.Text = "Connection lost."; JoinButton.IsEnabled = true; });
-                    Dispatcher.Invoke(() => { StickStatusText.Text = "Not connected"; });
+                    Dispatcher.Invoke(() =>
+                    {
+                        StatusText.Text = "Connection lost. You can rejoin by entering a room code.";
+                        JoinButton.IsEnabled = true;
+                        StickStatusText.Text = "Not connected";
+                        LatencyText.Text = "Latency: —";
+                        RoomCodeBox.Text = "";
+                        _players = new List<PlayerInfo>();
+                    });
+
+                    try { _keyboardCapture?.Dispose(); } catch { }
+                    try { _controllerCapture?.Dispose(); } catch { }
+                    _keyboardCapture = null;
+                    _controllerCapture = null;
+
+                    try { _relay?.Dispose(); } catch { }
+                    _relay = null;
                 };
                 await _relay.ConnectAsync();
                 await _relay.JoinRoomAsync(code, name);
+                if (_sessionEnded)
+                    continue;
                 _keyboardCapture = new KeyboardCapture(
                     () => _haveStick,
                     async (vk, sc, down) =>

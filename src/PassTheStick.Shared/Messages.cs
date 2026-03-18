@@ -33,7 +33,8 @@ public record KeyEventMessage(
     [property: JsonPropertyName("type")] string Type = "KEY_EVENT",
     [property: JsonPropertyName("vk")] int Vk = 0,
     [property: JsonPropertyName("sc")] int Sc = 0,
-    [property: JsonPropertyName("down")] bool Down = false);
+    [property: JsonPropertyName("down")] bool Down = false,
+    [property: JsonPropertyName("fromId")] string FromId = "");
 
 public record PadStateMessage(
     [property: JsonPropertyName("type")] string Type = "PAD_STATE",
@@ -43,7 +44,12 @@ public record PadStateMessage(
     [property: JsonPropertyName("rx")] short Rx = 0,
     [property: JsonPropertyName("ry")] short Ry = 0,
     [property: JsonPropertyName("lt")] byte Lt = 0,
-    [property: JsonPropertyName("rt")] byte Rt = 0);
+    [property: JsonPropertyName("rt")] byte Rt = 0,
+    [property: JsonPropertyName("fromId")] string FromId = "");
+
+public record HostRejoinMessage(
+    [property: JsonPropertyName("type")] string Type = "HOST_REJOIN",
+    [property: JsonPropertyName("roomCode")] string RoomCode = "");
 
 public record PingMessage(
     [property: JsonPropertyName("type")] string Type = "PING",
@@ -52,6 +58,10 @@ public record PingMessage(
 public record PongMessage(
     [property: JsonPropertyName("type")] string Type = "PONG",
     [property: JsonPropertyName("ts")] long Ts = 0);
+
+public record SessionEndedMessage(
+    [property: JsonPropertyName("type")] string Type = "SESSION_ENDED",
+    [property: JsonPropertyName("reason")] string Reason = "");
 
 public record ErrorMessage(
     [property: JsonPropertyName("type")] string Type = "ERROR",
