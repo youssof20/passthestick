@@ -1,4 +1,4 @@
-using Nefarius.Drivers.HidHide.Util;
+using Nefarius.Drivers.HidHide;
 
 namespace PassTheStick.Host;
 

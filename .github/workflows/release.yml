@@ -11,6 +11,8 @@ permissions:
 jobs:
   release:
     runs-on: windows-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
     defaults:
       run:
         shell: pwsh
@@ -56,6 +58,13 @@ jobs:
           -p:PublishTrimmed=true
           -p:EnableCompressionInSingleFile=true
           -o publish/guest
+
+      - name: Stage installer payload (publish/)
+        run: |
+          New-Item -ItemType Directory -Force publish | Out-Null
+          Copy-Item -Force publish/launcher/PassTheStick.exe publish/
+          Copy-Item -Force publish/host/PassTheStick.Host.exe publish/
+          Copy-Item -Force publish/guest/PassTheStick.Guest.exe publish/
 
       - name: Package relay
         run: |
