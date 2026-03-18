@@ -31,10 +31,13 @@ public partial class MainWindow : Window
     {
         try
         {
-            _tray?.ShowUpdateToast(
-                "PassTheStick update available",
-                $"Version {latestVersion} is ready. Click the balloon to download.",
-                url);
+            Dispatcher.BeginInvoke(() =>
+            {
+                _tray?.ShowUpdateToast(
+                    "PassTheStick update available",
+                    $"Version {latestVersion} is ready. Click the balloon to download.",
+                    url);
+            });
         }
         catch { }
     }
