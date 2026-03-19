@@ -1176,7 +1176,7 @@ public partial class MainWindow : Window
             _overlay?.SetTurn("Test Player", false, Array.Empty<string>());
             await Task.Delay(TimeSpan.FromSeconds(5));
             _sessionManager.SetActivePlayer(_sessionManager.LocalPlayerId);
-            _overlay?.SetTurn("Host", true, Array.Empty<string>());
+            UpdateOverlayName();
             _tray?.ShowToast("PassTheStick", "Solo test complete — keyboard blocking and passing both work correctly.");
         }
         catch (Exception ex)
