@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
+using System.Windows.Threading;
 using PassTheStick.Shared;
 using WinForms = System.Windows.Forms;
 
@@ -26,6 +27,7 @@ public partial class MainWindow : Window
     private readonly RelayConnectionViewModel _connVm = new();
     private PassTheStick.Shared.RelayConnectionDialog? _connDialog;
     private CancellationTokenSource? _connectCts;
+    private DispatcherTimer? _overlayTimer;
 
     public void ShowUpdateNotification(string latestVersion, string url)
     {
@@ -60,6 +62,7 @@ public partial class MainWindow : Window
             _hotkey.Dispose();
             _overlay?.Close();
             _picker?.Close();
+            _overlayTimer?.Stop();
             InputDebugLog.OnInputLog -= AppendInputLog;
             _hookManager.Dispose();
             _vigem.Dispose();
@@ -540,6 +543,7 @@ public partial class MainWindow : Window
             _overlay = new OverlayWindow();
             _overlay.SetPlayerName("Host");
             _overlay.Show();
+            StartOverlayTracking();
 
             _picker = new PassStickPickerWindow(OnPickGuest);
             _picker.SetPlayers(_sessionManager.Players);
@@ -564,6 +568,50 @@ public partial class MainWindow : Window
 
             return true;
         }
+    }
+
+    private void StartOverlayTracking()
+    {
+        _overlayTimer?.Stop();
+        _overlayTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(200)
+        };
+        _overlayTimer.Tick += (_, _) =>
+        {
+            try { UpdateOverlayScope(); } catch { }
+        };
+        _overlayTimer.Start();
+        UpdateOverlayScope();
+    }
+
+    private void UpdateOverlayScope()
+    {
+        if (_overlay == null) return;
+        if (!_gameTracker.IsPinned || _gameTracker.IsPinnedWindowMinimized())
+        {
+            _overlay.Hide();
+            return;
+        }
+
+        // Only show overlay while the pinned game is foreground.
+        if (!_gameTracker.IsGameForeground())
+        {
+            _overlay.Hide();
+            return;
+        }
+
+        if (_gameTracker.TryGetPinnedWindowRect(out var rect))
+        {
+            // Keep the overlay within/over the pinned window region (top-left padding).
+            const double padX = 12;
+            const double padY = 12;
+            _overlay.Left = rect.Left + padX;
+            _overlay.Top = rect.Top + padY;
+        }
+
+        if (!_overlay.IsVisible)
+            _overlay.Show();
     }
 
     private void OnPassStickBroadcast(string toId)

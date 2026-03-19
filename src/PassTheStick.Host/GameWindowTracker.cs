@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Windows;
 using PassTheStick.Shared;
 
 namespace PassTheStick.Host;
@@ -11,6 +12,9 @@ public sealed class GameWindowTracker
 {
     private nint _gameHwnd;
     private uint _gameProcessId;
+    private nint _lastKnownForeground;
+    private uint _lastKnownForegroundPid;
+    private DateTime _lastKnownForegroundTimeUtc = DateTime.MinValue;
 
     public bool IsPinned => _gameHwnd != nint.Zero && _gameProcessId != 0 && IsWindow(_gameHwnd);
 
@@ -52,7 +56,30 @@ public sealed class GameWindowTracker
     {
         if (!IsPinned) return false;
         var fg = GetForegroundWindow();
-        GetWindowThreadProcessId(fg, out var fgPid);
+        uint fgPid = 0;
+
+        if (fg != nint.Zero)
+        {
+            GetWindowThreadProcessId(fg, out fgPid);
+            _lastKnownForeground = fg;
+            _lastKnownForegroundPid = fgPid;
+            _lastKnownForegroundTimeUtc = DateTime.UtcNow;
+        }
+        else
+        {
+            // Transient state: between focus changes Windows can return NULL.
+            // Use last-known foreground for a short grace period.
+            var ageMs = (DateTime.UtcNow - _lastKnownForegroundTimeUtc).TotalMilliseconds;
+            if (_lastKnownForegroundPid != 0 && ageMs < 500)
+            {
+                fg = _lastKnownForeground;
+                fgPid = _lastKnownForegroundPid;
+            }
+            else
+            {
+                fgPid = 0;
+            }
+        }
 
         var matchPid = fgPid == _gameProcessId;
         var hwndMatch = fg == _gameHwnd;
@@ -60,7 +87,8 @@ public sealed class GameWindowTracker
             InputDebugLog.Log(
                 $"Foreground check: fgHWND=0x{fg:X} fgPID={fgPid} pinnedHWND=0x{_gameHwnd:X} gamePID={_gameProcessId} hwndMatch={hwndMatch} pidMatch={matchPid}");
 
-        return hwndMatch;
+        // Prefer HWND match, but accept PID match (some games recreate top-level HWND).
+        return hwndMatch || matchPid;
     }
 
     /// <summary>Human-readable reason KEY_EVENT was not injected (debug).</summary>
@@ -71,7 +99,25 @@ public sealed class GameWindowTracker
             return $"KEY_EVENT dropped (vk={vk} down={down} fromId={fid}): no game window pinned — pin the game first.";
 
         var fg = GetForegroundWindow();
-        GetWindowThreadProcessId(fg, out var fgPid);
+        uint fgPid = 0;
+        var usedCached = false;
+        if (fg != nint.Zero)
+        {
+            GetWindowThreadProcessId(fg, out fgPid);
+            _lastKnownForeground = fg;
+            _lastKnownForegroundPid = fgPid;
+            _lastKnownForegroundTimeUtc = DateTime.UtcNow;
+        }
+        else
+        {
+            var ageMs = (DateTime.UtcNow - _lastKnownForegroundTimeUtc).TotalMilliseconds;
+            if (_lastKnownForegroundPid != 0 && ageMs < 500)
+            {
+                usedCached = true;
+                fg = _lastKnownForeground;
+                fgPid = _lastKnownForegroundPid;
+            }
+        }
         var sameHwnd = fg == _gameHwnd;
         var samePid = fgPid == _gameProcessId;
         var fgName = TryGetProcessName(fgPid);
@@ -79,7 +125,7 @@ public sealed class GameWindowTracker
         return
             $"KEY_EVENT dropped (vk={vk} down={down} fromId={fid}): game not foreground. " +
             $"pinned HWND=0x{_gameHwnd:X} ({gameName} PID={_gameProcessId}); " +
-            $"foreground HWND=0x{fg:X} ({fgName} PID={fgPid}); hwndMatch={sameHwnd} pidMatch={samePid}. " +
+            $"foreground HWND=0x{fg:X} ({fgName} PID={fgPid}){(usedCached ? " (cached)" : "")}; hwndMatch={sameHwnd} pidMatch={samePid}. " +
             "Click the game so it has focus (exclusive fullscreen can hide overlays; Alt+Tab to game).";
     }
 
@@ -91,13 +137,46 @@ public sealed class GameWindowTracker
             return $"PAD_STATE dropped (fromId={fid}): no game window pinned.";
 
         var fg = GetForegroundWindow();
-        GetWindowThreadProcessId(fg, out var fgPid);
+        uint fgPid = 0;
+        var usedCached = false;
+        if (fg != nint.Zero)
+        {
+            GetWindowThreadProcessId(fg, out fgPid);
+            _lastKnownForeground = fg;
+            _lastKnownForegroundPid = fgPid;
+            _lastKnownForegroundTimeUtc = DateTime.UtcNow;
+        }
+        else
+        {
+            var ageMs = (DateTime.UtcNow - _lastKnownForegroundTimeUtc).TotalMilliseconds;
+            if (_lastKnownForegroundPid != 0 && ageMs < 500)
+            {
+                usedCached = true;
+                fg = _lastKnownForeground;
+                fgPid = _lastKnownForegroundPid;
+            }
+        }
         var sameHwnd = fg == _gameHwnd;
         var fgName = TryGetProcessName(fgPid);
         var gameName = TryGetProcessName(_gameProcessId);
         return
             $"PAD_STATE dropped (fromId={fid}): game not foreground. " +
-            $"pinned HWND=0x{_gameHwnd:X} ({gameName}); foreground HWND=0x{fg:X} ({fgName}); hwndMatch={sameHwnd}.";
+            $"pinned HWND=0x{_gameHwnd:X} ({gameName}); foreground HWND=0x{fg:X} ({fgName}){(usedCached ? " (cached)" : "")}; hwndMatch={sameHwnd}.";
+    }
+
+    public bool TryGetPinnedWindowRect(out Rect rect)
+    {
+        rect = default;
+        if (!IsPinned) return false;
+        if (!GetWindowRect(_gameHwnd, out var r)) return false;
+        rect = new Rect(r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top);
+        return rect.Width > 0 && rect.Height > 0;
+    }
+
+    public bool IsPinnedWindowMinimized()
+    {
+        if (!IsPinned) return false;
+        return IsIconic(_gameHwnd);
     }
 
     private static string TryGetProcessName(uint pid)
@@ -136,6 +215,21 @@ public sealed class GameWindowTracker
 
     [DllImport("user32.dll")]
     private static extern bool IsWindow(nint hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetWindowRect(nint hWnd, out RECT lpRect);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsIconic(nint hWnd);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
 
     [DllImport("advapi32.dll", SetLastError = true)]
     private static extern bool OpenProcessToken(IntPtr ProcessHandle, uint DesiredAccess, out IntPtr TokenHandle);
