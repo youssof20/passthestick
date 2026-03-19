@@ -1,0 +1,240 @@
+<Window x:Class="PassTheStick.Host.ShellWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="PassTheStick"
+        Icon="passthestick.ico"
+        Width="900"
+        Height="620"
+        MinWidth="900"
+        MaxWidth="900"
+        MinHeight="620"
+        MaxHeight="620"
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        AllowsTransparency="False"
+        Background="#0F0F0F"
+        WindowStartupLocation="CenterScreen">
+    <Border BorderBrush="#2E2E2E" BorderThickness="1">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="40"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Title bar -->
+            <Grid Grid.Row="0" Background="#0A0A0A" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <DockPanel LastChildFill="False" Margin="12,0,8,0" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
+                        <Image Width="24" Height="24" Source="passthestick.ico" RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+                        <TextBlock Text="PassTheStick"
+                                   FontSize="13"
+                                   FontWeight="Medium"
+                                   Foreground="#F0F0F0"
+                                   VerticalAlignment="Center"
+                                   Margin="8,0,0,0"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                        <Button x:Name="MinimizeButton"
+                                Content="&#x2014;"
+                                Width="40"
+                                Height="28"
+                                Padding="0"
+                                FontSize="14"
+                                Foreground="#C0C0C0"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Click="MinimizeButton_Click"
+                                ToolTip="Minimize"/>
+                        <Button x:Name="CloseButton"
+                                Content="&#x2715;"
+                                Width="40"
+                                Height="28"
+                                Padding="0"
+                                FontSize="12"
+                                Foreground="#C0C0C0"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Click="CloseButton_Click"
+                                ToolTip="Close"/>
+                    </StackPanel>
+                </DockPanel>
+            </Grid>
+
+            <!-- Update banner -->
+            <Border x:Name="UpdateBanner"
+                    Grid.Row="1"
+                    Visibility="Collapsed"
+                    Background="#1A2640"
+                    BorderBrush="#4A9EFF"
+                    BorderThickness="0,0,0,1"
+                    Padding="12,8">
+                <DockPanel LastChildFill="False">
+                    <TextBlock x:Name="UpdateBannerText"
+                               DockPanel.Dock="Left"
+                               VerticalAlignment="Center"
+                               Foreground="#B8D4FF"
+                               FontSize="12"
+                               TextWrapping="Wrap"/>
+                    <Button DockPanel.Dock="Right"
+                            Content="Download"
+                            Padding="12,4"
+                            Margin="12,0,0,0"
+                            Background="#4A9EFF"
+                            Foreground="#0F0F0F"
+                            FontWeight="SemiBold"
+                            BorderThickness="0"
+                            Click="UpdateDownload_Click"/>
+                </DockPanel>
+            </Border>
+
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="72"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0"
+                        Background="#0A0A0A"
+                        BorderBrush="#2E2E2E"
+                        BorderThickness="0,0,1,0">
+                    <Grid>
+                        <StackPanel Margin="0,12,0,0" VerticalAlignment="Top">
+                            <Button x:Name="NavHost"
+                                    Tag="host"
+                                    Click="NavButton_Click"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Padding="0,10"
+                                    Cursor="Hand">
+                                <StackPanel>
+                                    <TextBlock Text="&#x1F3AE;"
+                                               FontSize="18"
+                                               HorizontalAlignment="Center"
+                                               Foreground="#00C896"/>
+                                    <TextBlock Text="HOST"
+                                               FontSize="9"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center"
+                                               Margin="0,4,0,0"
+                                               Foreground="#00C896"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="NavGuest"
+                                    Tag="guest"
+                                    Click="NavButton_Click"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Padding="0,10"
+                                    Cursor="Hand">
+                                <StackPanel>
+                                    <TextBlock Text="&#x1F464;"
+                                               FontSize="18"
+                                               HorizontalAlignment="Center"
+                                               Foreground="#555555"/>
+                                    <TextBlock Text="GUEST"
+                                               FontSize="9"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center"
+                                               Margin="0,4,0,0"
+                                               Foreground="#555555"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="NavSettings"
+                                    Tag="settings"
+                                    Click="NavButton_Click"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Padding="0,10"
+                                    Cursor="Hand">
+                                <StackPanel>
+                                    <TextBlock Text="&#x2699;"
+                                               FontSize="18"
+                                               HorizontalAlignment="Center"
+                                               Foreground="#555555"/>
+                                    <TextBlock Text="SETTINGS"
+                                               FontSize="7"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center"
+                                               Margin="0,4,0,0"
+                                               Foreground="#555555"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock x:Name="SidebarVersionText"
+                                   VerticalAlignment="Bottom"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,0,0,12"
+                                   FontSize="10"
+                                   Foreground="#333333"
+                                   Text="v—"/>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Column="1" Background="#0F0F0F" Padding="16">
+                    <ContentControl x:Name="MainContent"/>
+                </Border>
+            </Grid>
+
+            <!-- First-launch onboarding -->
+            <Border x:Name="OnboardingOverlay"
+                    Grid.RowSpan="3"
+                    Background="#99000000"
+                    Visibility="Collapsed"
+                    Panel.ZIndex="200">
+                <Border Background="#1A1A1A"
+                        CornerRadius="16"
+                        Padding="24"
+                        Width="400"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        BorderBrush="#2E2E2E"
+                        BorderThickness="1">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
+                            <Image Width="32" Height="32" Source="passthestick.ico" RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+                            <TextBlock Text="PassTheStick"
+                                       FontSize="18"
+                                       FontWeight="SemiBold"
+                                       Foreground="#F0F0F0"
+                                       VerticalAlignment="Center"
+                                       Margin="10,0,0,0"/>
+                        </StackPanel>
+                        <TextBlock x:Name="OnboardingTitle"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Foreground="#F0F0F0"
+                                   Text="Welcome"
+                                   TextAlignment="Center"/>
+                        <TextBlock x:Name="OnboardingBody"
+                                   Margin="0,14,0,0"
+                                   TextWrapping="Wrap"
+                                   Foreground="#888888"
+                                   FontSize="13"
+                                   LineHeight="20"
+                                   TextAlignment="Center"/>
+                        <Button x:Name="OnboardingPrimaryButton"
+                                Content="Next"
+                                Margin="0,24,0,0"
+                                Padding="16,12"
+                                HorizontalAlignment="Stretch"
+                                Background="{StaticResource PtsBrushGreen}"
+                                Foreground="#0F0F0F"
+                                FontWeight="SemiBold"
+                                BorderThickness="0"
+                                Click="OnboardingPrimary_Click"/>
+                        <Button Content="Skip"
+                                Margin="0,10,0,0"
+                                Padding="12,8"
+                                HorizontalAlignment="Stretch"
+                                Background="Transparent"
+                                Foreground="#888888"
+                                BorderBrush="#2E2E2E"
+                                BorderThickness="1"
+                                Click="OnboardingSkip_Click"/>
+                    </StackPanel>
+                </Border>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

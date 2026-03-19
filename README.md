@@ -98,7 +98,7 @@ Requirements: [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) (Wi
 dotnet build PassTheStick.sln --configuration Release
 ```
 
-**CI / installer:** pushing a git tag `v*` runs GitHub Actions — publish self-contained Host, Guest, Launcher; bundle relay runtime into `publish\app\relay\`; run Inno Setup → `output\PassTheStick-Setup-<tag>.exe`. Align **tag**, **`PassTheStick.Host.csproj` `<Version>`**, and Inno **`AppVersion`** (CI passes `/DAppVersion=` from the tag).
+**CI / installer:** pushing a git tag `v*` runs GitHub Actions — publish a single self-contained **`PassTheStick.exe`** (unified host + guest UI); bundle relay runtime into `publish\app\relay\`; run Inno Setup → `output\PassTheStick-Setup-<tag>.exe`. Align **tag**, **`PassTheStick.Host.csproj` `<Version>`** (output assembly name `PassTheStick`), and Inno **`AppVersion`** (CI passes `/DAppVersion=` from the tag).
 
 ---
 
@@ -121,7 +121,7 @@ dotnet build PassTheStick.sln --configuration Release
 ## Frequently asked questions
 
 **Does the guest need to install anything?**  
-Yes — the PassTheStick guest build. No drivers for keyboard-only. Controller path needs ViGEm (host) and optionally HidHide.
+Yes — the same **PassTheStick** app; they use the **Guest** section in the sidebar. No drivers for keyboard-only. Controller path needs ViGEm (host) and optionally HidHide.
 
 **Does it work if we're not on the same network?**  
 Yes, with the cloud relay or any reachable `wss://` / `ws://` relay. No port forwarding for guests.

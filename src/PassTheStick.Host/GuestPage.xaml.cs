@@ -1,31 +1,42 @@
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
-using System.Runtime.InteropServices;
+using System.Windows.Media;
+using PassTheStick.Guest;
 using PassTheStick.Shared;
 
-namespace PassTheStick.Guest;
+namespace PassTheStick.Host;
 
-public partial class MainWindow : Window
+public partial class GuestPage : UserControl
 {
     private RelayClient? _relay;
     private KeyboardCapture? _keyboardCapture;
     private ControllerCapture? _controllerCapture;
     private bool _haveStick;
     private List<PlayerInfo> _players = new();
-    private int _lastLatencyMs;
     private bool _sessionEnded;
-    private readonly Dictionary<string, System.Windows.Controls.Border> _echoKeys = new();
+    private readonly Dictionary<string, Border> _echoKeys = new();
+    private bool _shellClosedHooked;
 
-    public MainWindow()
+    public GuestPage()
     {
         InitializeComponent();
         BuildEchoMap();
-        Closed += (_, _) =>
+        Loaded += GuestPage_Loaded;
+    }
+
+    private void GuestPage_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (_shellClosedHooked) return;
+        var w = Window.GetWindow(this);
+        if (w == null) return;
+        _shellClosedHooked = true;
+        w.Closed += (_, _) =>
         {
-            _keyboardCapture?.Dispose();
-            _controllerCapture?.Dispose();
-            _relay?.Dispose();
+            try { _keyboardCapture?.Dispose(); } catch { }
+            try { _controllerCapture?.Dispose(); } catch { }
+            try { _relay?.Dispose(); } catch { }
         };
     }
 
@@ -38,20 +49,22 @@ public partial class MainWindow : Window
         WaitingPanel.Visibility = Visibility.Collapsed;
         ActivePanel.Visibility = Visibility.Visible;
 
-        // Best-effort: bring this window to the user's attention without requiring them to click it.
         try
         {
-            WindowState = WindowState.Normal;
-            Show();
-            Activate();
-
-            Topmost = true;
-            Topmost = false;
-
-            var hwnd = new WindowInteropHelper(this).Handle;
+            var win = Window.GetWindow(this);
+            if (win == null) return;
+            win.WindowState = WindowState.Normal;
+            win.Show();
+            win.Activate();
+            win.Topmost = true;
+            win.Topmost = false;
+            var hwnd = new WindowInteropHelper(win).Handle;
             if (hwnd != nint.Zero) SetForegroundWindow(hwnd);
         }
-        catch { }
+        catch
+        {
+            // ignore
+        }
 
         _ = FlashActivePulseAsync();
     }
@@ -101,7 +114,6 @@ public partial class MainWindow : Window
                 };
                 _relay.PassStickReceived += toId =>
                 {
-                    // Relay broadcasts PASS_STICK to everyone; clear stick UI when it moves away.
                     var mine = _relay?.MyId;
                     var nowHaveStick = !string.IsNullOrEmpty(mine) && string.Equals(toId, mine, StringComparison.Ordinal);
                     _haveStick = nowHaveStick;
@@ -116,7 +128,7 @@ public partial class MainWindow : Window
                         }
                     });
                 };
-                _relay.SessionEnded += reason =>
+                _relay.SessionEnded += _ =>
                 {
                     _sessionEnded = true;
                     Dispatcher.BeginInvoke(() =>
@@ -137,7 +149,6 @@ public partial class MainWindow : Window
                 {
                     Dispatcher.BeginInvoke(() =>
                     {
-                        _lastLatencyMs = ms;
                         var status = ms > 200
                             ? $"Connected ({ms}ms) — high latency"
                             : $"Connected ({ms}ms)";
@@ -193,7 +204,6 @@ public partial class MainWindow : Window
             }
             catch
             {
-                // Guest UX: keep it simple here; show a friendly message and allow retry via Join.
                 JoinStatusText.Text = "Can't reach the relay server. Try again in a moment.";
                 JoinButton.IsEnabled = true;
                 break;
@@ -232,29 +242,35 @@ public partial class MainWindow : Window
             var tb = b.Child as TextBlock;
             var oldFg = tb?.Foreground;
 
-            b.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x4D, 0xFF, 0x6B, 0x35));
-            b.BorderBrush = (System.Windows.Media.Brush)FindResource("PtsBrushOrange");
+            b.Background = new SolidColorBrush(Color.FromArgb(0x4D, 0xFF, 0x6B, 0x35));
+            b.BorderBrush = (Brush)FindResource("PtsBrushOrange");
             if (tb != null)
-                tb.Foreground = (System.Windows.Media.Brush)FindResource("PtsBrushOrange");
+                tb.Foreground = (Brush)FindResource("PtsBrushOrange");
             await Task.Delay(200);
             b.Background = oldBg;
             b.BorderBrush = oldBorder;
             if (tb != null)
-                tb.Foreground = oldFg ?? (System.Windows.Media.Brush)FindResource("PtsBrushTextSecondary");
+                tb.Foreground = oldFg ?? (Brush)FindResource("PtsBrushTextSecondary");
         }
-        catch { }
+        catch
+        {
+            // ignore
+        }
     }
 
     private async Task FlashActivePulseAsync()
     {
         try
         {
-            var brush = (System.Windows.Media.Brush)FindResource("PtsBrushOrange");
+            var brush = (Brush)FindResource("PtsBrushOrange");
             ActiveBody.Background = brush;
             await Task.Delay(120);
-            ActiveBody.Background = (System.Windows.Media.Brush)FindResource("PtsBrushBgSecondary");
+            ActiveBody.Background = (Brush)FindResource("PtsBrushBgSecondary");
         }
-        catch { }
+        catch
+        {
+            // ignore
+        }
     }
 
     private async Task FlashTurnEndedAsync()
@@ -262,12 +278,15 @@ public partial class MainWindow : Window
         try
         {
             WaitingTitle.Text = "Turn ended — great playing!";
-            var green = (System.Windows.Media.Brush)FindResource("PtsBrushGreen");
+            var green = (Brush)FindResource("PtsBrushGreen");
             WaitingTitle.Foreground = green;
             await Task.Delay(800);
-            WaitingTitle.Foreground = (System.Windows.Media.Brush)FindResource("PtsBrushTextPrimary");
+            WaitingTitle.Foreground = (Brush)FindResource("PtsBrushTextPrimary");
             WaitingTitle.Text = "Waiting for your turn";
         }
-        catch { }
+        catch
+        {
+            // ignore
+        }
     }
 }

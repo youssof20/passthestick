@@ -1,50 +1,59 @@
-<Window x:Class="PassTheStick.Guest.MainWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="PassTheStick (guest)"
-        Icon="passthestick.ico"
-        Height="520" Width="380"
-        WindowStartupLocation="CenterScreen">
-    <Grid Margin="16">
+<UserControl x:Class="PassTheStick.Host.GuestPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{StaticResource PtsBrushBgPrimary}">
+    <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Header -->
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,16">
-            <TextBlock Text="PassTheStick" FontSize="16" FontWeight="SemiBold"/>
-        </StackPanel>
-
         <!-- Join state -->
         <Border x:Name="JoinPanel"
-                Grid.Row="1"
+                Grid.Row="0"
+                VerticalAlignment="Center"
+                MaxWidth="420"
+                HorizontalAlignment="Stretch"
                 Background="{StaticResource PtsBrushBgSecondary}"
                 BorderBrush="{StaticResource PtsBrushBorder}"
                 BorderThickness="1"
                 CornerRadius="8"
-                Padding="16">
+                Padding="20">
             <StackPanel>
-                <TextBlock Text="ROOM CODE" Style="{StaticResource PtsLabel}" Margin="0,0,0,6"/>
+                <TextBlock Text="Join a session"
+                           FontSize="20"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource PtsBrushTextPrimary}"/>
+                <TextBlock Text="Enter the room code your host shared"
+                           FontSize="13"
+                           Foreground="{StaticResource PtsBrushTextSecondary}"
+                           Margin="0,6,0,0"/>
+
+                <TextBlock Text="ROOM CODE" Style="{StaticResource PtsLabel}" Margin="0,20,0,6"/>
                 <TextBox x:Name="RoomCodeBox"
                          MaxLength="4"
+                         CharacterCasing="Upper"
                          HorizontalContentAlignment="Center"
                          FontFamily="{StaticResource PtsMonoFont}"
-                         FontSize="22"
-                         Height="44"
+                         FontSize="24"
+                         Padding="12,10"
                          Margin="0,0,0,12"/>
 
                 <TextBlock Text="YOUR NAME" Style="{StaticResource PtsLabel}" Margin="0,0,0,6"/>
                 <TextBox x:Name="NameBox"
                          MaxLength="32"
-                         Height="38"
+                         Padding="10,8"
                          Margin="0,0,0,16"/>
 
                 <Button x:Name="JoinButton"
                         Content="Join session"
                         Click="JoinButton_Click"
-                        Height="44"/>
+                        Padding="0,12"
+                        FontSize="14"
+                        FontWeight="SemiBold"
+                        Background="{StaticResource PtsBrushGreen}"
+                        Foreground="#0F0F0F"
+                        BorderThickness="0"/>
 
                 <TextBlock x:Name="JoinStatusText"
                            Text=""
@@ -56,7 +65,8 @@
 
         <!-- Waiting state -->
         <Border x:Name="WaitingPanel"
-                Grid.Row="1"
+                Grid.Row="0"
+                VerticalAlignment="Stretch"
                 Background="{StaticResource PtsBrushBgSecondary}"
                 BorderBrush="{StaticResource PtsBrushBorder}"
                 BorderThickness="1"
@@ -76,19 +86,23 @@
                         Padding="14"
                         Margin="0,0,0,12">
                     <StackPanel>
-                        <TextBlock x:Name="WaitingTitle" Text="Waiting for your turn" FontSize="16" FontWeight="SemiBold"/>
-                        <TextBlock x:Name="WaitingSubtitle" Text="Host is playing right now" Foreground="{StaticResource PtsBrushTextSecondary}" Margin="0,6,0,0"/>
+                        <TextBlock Text="&#x23F3;" FontSize="36" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                        <TextBlock x:Name="WaitingTitle" Text="Waiting for your turn" FontSize="18" FontWeight="SemiBold" TextAlignment="Center"/>
+                        <TextBlock x:Name="WaitingSubtitle" Text="Host is playing right now" Foreground="{StaticResource PtsBrushTextSecondary}" Margin="0,8,0,0" TextAlignment="Center"/>
                     </StackPanel>
                 </Border>
 
                 <TextBlock Text="Players in session" Style="{StaticResource PtsLabel}" Margin="0,0,0,6"/>
-                <ListBox x:Name="GuestPlayersList" Height="180" DisplayMemberPath="Name"/>
+                <ListBox x:Name="GuestPlayersList"
+                         MinHeight="120"
+                         MaxHeight="200"
+                         DisplayMemberPath="Name"/>
             </StackPanel>
         </Border>
 
         <!-- Active state -->
         <Border x:Name="ActivePanel"
-                Grid.Row="1"
+                Grid.Row="0"
                 Background="{StaticResource PtsBrushBgSecondary}"
                 BorderBrush="{StaticResource PtsBrushBorder}"
                 BorderThickness="1"
@@ -102,14 +116,26 @@
                 </Grid.RowDefinitions>
 
                 <Border x:Name="ActiveBody"
-                        Background="{StaticResource PtsBrushBgSecondary}"
+                        Background="#14FF6B35"
                         BorderBrush="{StaticResource PtsBrushOrange}"
                         BorderThickness="4,0,0,0"
                         Padding="20">
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="YOU HAVE THE STICK" FontSize="24" FontWeight="Bold" TextAlignment="Center"/>
-                        <TextBlock Text="Your keyboard is live now." Foreground="{StaticResource PtsBrushTextSecondary}" Margin="0,10,0,0" TextAlignment="Center"/>
-                        <TextBlock Text="Switch to the screen share and start playing!" Foreground="{StaticResource PtsBrushTextSecondary}" Margin="0,4,0,0" TextAlignment="Center"/>
+                        <TextBlock Text="&#x1F3AE;" FontSize="48" HorizontalAlignment="Center"/>
+                        <TextBlock Text="YOU HAVE THE STICK"
+                                   FontSize="24"
+                                   FontWeight="Bold"
+                                   TextAlignment="Center"
+                                   Foreground="{StaticResource PtsBrushTextPrimary}"
+                                   Margin="0,8,0,0"/>
+                        <TextBlock Text="Your keyboard is live now."
+                                   Foreground="{StaticResource PtsBrushTextSecondary}"
+                                   Margin="0,10,0,0"
+                                   TextAlignment="Center"/>
+                        <TextBlock Text="Switch to the screen share and play!"
+                                   Foreground="{StaticResource PtsBrushTextSecondary}"
+                                   Margin="0,4,0,0"
+                                   TextAlignment="Center"/>
                         <TextBlock x:Name="ActiveStatusLine"
                                    Text="Latency: —ms  •  Connected"
                                    Foreground="{StaticResource PtsBrushTextSecondary}"
@@ -132,12 +158,11 @@
             </Grid>
         </Border>
 
-        <!-- Footer status (minimal) -->
-        <TextBlock Grid.Row="2"
+        <TextBlock Grid.Row="1"
                    x:Name="FooterText"
                    Text=""
                    Foreground="{StaticResource PtsBrushTextSecondary}"
                    Margin="0,12,0,0"
                    TextWrapping="Wrap"/>
     </Grid>
-</Window>
+</UserControl>

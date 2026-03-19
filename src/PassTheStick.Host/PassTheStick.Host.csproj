@@ -7,14 +7,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <ApplicationIcon>..\..\assets\passthestick.ico</ApplicationIcon>
-    <Version>0.1.19</Version>
-    <AssemblyVersion>0.1.19.0</AssemblyVersion>
-    <FileVersion>0.1.19.0</FileVersion>
-    <AssemblyName>PassTheStick.Host</AssemblyName>
+    <Version>0.1.20</Version>
+    <AssemblyVersion>0.1.20.0</AssemblyVersion>
+    <FileVersion>0.1.20.0</FileVersion>
+    <AssemblyName>PassTheStick</AssemblyName>
     <RootNamespace>PassTheStick.Host</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\PassTheStick.Guest\PassTheStick.Guest.csproj" />
     <ProjectReference Include="..\PassTheStick.Shared\PassTheStick.Shared.csproj" />
     <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="2.0.1" />
     <PackageReference Include="Nefarius.ViGEm.Client" Version="1.21.256" />

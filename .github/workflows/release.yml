@@ -35,25 +35,9 @@ jobs:
       - name: Build solution
         run: dotnet build PassTheStick.sln --configuration Release --no-restore
 
-      - name: Publish launcher
-        run: >
-          dotnet publish src/PassTheStick.Launcher/PassTheStick.Launcher.csproj
-          -c Release -r win-x64 --self-contained true
-          -p:PublishSingleFile=true
-          -p:EnableCompressionInSingleFile=true
-          -o publish/app
-
-      - name: Publish host
+      - name: Publish app (unified Host + Guest UI)
         run: >
           dotnet publish src/PassTheStick.Host/PassTheStick.Host.csproj
-          -c Release -r win-x64 --self-contained true
-          -p:PublishSingleFile=true
-          -p:EnableCompressionInSingleFile=true
-          -o publish/app
-
-      - name: Publish guest
-        run: >
-          dotnet publish src/PassTheStick.Guest/PassTheStick.Guest.csproj
           -c Release -r win-x64 --self-contained true
           -p:PublishSingleFile=true
           -p:EnableCompressionInSingleFile=true

@@ -10,7 +10,7 @@ using PassTheStick.Shared;
 
 namespace PassTheStick.Host;
 
-public partial class MainWindow : Window
+public partial class HostPage : UserControl
 {
     public enum InjectionState
     {
@@ -49,25 +49,10 @@ public partial class MainWindow : Window
     private long _droppedCount;
     private readonly Dictionary<string, System.Windows.Controls.Border> _echoKeys = new();
     private bool _enableStickSounds;
-    private int _onboardingStep;
     private long _lastReceiveSoundTicks;
+    private bool _shellClosedHooked;
 
-    public void ShowUpdateNotification(string latestVersion, string url)
-    {
-        try
-        {
-            Dispatcher.BeginInvoke(() =>
-            {
-                _tray?.ShowUpdateToast(
-                    "PassTheStick update available",
-                    $"Version {latestVersion} is ready. Click the balloon to download.",
-                    url);
-            });
-        }
-        catch { }
-    }
-
-    public MainWindow()
+    public HostPage()
     {
         InitializeComponent();
         InputDebugLog.Enabled = false;
@@ -91,24 +76,7 @@ public partial class MainWindow : Window
                 TakeStickBack();
             });
         };
-        Closed += (_, _) =>
-        {
-            _connectCts?.Cancel();
-            _reconnectCts?.Cancel();
-            _tray?.Dispose();
-            _relayProcess?.Dispose();
-            _hotkey.Dispose();
-            _overlay?.Close();
-            _picker?.Close();
-            _overlayTimer?.Stop();
-            _gameWatchdog?.Stop();
-            _focusMonitor?.Dispose();
-            InputDebugLog.OnInputLog -= AppendInputLog;
-            _hookManager.Dispose();
-            _vigem.Dispose();
-            _relay?.Dispose();
-        };
-        Loaded += MainWindow_Loaded;
+        Loaded += HostPage_Loaded;
     }
 
     private void InputLogExpander_Expanded(object sender, RoutedEventArgs e)
@@ -187,10 +155,36 @@ public partial class MainWindow : Window
         });
     }
 
-    private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    private async void HostPage_Loaded(object sender, RoutedEventArgs e)
     {
         try
         {
+            if (!_shellClosedHooked)
+            {
+                _shellClosedHooked = true;
+                var shell = Window.GetWindow(this);
+                if (shell != null)
+                {
+                    shell.Closed += (_, _) =>
+                    {
+                        _connectCts?.Cancel();
+                        _reconnectCts?.Cancel();
+                        _tray?.Dispose();
+                        _relayProcess?.Dispose();
+                        _hotkey.Dispose();
+                        _overlay?.Close();
+                        _picker?.Close();
+                        _overlayTimer?.Stop();
+                        _gameWatchdog?.Stop();
+                        _focusMonitor?.Dispose();
+                        InputDebugLog.OnInputLog -= AppendInputLog;
+                        _hookManager.Dispose();
+                        _vigem.Dispose();
+                        _relay?.Dispose();
+                    };
+                }
+            }
+
             LogStartupDiagnostics("app start");
             BuildKeyEchoMap();
             ResetInjectionCounters("startup");
@@ -216,7 +210,8 @@ public partial class MainWindow : Window
                 InputDebugLog.Log(msg);
             };
 
-            var helper = new WindowInteropHelper(this);
+            var shellWindow = Window.GetWindow(this) ?? throw new InvalidOperationException("HostPage must be hosted in a Window.");
+            var helper = new WindowInteropHelper(shellWindow);
             helper.EnsureHandle();
             _hotkey.Register(helper.Handle);
             var src = HwndSource.FromHwnd(helper.Handle);
@@ -228,11 +223,8 @@ public partial class MainWindow : Window
             RefreshWindows();
             StartGameWatchdog();
 
-            UpdateVersionFooter();
             var sett = SettingsStore.Load();
             _enableStickSounds = sett.EnableStickSounds;
-            if (!sett.OnboardingCompleted)
-                ShowOnboarding();
 
             UpdateOverlayName();
 
@@ -252,7 +244,7 @@ public partial class MainWindow : Window
     {
         try
         {
-            Close();
+            Window.GetWindow(this)?.Close();
         }
         catch
         {
@@ -432,7 +424,7 @@ public partial class MainWindow : Window
 
         if (_connDialog == null)
         {
-            _connDialog = new PassTheStick.Shared.RelayConnectionDialog(_connVm) { Owner = this };
+            _connDialog = new PassTheStick.Shared.RelayConnectionDialog(_connVm) { Owner = Window.GetWindow(this) };
             _connDialog.Closed += (_, _) => _connDialog = null;
         }
     }
@@ -512,7 +504,7 @@ public partial class MainWindow : Window
         {
             InputDebugLog.Log(InputDebugLog.LogLevel.Info, "=== PassTheStick Diagnostic Dump ===");
             InputDebugLog.Log(InputDebugLog.LogLevel.Info, $"When: {when}");
-            var ver = typeof(MainWindow).Assembly.GetName().Version?.ToString() ?? "unknown";
+            var ver = typeof(HostPage).Assembly.GetName().Version?.ToString() ?? "unknown";
             InputDebugLog.Log(InputDebugLog.LogLevel.Info, $"Version: {ver}");
             InputDebugLog.Log(InputDebugLog.LogLevel.Info, $"OS: {Environment.OSVersion}");
             InputDebugLog.Log(InputDebugLog.LogLevel.Info, $"Is Admin: {ElevationHelper.IsRunningAsAdmin()}");
@@ -1276,48 +1268,6 @@ public partial class MainWindow : Window
         TakeStickBack();
     }
 
-    private void OpenSettings_Click(object sender, RoutedEventArgs e)
-    {
-        var s = SettingsStore.Load();
-        SettingsRelayUrlText.Text = s.RelayUrlOverride ?? string.Empty;
-        SettingsSoundsCheck.IsChecked = s.EnableStickSounds;
-        SettingsBackdrop.Visibility = Visibility.Visible;
-        SettingsFlyout.Visibility = Visibility.Visible;
-    }
-
-    private void CloseSettings_Click(object sender, RoutedEventArgs e) => CloseSettings();
-
-    private void SettingsBackdrop_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
-    {
-        if (e.OriginalSource == SettingsBackdrop)
-            CloseSettings();
-    }
-
-    private void CloseSettings()
-    {
-        SettingsBackdrop.Visibility = Visibility.Collapsed;
-        SettingsFlyout.Visibility = Visibility.Collapsed;
-    }
-
-    private void SaveSettings_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var s = SettingsStore.Load();
-            var url = (SettingsRelayUrlText.Text ?? string.Empty).Trim();
-            s.RelayUrlOverride = string.IsNullOrEmpty(url) ? null : url;
-            s.EnableStickSounds = SettingsSoundsCheck.IsChecked == true;
-            SettingsStore.Save(s);
-            _enableStickSounds = s.EnableStickSounds;
-            _tray?.ShowToast("PassTheStick", "Settings saved.");
-            CloseSettings();
-        }
-        catch (Exception ex)
-        {
-            System.Windows.MessageBox.Show(ex.Message, "PassTheStick", MessageBoxButton.OK, MessageBoxImage.Warning);
-        }
-    }
-
     private void OpenDebugPanel_Click(object sender, RoutedEventArgs e)
     {
         DebugExpander.IsExpanded = true;
@@ -1346,74 +1296,32 @@ public partial class MainWindow : Window
         OnPickGuest(row.Player);
     }
 
-    private void UpdateVersionFooter()
+    public void ShowUpdateToast(string latestVersion, string url)
     {
         try
         {
-            var v = Assembly.GetExecutingAssembly().GetName().Version;
-            var text = v == null ? "v—" : $"v{v.Major}.{v.Minor}.{v.Build}";
-            VersionFooterText.Text = text;
-            SettingsAboutText.Text =
-                $"PassTheStick host {text}. Shared keyboard for couch co-op over the network.";
+            Dispatcher.BeginInvoke(() =>
+            {
+                _tray?.ShowUpdateToast(
+                    "PassTheStick update available",
+                    $"Version {latestVersion} is ready. Click the balloon to download.",
+                    url);
+            });
         }
-        catch { }
-    }
-
-    private void ShowOnboarding()
-    {
-        _onboardingStep = 0;
-        OnboardingOverlay.Visibility = Visibility.Visible;
-        ApplyOnboardingStep();
-    }
-
-    private void ApplyOnboardingStep()
-    {
-        switch (_onboardingStep)
+        catch
         {
-            case 0:
-                OnboardingTitle.Text = "Welcome to PassTheStick";
-                OnboardingBody.Text =
-                    "Share one keyboard (and gamepad) between friends over the network while everyone watches the same screen.";
-                OnboardingPrimaryButton.Content = "Next";
-                break;
-            case 1:
-                OnboardingTitle.Text = "Stay connected";
-                OnboardingBody.Text =
-                    "By default the app uses the cloud relay. For LAN-only sessions you can start a local relay from the tray, or set a custom WebSocket URL in Settings.";
-                OnboardingPrimaryButton.Content = "Next";
-                break;
-            default:
-                OnboardingTitle.Text = "You're ready";
-                OnboardingBody.Text =
-                    "Pin your game window, share the room code with guests, and use Ctrl+Shift+Right to pass the stick.";
-                OnboardingPrimaryButton.Content = "Get started";
-                break;
+            // ignore
         }
     }
 
-    private void OnboardingPrimary_Click(object sender, RoutedEventArgs e)
-    {
-        if (_onboardingStep < 2)
-        {
-            _onboardingStep++;
-            ApplyOnboardingStep();
-        }
-        else
-            FinishOnboarding();
-    }
-
-    private void OnboardingSkip_Click(object sender, RoutedEventArgs e) => FinishOnboarding();
-
-    private void FinishOnboarding()
+    /// <summary>Call after Settings page saves so host behavior (e.g. sounds) updates without restart.</summary>
+    public void RefreshSettingsFromStore()
     {
         try
         {
-            var s = SettingsStore.Load();
-            s.OnboardingCompleted = true;
-            SettingsStore.Save(s);
+            _enableStickSounds = SettingsStore.Load().EnableStickSounds;
         }
         catch { }
-        OnboardingOverlay.Visibility = Visibility.Collapsed;
     }
 
     // Port readiness checks are handled inside RelayProcessManager now.

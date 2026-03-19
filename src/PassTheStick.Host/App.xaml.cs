@@ -33,16 +33,17 @@ public partial class App : System.Windows.Application
             if (result == MessageBoxResult.Yes)
                 ElevationHelper.RestartAsAdmin();
         }
-        var main = new MainWindow();
-        main.Show();
-        main.Closed += (_, _) => Shutdown();
+        var shell = new ShellWindow();
+        MainWindow = shell;
+        shell.Show();
+        shell.Closed += (_, _) => Shutdown();
 
         _ = Task.Run(async () =>
         {
             try
             {
                 await Task.Delay(TimeSpan.FromSeconds(10));
-                await CheckForUpdatesAsync(main);
+                await CheckForUpdatesAsync(shell);
             }
             catch
             {
@@ -51,7 +52,7 @@ public partial class App : System.Windows.Application
         });
     }
 
-    private static async Task CheckForUpdatesAsync(MainWindow main)
+    private static async Task CheckForUpdatesAsync(ShellWindow shell)
     {
         try
         {
