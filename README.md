@@ -6,6 +6,10 @@ Take turns controlling a single-player game on one person's PC. Everyone watches
 
 > No screen capture. No video. No voice. Just input routing.
 
+<p align="center">
+  <img src="assets/logo.png" width="180" alt="PassTheStick logo" />
+</p>
+
 <img width="910" height="555" alt="Main Screenshot" src="https://github.com/user-attachments/assets/7d898973-f994-425d-b2b0-16a3735d0dc1" />
 
 ---
