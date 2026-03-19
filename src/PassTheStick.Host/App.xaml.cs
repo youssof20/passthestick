@@ -80,7 +80,7 @@ public partial class App : System.Windows.Application
             var latestTriplet = new Version(latestVersion.Major, latestVersion.Minor, latestVersion.Build);
 
             if (latestTriplet > currentTriplet)
-                main.ShowUpdateNotification(latestTriplet.ToString(3), htmlUrl);
+                shell.ShowUpdateNotification(latestTriplet.ToString(3), htmlUrl);
         }
         catch
         {
