@@ -87,7 +87,7 @@ public partial class MainWindow : Window
     {
         try
         {
-            Clipboard.SetText(InputLogText?.Text ?? string.Empty);
+            System.Windows.Clipboard.SetText(InputLogText?.Text ?? string.Empty);
             AppendInputLog("Input logs copied to clipboard.");
         }
         catch
@@ -187,7 +187,9 @@ public partial class MainWindow : Window
         RelayStatusText.Text = text;
         try
         {
-            var brush = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString(hexColor);
+            var converted = new System.Windows.Media.BrushConverter().ConvertFromString(hexColor);
+            var brush = converted as System.Windows.Media.Brush;
+            if (brush == null) return;
             RelayDot.Fill = brush;
         }
         catch { }
