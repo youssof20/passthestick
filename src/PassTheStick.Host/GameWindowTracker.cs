@@ -55,10 +55,63 @@ public sealed class GameWindowTracker
         GetWindowThreadProcessId(fg, out var fgPid);
 
         var matchPid = fgPid == _gameProcessId;
+        var hwndMatch = fg == _gameHwnd;
         if (InputDebugLog.Enabled)
-            InputDebugLog.Log($"Foreground PID={fgPid} GamePID={_gameProcessId} match={matchPid}");
+            InputDebugLog.Log(
+                $"Foreground check: fgHWND=0x{fg:X} fgPID={fgPid} pinnedHWND=0x{_gameHwnd:X} gamePID={_gameProcessId} hwndMatch={hwndMatch} pidMatch={matchPid}");
 
-        return fg == _gameHwnd;
+        return hwndMatch;
+    }
+
+    /// <summary>Human-readable reason KEY_EVENT was not injected (debug).</summary>
+    public string DescribeWhyNotForegroundForKeyEvent(string? fromId, int vk, bool down)
+    {
+        var fid = string.IsNullOrEmpty(fromId) ? "?" : fromId;
+        if (!IsPinned)
+            return $"KEY_EVENT dropped (vk={vk} down={down} fromId={fid}): no game window pinned — pin the game first.";
+
+        var fg = GetForegroundWindow();
+        GetWindowThreadProcessId(fg, out var fgPid);
+        var sameHwnd = fg == _gameHwnd;
+        var samePid = fgPid == _gameProcessId;
+        var fgName = TryGetProcessName(fgPid);
+        var gameName = TryGetProcessName(_gameProcessId);
+        return
+            $"KEY_EVENT dropped (vk={vk} down={down} fromId={fid}): game not foreground. " +
+            $"pinned HWND=0x{_gameHwnd:X} ({gameName} PID={_gameProcessId}); " +
+            $"foreground HWND=0x{fg:X} ({fgName} PID={fgPid}); hwndMatch={sameHwnd} pidMatch={samePid}. " +
+            "Click the game so it has focus (exclusive fullscreen can hide overlays; Alt+Tab to game).";
+    }
+
+    /// <summary>Human-readable reason PAD_STATE was not applied (debug).</summary>
+    public string DescribeWhyNotForegroundForPadState(string? fromId)
+    {
+        var fid = string.IsNullOrEmpty(fromId) ? "?" : fromId;
+        if (!IsPinned)
+            return $"PAD_STATE dropped (fromId={fid}): no game window pinned.";
+
+        var fg = GetForegroundWindow();
+        GetWindowThreadProcessId(fg, out var fgPid);
+        var sameHwnd = fg == _gameHwnd;
+        var fgName = TryGetProcessName(fgPid);
+        var gameName = TryGetProcessName(_gameProcessId);
+        return
+            $"PAD_STATE dropped (fromId={fid}): game not foreground. " +
+            $"pinned HWND=0x{_gameHwnd:X} ({gameName}); foreground HWND=0x{fg:X} ({fgName}); hwndMatch={sameHwnd}.";
+    }
+
+    private static string TryGetProcessName(uint pid)
+    {
+        if (pid == 0) return "(none)";
+        try
+        {
+            using var p = Process.GetProcessById((int)pid);
+            return p.ProcessName;
+        }
+        catch
+        {
+            return "unknown";
+        }
     }
 
     public bool IsPinnedProcessElevated()

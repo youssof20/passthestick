@@ -34,16 +34,26 @@
                   Expanded="InputLogExpander_Expanded"
                   Collapsed="InputLogExpander_Collapsed">
             <Grid>
-                <ScrollViewer Height="120" x:Name="LogScrollViewer" VerticalScrollBarVisibility="Auto">
-                    <TextBlock x:Name="InputLogText"
-                               FontFamily="Consolas"
-                               FontSize="11"
-                               TextWrapping="Wrap"/>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="120"/>
+                </Grid.RowDefinitions>
+                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,4">
+                    <Button Content="Copy logs" Click="CopyInputLogs_Click" Width="80" Height="22" Margin="0,0,6,0"/>
+                    <Button Content="Clear" Click="ClearLog_Click" Width="50" Height="22"/>
+                </StackPanel>
+                <ScrollViewer Grid.Row="1" x:Name="LogScrollViewer" VerticalScrollBarVisibility="Auto">
+                    <TextBox x:Name="InputLogText"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             FontFamily="Consolas"
+                             FontSize="11"
+                             TextWrapping="Wrap"
+                             IsReadOnly="True"
+                             IsReadOnlyCaretVisible="True"
+                             AcceptsReturn="True"
+                             VerticalScrollBarVisibility="Disabled"/>
                 </ScrollViewer>
-                <Button Content="Clear" Click="ClearLog_Click"
-                        HorizontalAlignment="Right" VerticalAlignment="Top"
-                        Width="50" Height="20"
-                        Margin="0,0,0,0"/>
             </Grid>
         </Expander>
 

@@ -83,6 +83,19 @@ public partial class MainWindow : Window
         InputLogText.Text = string.Empty;
     }
 
+    private void CopyInputLogs_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Clipboard.SetText(InputLogText?.Text ?? string.Empty);
+            AppendInputLog("Input logs copied to clipboard.");
+        }
+        catch
+        {
+            // Clipboard can fail (busy, access denied).
+        }
+    }
+
     private void AppendInputLog(string message)
     {
         Dispatcher.BeginInvoke(() =>
@@ -90,12 +103,13 @@ public partial class MainWindow : Window
             if (InputLogText == null) return;
             var line = $"[{DateTime.Now:HH:mm:ss}] {message}\n";
             InputLogText.Text += line;
-            LogScrollViewer.ScrollToBottom();
+            InputLogText.CaretIndex = InputLogText.Text.Length;
+            try { InputLogText.ScrollToEnd(); } catch { /* older targets */ }
 
-            // Keep max 200 lines to avoid memory bloat.
+            // Keep max 500 lines to avoid memory bloat (copy/paste for diagnosis).
             var lines = InputLogText.Text.Split('\n');
-            if (lines.Length > 200)
-                InputLogText.Text = string.Join('\n', lines[^200..]);
+            if (lines.Length > 500)
+                InputLogText.Text = string.Join('\n', lines[^500..]);
         });
     }
 
@@ -572,19 +586,34 @@ public partial class MainWindow : Window
 
     private void OnKeyEvent(KeyEventMessage msg)
     {
-        if (!_gameTracker.IsGameForeground()) return;
+        if (!_gameTracker.IsGameForeground())
+        {
+            InputDebugLog.Log(_gameTracker.DescribeWhyNotForegroundForKeyEvent(msg.FromId, msg.Vk, msg.Down));
+            return;
+        }
+
         try
         {
             var gameName = Process.GetProcessById((int)_gameTracker.GameProcessId).ProcessName;
-            InputDebugLog.Log($"Injecting KEY_EVENT at foreground: {gameName} (fromId={msg.FromId})");
+            InputDebugLog.Log(
+                $"Injecting KEY_EVENT: game={gameName} PID={_gameTracker.GameProcessId} pinnedHWND=0x{_gameTracker.GameHwnd:X} (fromId={msg.FromId} vk={msg.Vk} down={msg.Down})");
         }
-        catch { }
+        catch
+        {
+            InputDebugLog.Log(
+                $"Injecting KEY_EVENT: pinnedHWND=0x{_gameTracker.GameHwnd:X} PID={_gameTracker.GameProcessId} (fromId={msg.FromId})");
+        }
+
         KeyboardInjectionHelper.InjectKeyEvent(msg);
     }
 
     private void OnPadState(PadStateMessage msg)
     {
-        if (!_gameTracker.IsGameForeground()) return;
+        if (!_gameTracker.IsGameForeground())
+        {
+            InputDebugLog.Log(_gameTracker.DescribeWhyNotForegroundForPadState(msg.FromId));
+            return;
+        }
         try
         {
             _vigem.EnsureConnected();

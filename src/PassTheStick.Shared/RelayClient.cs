@@ -194,7 +194,12 @@ public sealed class RelayClient : IDisposable
                     break;
                 case "PAD_STATE":
                     var ps = JsonSerializer.Deserialize<PadStateMessage>(json, JsonOptions);
-                    if (ps != null) PadStateReceived?.Invoke(ps);
+                    if (ps != null)
+                    {
+                        InputDebugLog.Log(
+                            $"PAD_STATE received fromId={ps.FromId}: btns=0x{ps.Btns:X} lx={ps.Lx} ly={ps.Ly} rx={ps.Rx} ry={ps.Ry} lt={ps.Lt} rt={ps.Rt}");
+                        PadStateReceived?.Invoke(ps);
+                    }
                     break;
                 case "PONG":
                     var pong = JsonSerializer.Deserialize<PongMessage>(json, JsonOptions);

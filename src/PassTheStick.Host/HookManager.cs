@@ -56,7 +56,13 @@ public sealed class HookManager : IDisposable
                 if (isGameForeground)
                 {
                     if (InputDebugLog.Enabled)
-                        InputDebugLog.Log($"SUPPRESSED local key vk={kbd.vkCode} (guest has stick)");
+                    {
+                        var active = string.IsNullOrEmpty(_sessionManager.ActivePlayerId)
+                            ? "host"
+                            : _sessionManager.ActivePlayerId;
+                        InputDebugLog.Log(
+                            $"SUPPRESSED local key vk={kbd.vkCode} sc={kbd.scanCode} wParam={wParam} (guest has stick; activePlayerId={active})");
+                    }
                     return (nint)1; // suppress
                 }
 
@@ -66,8 +72,11 @@ public sealed class HookManager : IDisposable
                     GetWindowThreadProcessId(fgHwnd, out var fgPid);
                     var foregroundName = TryGetProcessName(fgPid);
                     var gameName = TryGetProcessName(_gameWindowTracker.GameProcessId);
+                    var active = string.IsNullOrEmpty(_sessionManager.ActivePlayerId)
+                        ? "host"
+                        : _sessionManager.ActivePlayerId;
                     InputDebugLog.Log(
-                        $"SKIPPED injection - game not foreground (foreground: {foregroundName}, game: {gameName})");
+                        $"SKIPPED local suppress — game not foreground (foreground: {foregroundName}, game: {gameName}; activePlayerId={active}; vk={kbd.vkCode})");
                 }
             }
         }
