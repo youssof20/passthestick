@@ -226,9 +226,20 @@ public partial class MainWindow : Window
         if (!_echoKeys.TryGetValue(key, out var b)) return;
         try
         {
-            b.Background = (System.Windows.Media.Brush)FindResource("PtsBrushOrange");
+            var oldBg = b.Background;
+            var oldBorder = b.BorderBrush;
+            var tb = b.Child as TextBlock;
+            var oldFg = tb?.Foreground;
+
+            b.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x4D, 0xFF, 0x6B, 0x35));
+            b.BorderBrush = (System.Windows.Media.Brush)FindResource("PtsBrushOrange");
+            if (tb != null)
+                tb.Foreground = (System.Windows.Media.Brush)FindResource("PtsBrushOrange");
             await Task.Delay(200);
-            b.Background = System.Windows.Media.Brushes.Transparent;
+            b.Background = oldBg;
+            b.BorderBrush = oldBorder;
+            if (tb != null)
+                tb.Foreground = oldFg ?? (System.Windows.Media.Brush)FindResource("PtsBrushTextSecondary");
         }
         catch { }
     }

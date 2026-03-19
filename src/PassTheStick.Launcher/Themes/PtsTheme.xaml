@@ -45,7 +45,21 @@
         <Setter Property="Background" Value="{StaticResource PtsBrushBgTertiary}"/>
         <Setter Property="BorderBrush" Value="{StaticResource PtsBrushBorder}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="Padding" Value="10,6"/>
+        <Setter Property="Padding" Value="12,8"/>
         <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <Style TargetType="{x:Type TextBlock}">
+        <Setter Property="Foreground" Value="{StaticResource PtsBrushTextPrimary}"/>
+        <Setter Property="FontFamily" Value="{StaticResource PtsFont}"/>
+        <Setter Property="FontSize" Value="13"/>
+    </Style>
+
+    <Style TargetType="{x:Type TextBox}">
+        <Setter Property="Background" Value="{StaticResource PtsBrushBgSecondary}"/>
+        <Setter Property="Foreground" Value="{StaticResource PtsBrushTextPrimary}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource PtsBrushBorder}"/>
+        <Setter Property="CaretBrush" Value="{StaticResource PtsBrushTextPrimary}"/>
+        <Setter Property="Padding" Value="10,6"/>
     </Style>
 </ResourceDictionary>

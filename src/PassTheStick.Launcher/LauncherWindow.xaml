@@ -52,6 +52,7 @@
 
                     <Border x:Name="HostCard"
                             Grid.Column="0"
+                            MinHeight="160"
                             Background="{StaticResource PtsBrushBgSecondary}"
                             BorderBrush="{StaticResource PtsBrushBorder}"
                             BorderThickness="1"
@@ -69,6 +70,7 @@
 
                     <Border x:Name="GuestCard"
                             Grid.Column="2"
+                            MinHeight="160"
                             Background="{StaticResource PtsBrushBgSecondary}"
                             BorderBrush="{StaticResource PtsBrushBorder}"
                             BorderThickness="1"

@@ -119,15 +119,15 @@
                 </Border>
 
                 <WrapPanel Grid.Row="1" Margin="16,0,16,16">
-                    <Border x:Name="G_Echo_W" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Text="W"/></Border>
-                    <Border x:Name="G_Echo_A" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Text="A"/></Border>
-                    <Border x:Name="G_Echo_S" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Text="S"/></Border>
-                    <Border x:Name="G_Echo_D" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Text="D"/></Border>
-                    <Border x:Name="G_Echo_Space" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Text="Space"/></Border>
-                    <Border x:Name="G_Echo_Up" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Text="↑"/></Border>
-                    <Border x:Name="G_Echo_Down" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Text="↓"/></Border>
-                    <Border x:Name="G_Echo_Left" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Text="←"/></Border>
-                    <Border x:Name="G_Echo_Right" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Text="→"/></Border>
+                    <Border x:Name="G_Echo_W" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="W"/></Border>
+                    <Border x:Name="G_Echo_A" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="A"/></Border>
+                    <Border x:Name="G_Echo_S" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="S"/></Border>
+                    <Border x:Name="G_Echo_D" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="D"/></Border>
+                    <Border x:Name="G_Echo_Space" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="Space"/></Border>
+                    <Border x:Name="G_Echo_Up" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="↑"/></Border>
+                    <Border x:Name="G_Echo_Down" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="↓"/></Border>
+                    <Border x:Name="G_Echo_Left" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="←"/></Border>
+                    <Border x:Name="G_Echo_Right" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="→"/></Border>
                 </WrapPanel>
             </Grid>
         </Border>

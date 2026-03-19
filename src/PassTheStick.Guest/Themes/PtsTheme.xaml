@@ -65,5 +65,44 @@
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="CaretBrush" Value="{StaticResource PtsBrushTextPrimary}"/>
     </Style>
+
+    <Style TargetType="{x:Type ComboBox}">
+        <Setter Property="Padding" Value="8,6"/>
+        <Setter Property="Background" Value="{StaticResource PtsBrushBgSecondary}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource PtsBrushBorder}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Foreground" Value="{StaticResource PtsBrushTextPrimary}"/>
+        <Setter Property="FontFamily" Value="{StaticResource PtsFont}"/>
+        <Setter Property="FontSize" Value="13"/>
+    </Style>
+
+    <Style TargetType="{x:Type ListBox}">
+        <Setter Property="Background" Value="{StaticResource PtsBrushBgSecondary}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource PtsBrushBorder}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+
+    <Style TargetType="{x:Type ListBoxItem}">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource PtsBrushTextPrimary}"/>
+        <Setter Property="Padding" Value="6,4"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                    <Border x:Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource PtsBrushBgTertiary}"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource PtsBrushBgTertiary}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
 </ResourceDictionary>
 

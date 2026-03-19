@@ -77,13 +77,15 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <DockPanel Grid.Row="0" Margin="0,0,0,16">
+            <DockPanel Grid.Row="0" Margin="0,0,0,16" LastChildFill="False">
                 <StackPanel Orientation="Horizontal">
                     <Image Width="18" Height="18" Source="passthestick.ico" Margin="0,0,8,0"/>
                     <TextBlock Text="PassTheStick" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
 
                 <Border DockPanel.Dock="Right"
+                        MaxWidth="160"
+                        HorizontalAlignment="Right"
                         CornerRadius="20"
                         BorderBrush="{StaticResource PtsBrushBorder}"
                         BorderThickness="1"
@@ -95,6 +97,7 @@
                                    Text="Offline"
                                    Foreground="{StaticResource PtsBrushTextPrimary}"
                                    FontSize="12"
+                                   TextTrimming="CharacterEllipsis"
                                    Cursor="Hand"
                                    MouseLeftButtonUp="RelayStatusText_MouseLeftButtonUp"/>
                     </StackPanel>
@@ -229,17 +232,17 @@
                                TextWrapping="Wrap"/>
 
                     <WrapPanel x:Name="KeyEchoPanel" Margin="0,0,0,12">
-                        <Border x:Name="Echo_W" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Text="W"/></Border>
-                        <Border x:Name="Echo_A" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Text="A"/></Border>
-                        <Border x:Name="Echo_S" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Text="S"/></Border>
-                        <Border x:Name="Echo_D" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Text="D"/></Border>
-                        <Border x:Name="Echo_Space" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Text="Space"/></Border>
-                        <Border x:Name="Echo_Enter" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Text="Enter"/></Border>
-                        <Border x:Name="Echo_Esc" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Text="Esc"/></Border>
-                        <Border x:Name="Echo_Up" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Text="↑"/></Border>
-                        <Border x:Name="Echo_Down" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Text="↓"/></Border>
-                        <Border x:Name="Echo_Left" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Text="←"/></Border>
-                        <Border x:Name="Echo_Right" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Text="→"/></Border>
+                        <Border x:Name="Echo_W" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="W"/></Border>
+                        <Border x:Name="Echo_A" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="A"/></Border>
+                        <Border x:Name="Echo_S" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="S"/></Border>
+                        <Border x:Name="Echo_D" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="D"/></Border>
+                        <Border x:Name="Echo_Space" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="Space"/></Border>
+                        <Border x:Name="Echo_Enter" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="Enter"/></Border>
+                        <Border x:Name="Echo_Esc" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="Esc"/></Border>
+                        <Border x:Name="Echo_Up" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="↑"/></Border>
+                        <Border x:Name="Echo_Down" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="↓"/></Border>
+                        <Border x:Name="Echo_Left" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="←"/></Border>
+                        <Border x:Name="Echo_Right" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="→"/></Border>
                     </WrapPanel>
 
                     <Expander x:Name="DebugExpander" Header="Debug" IsExpanded="False" Margin="0,0,0,8"
@@ -367,12 +370,20 @@
                     <StackPanel Orientation="Horizontal" Margin="0,28,0,0">
                         <Button x:Name="OnboardingPrimaryButton"
                                 Content="Next"
-                                Padding="16,8"
+                                Padding="16,10"
                                 MinWidth="100"
+                                Background="{StaticResource PtsBrushGreen}"
+                                Foreground="#0F0F0F"
+                                FontWeight="SemiBold"
+                                BorderThickness="0"
                                 Click="OnboardingPrimary_Click"/>
                         <Button Content="Skip"
                                 Margin="12,0,0,0"
-                                Padding="16,8"
+                                Padding="16,10"
+                                Background="Transparent"
+                                Foreground="{StaticResource PtsBrushTextSecondary}"
+                                BorderBrush="{StaticResource PtsBrushBorder}"
+                                BorderThickness="1"
                                 Click="OnboardingSkip_Click"/>
                     </StackPanel>
                 </StackPanel>
