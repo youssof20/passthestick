@@ -15,13 +15,15 @@ public sealed class KeyboardCapture : IDisposable
 
     private readonly Func<bool> _hasStick;
     private readonly Func<int, int, bool, Task> _sendKeyEvent;
+    private readonly Action<int, bool>? _onLocalKey;
     private nint _hookId = nint.Zero;
     private readonly LowLevelKeyboardProc _proc;
 
-    public KeyboardCapture(Func<bool> hasStick, Func<int, int, bool, Task> sendKeyEvent)
+    public KeyboardCapture(Func<bool> hasStick, Func<int, int, bool, Task> sendKeyEvent, Action<int, bool>? onLocalKey = null)
     {
         _hasStick = hasStick;
         _sendKeyEvent = sendKeyEvent;
+        _onLocalKey = onLocalKey;
         _proc = Callback;
     }
 
@@ -47,6 +49,7 @@ public sealed class KeyboardCapture : IDisposable
         {
             var kbd = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
             bool down = wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN;
+            _onLocalKey?.Invoke((int)kbd.vkCode, down);
             _ = _sendKeyEvent((int)kbd.vkCode, (int)kbd.scanCode, down);
         }
         return CallNextHookEx(_hookId, nCode, wParam, lParam);

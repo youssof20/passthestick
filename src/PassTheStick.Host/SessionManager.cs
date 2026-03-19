@@ -47,4 +47,10 @@ public sealed class SessionManager
         if (!string.IsNullOrEmpty(_activePlayerId) && !ids.Contains(_activePlayerId))
             _activePlayerId = LocalPlayerId; // guest disconnected, reclaim
     }
+
+    /// <summary>Clear guest list (e.g. host ended session locally).</summary>
+    public void ClearGuestList()
+    {
+        _players.Clear();
+    }
 }

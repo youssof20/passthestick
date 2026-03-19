@@ -11,6 +11,12 @@ public sealed class AppSettings
     public string? LastRoomCode { get; set; }
     public string? LastRelayUrl { get; set; }
     public string? LastGameExePath { get; set; }
+
+    /// <summary>First-launch wizard completed.</summary>
+    public bool OnboardingCompleted { get; set; }
+
+    /// <summary>Play Windows system sounds on pass/receive (off by default).</summary>
+    public bool EnableStickSounds { get; set; }
 }
 
 public static class SettingsStore

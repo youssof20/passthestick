@@ -3,18 +3,91 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title=""
         Icon="passthestick.ico"
-        Width="200" Height="36"
+        Width="280" Height="56"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
         Topmost="True"
+        ShowActivated="False"
         ShowInTaskbar="False"
         ResizeMode="NoResize"
+        MouseEnter="OverlayWindow_MouseEnter"
+        MouseLeave="OverlayWindow_MouseLeave"
         MouseLeftButtonDown="OverlayWindow_MouseLeftButtonDown">
-    <Border x:Name="PillBorder" CornerRadius="18" Background="#E6000000" Padding="12,6" HorizontalAlignment="Left" VerticalAlignment="Top">
-        <StackPanel>
-            <TextBlock x:Name="PlayerNameText" Text="Host" Foreground="White" FontSize="14" VerticalAlignment="Center"/>
-            <TextBlock x:Name="BannerText" Text="" Foreground="#CCFFFFFF" FontSize="11" Margin="0,2,0,0" Visibility="Collapsed"/>
-        </StackPanel>
+    <Border x:Name="Root"
+            CornerRadius="20"
+            Background="{StaticResource PtsBrushBgSecondary}"
+            Opacity="0.85"
+            BorderBrush="{StaticResource PtsBrushBorder}"
+            BorderThickness="1"
+            Padding="0">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border x:Name="AccentBar" Grid.Column="0" Background="{StaticResource PtsBrushGreen}" CornerRadius="20,0,0,20"/>
+
+            <Grid Grid.Column="1" Margin="12,8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Main view -->
+                <Grid x:Name="MainView" Grid.Row="0">
+                    <Grid.RenderTransform>
+                        <TranslateTransform x:Name="SlideTransform" X="0"/>
+                    </Grid.RenderTransform>
+                    <StackPanel>
+                        <TextBlock x:Name="TitleText"
+                                   Text="You're playing"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource PtsBrushTextPrimary}"/>
+                        <TextBlock x:Name="SubtitleText"
+                                   Text=""
+                                   FontSize="11"
+                                   Foreground="{StaticResource PtsBrushTextSecondary}"
+                                   Margin="0,2,0,0"
+                                   Visibility="Collapsed"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Expanded queue preview -->
+                <Border x:Name="ExpandedPanel"
+                        Grid.Row="2"
+                        Margin="0,10,0,0"
+                        Padding="10"
+                        CornerRadius="8"
+                        Background="{StaticResource PtsBrushBgTertiary}"
+                        BorderBrush="{StaticResource PtsBrushBorder}"
+                        BorderThickness="1"
+                        Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock x:Name="QueueHeader"
+                                   Text="Up next"
+                                   FontSize="11"
+                                   Foreground="{StaticResource PtsBrushTextSecondary}"
+                                   Margin="0,0,0,6"/>
+                        <StackPanel x:Name="QueueList"/>
+                        <DockPanel Margin="0,10,0,0">
+                            <Button x:Name="PassButton"
+                                    DockPanel.Dock="Left"
+                                    Content="Pass →"
+                                    Padding="10,6"
+                                    Click="PassButton_Click"/>
+                            <TextBlock Text="Ctrl+Shift+→"
+                                       DockPanel.Dock="Right"
+                                       Foreground="{StaticResource PtsBrushTextSecondary}"
+                                       FontSize="11"
+                                       VerticalAlignment="Center"/>
+                        </DockPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
     </Border>
 </Window>

@@ -14,10 +14,12 @@ public partial class MainWindow : Window
     private List<PlayerInfo> _players = new();
     private int _lastLatencyMs;
     private bool _sessionEnded;
+    private readonly Dictionary<string, System.Windows.Controls.Border> _echoKeys = new();
 
     public MainWindow()
     {
         InitializeComponent();
+        BuildEchoMap();
         Closed += (_, _) =>
         {
             _keyboardCapture?.Dispose();
@@ -29,11 +31,11 @@ public partial class MainWindow : Window
     [DllImport("user32.dll")]
     private static extern bool SetForegroundWindow(nint hWnd);
 
-    private void ShowHaveStickBanner()
+    private void ShowActiveState()
     {
-        HaveStickTitle.Text = "YOU HAVE THE STICK";
-        HaveStickSubtitle.Text = "Your keyboard is live — switch to the game's screenshare and play.";
-        HaveStickBanner.Visibility = Visibility.Visible;
+        JoinPanel.Visibility = Visibility.Collapsed;
+        WaitingPanel.Visibility = Visibility.Collapsed;
+        ActivePanel.Visibility = Visibility.Visible;
 
         // Best-effort: bring this window to the user's attention without requiring them to click it.
         try
@@ -49,18 +51,24 @@ public partial class MainWindow : Window
             if (hwnd != nint.Zero) SetForegroundWindow(hwnd);
         }
         catch { }
+
+        _ = FlashActivePulseAsync();
     }
 
-    private void ShowWaitingBanner(string holderName)
+    private void ShowWaitingState(string holderName)
     {
-        HaveStickTitle.Text = "WAITING";
-        HaveStickSubtitle.Text = $"Waiting — {holderName} has the stick";
-        HaveStickBanner.Visibility = Visibility.Visible;
+        JoinPanel.Visibility = Visibility.Collapsed;
+        WaitingPanel.Visibility = Visibility.Visible;
+        ActivePanel.Visibility = Visibility.Collapsed;
+        WaitingSubtitle.Text = $"{holderName} is playing right now";
     }
 
-    private void HideBanner()
+    private void ShowJoinState(string message = "")
     {
-        HaveStickBanner.Visibility = Visibility.Collapsed;
+        JoinPanel.Visibility = Visibility.Visible;
+        WaitingPanel.Visibility = Visibility.Collapsed;
+        ActivePanel.Visibility = Visibility.Collapsed;
+        JoinStatusText.Text = message ?? string.Empty;
     }
 
     private async void JoinButton_Click(object sender, RoutedEventArgs e)
@@ -70,13 +78,11 @@ public partial class MainWindow : Window
         var name = NameBox.Text.Trim();
         if (string.IsNullOrEmpty(code) || string.IsNullOrEmpty(name))
         {
-            StatusText.Text = "Enter room code and name.";
+            JoinStatusText.Text = "Enter room code and name.";
             return;
         }
         JoinButton.IsEnabled = false;
-        StatusText.Text = "Connecting…";
-        StickStatusText.Text = "Connecting…";
-        LatencyText.Text = "Latency: —";
+        JoinStatusText.Text = "Connecting…";
         while (true)
         {
             try
@@ -85,16 +91,12 @@ public partial class MainWindow : Window
                 _relay.PlayerListReceived += players =>
                 {
                     _players = players;
+                    Dispatcher.BeginInvoke(() => GuestPlayersList.ItemsSource = _players);
                 };
                 _relay.YouHaveItReceived += () =>
                 {
                     _haveStick = true;
-                    Dispatcher.Invoke(() =>
-                    {
-                        StatusText.Text = "You have the stick!";
-                        StickStatusText.Text = "You have the stick!";
-                        ShowHaveStickBanner();
-                    });
+                    Dispatcher.Invoke(ShowActiveState);
                 };
                 _relay.PassStickReceived += toId =>
                 {
@@ -104,16 +106,13 @@ public partial class MainWindow : Window
                     _haveStick = nowHaveStick;
                     Dispatcher.Invoke(() =>
                     {
-                        StatusText.Text = nowHaveStick
-                            ? "You have the stick!"
-                            : "Joined. Wait for the host to pass you the stick.";
                         var holder = nowHaveStick ? "You" : ResolveName(toId);
-                        StickStatusText.Text = nowHaveStick
-                            ? "You have the stick!"
-                            : $"Waiting — {holder} has the stick";
-
-                        if (nowHaveStick) ShowHaveStickBanner();
-                        else ShowWaitingBanner(holder);
+                        if (nowHaveStick) ShowActiveState();
+                        else
+                        {
+                            _ = FlashTurnEndedAsync();
+                            ShowWaitingState(holder);
+                        }
                     });
                 };
                 _relay.SessionEnded += reason =>
@@ -127,13 +126,10 @@ public partial class MainWindow : Window
                         try { _relay?.Dispose(); } catch { }
                         _relay = null;
 
-                        StatusText.Text = "Session ended — enter a new room code to rejoin.";
-                        StickStatusText.Text = "Not connected";
-                        LatencyText.Text = "Latency: —";
                         RoomCodeBox.Text = "";
                         _players = new List<PlayerInfo>();
                         JoinButton.IsEnabled = true;
-                        HideBanner();
+                        ShowJoinState("Session ended — enter a new room code to rejoin.");
                     });
                 };
                 _relay.LatencyUpdatedMs += ms =>
@@ -141,10 +137,11 @@ public partial class MainWindow : Window
                     Dispatcher.BeginInvoke(() =>
                     {
                         _lastLatencyMs = ms;
-                        if (ms > 200)
-                            LatencyText.Text = $"High latency ({ms}ms) — input may feel delayed";
-                        else
-                            LatencyText.Text = $"Connected — {ms}ms";
+                        var status = ms > 200
+                            ? $"Connected ({ms}ms) — high latency"
+                            : $"Connected ({ms}ms)";
+                        WaitingHeader.Text = $"Room: {code}  •  {status}";
+                        ActiveStatusLine.Text = $"Latency: {ms}ms  •  Connected";
                     });
                 };
                 _relay.Disconnected += _ =>
@@ -153,13 +150,10 @@ public partial class MainWindow : Window
                     _haveStick = false;
                     Dispatcher.Invoke(() =>
                     {
-                        StatusText.Text = "Connection lost. You can rejoin by entering a room code.";
                         JoinButton.IsEnabled = true;
-                        StickStatusText.Text = "Not connected";
-                        LatencyText.Text = "Latency: —";
                         RoomCodeBox.Text = "";
                         _players = new List<PlayerInfo>();
-                        HideBanner();
+                        ShowJoinState("Connection lost. Enter a room code to rejoin.");
                     });
 
                     try { _keyboardCapture?.Dispose(); } catch { }
@@ -180,22 +174,26 @@ public partial class MainWindow : Window
                     {
                         if (_relay?.IsConnected == true)
                             await _relay.SendKeyEventAsync(vk, sc, down);
+                    },
+                    (vk, down) =>
+                    {
+                        if (!down) return;
+                        Dispatcher.BeginInvoke(() => FlashEcho(KeyNames.VkToName(vk)));
                     });
                 _keyboardCapture.Install();
                 _controllerCapture = new ControllerCapture(
                     () => _haveStick,
                     async msg => { if (_relay?.IsConnected == true) await _relay.SendPadStateAsync(msg); });
                 _controllerCapture.Start();
-                StatusText.Text = "Joined. Wait for the host to pass you the stick.";
-                StickStatusText.Text = "Waiting — Host has the stick";
-                ShowWaitingBanner("Host");
+                WaitingHeader.Text = $"Room: {code}  •  Connected";
+                GuestPlayersList.ItemsSource = _players;
+                ShowWaitingState("Host");
                 break;
             }
             catch
             {
                 // Guest UX: keep it simple here; show a friendly message and allow retry via Join.
-                StatusText.Text = "Can't reach the relay server. You can change the relay URL in settings and try again.";
-                StickStatusText.Text = "Not connected";
+                JoinStatusText.Text = "Can't reach the relay server. Try again in a moment.";
                 JoinButton.IsEnabled = true;
                 break;
             }
@@ -207,5 +205,57 @@ public partial class MainWindow : Window
         if (string.IsNullOrWhiteSpace(id)) return "Host";
         var p = _players.FirstOrDefault(x => x.Id == id);
         return !string.IsNullOrWhiteSpace(p?.Name) ? p.Name : "Host";
+    }
+
+    private void BuildEchoMap()
+    {
+        _echoKeys.Clear();
+        _echoKeys["W"] = G_Echo_W;
+        _echoKeys["A"] = G_Echo_A;
+        _echoKeys["S"] = G_Echo_S;
+        _echoKeys["D"] = G_Echo_D;
+        _echoKeys["Space"] = G_Echo_Space;
+        _echoKeys["Up"] = G_Echo_Up;
+        _echoKeys["Down"] = G_Echo_Down;
+        _echoKeys["Left"] = G_Echo_Left;
+        _echoKeys["Right"] = G_Echo_Right;
+    }
+
+    private async void FlashEcho(string key)
+    {
+        if (!_echoKeys.TryGetValue(key, out var b)) return;
+        try
+        {
+            b.Background = (System.Windows.Media.Brush)FindResource("PtsBrushOrange");
+            await Task.Delay(200);
+            b.Background = System.Windows.Media.Brushes.Transparent;
+        }
+        catch { }
+    }
+
+    private async Task FlashActivePulseAsync()
+    {
+        try
+        {
+            var brush = (System.Windows.Media.Brush)FindResource("PtsBrushOrange");
+            ActiveBody.Background = brush;
+            await Task.Delay(120);
+            ActiveBody.Background = (System.Windows.Media.Brush)FindResource("PtsBrushBgSecondary");
+        }
+        catch { }
+    }
+
+    private async Task FlashTurnEndedAsync()
+    {
+        try
+        {
+            WaitingTitle.Text = "Turn ended — great playing!";
+            var green = (System.Windows.Media.Brush)FindResource("PtsBrushGreen");
+            WaitingTitle.Foreground = green;
+            await Task.Delay(800);
+            WaitingTitle.Foreground = (System.Windows.Media.Brush)FindResource("PtsBrushTextPrimary");
+            WaitingTitle.Text = "Waiting for your turn";
+        }
+        catch { }
     }
 }

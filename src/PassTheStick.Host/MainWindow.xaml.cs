@@ -1,12 +1,12 @@
 using System.IO;
 using System.Net.Sockets;
 using System.Diagnostics;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Threading;
 using PassTheStick.Shared;
-using WinForms = System.Windows.Forms;
 
 namespace PassTheStick.Host;
 
@@ -48,6 +48,9 @@ public partial class MainWindow : Window
     private long _failedCount;
     private long _droppedCount;
     private readonly Dictionary<string, System.Windows.Controls.Border> _echoKeys = new();
+    private bool _enableStickSounds;
+    private int _onboardingStep;
+    private long _lastReceiveSoundTicks;
 
     public void ShowUpdateNotification(string latestVersion, string url)
     {
@@ -155,6 +158,18 @@ public partial class MainWindow : Window
         }
     }
 
+    private void CopyRoomCode_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var code = (RoomCodeText?.Text ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(code) || code == "—") return;
+            System.Windows.Clipboard.SetText(code);
+            _tray?.ShowToast("PassTheStick", "Room code copied.");
+        }
+        catch { }
+    }
+
     private void AppendInputLog(string message)
     {
         Dispatcher.BeginInvoke(() =>
@@ -207,11 +222,19 @@ public partial class MainWindow : Window
             var src = HwndSource.FromHwnd(helper.Handle);
             src?.AddHook(WndProc);
 
-            RoomCodeLabel.Text = "Room code: —";
+            RoomCodeText.Text = "—";
             StatusText.Text = "Select and pin your game window to start a session.";
             PassStickButton.IsEnabled = false;
             RefreshWindows();
             StartGameWatchdog();
+
+            UpdateVersionFooter();
+            var sett = SettingsStore.Load();
+            _enableStickSounds = sett.EnableStickSounds;
+            if (!sett.OnboardingCompleted)
+                ShowOnboarding();
+
+            UpdateOverlayName();
 
             await Task.CompletedTask;
         }
@@ -260,11 +283,11 @@ public partial class MainWindow : Window
             // Locally reset host state but keep app open.
             ReleaseHeldKeysOnStickChange(_sessionManager.LocalPlayerId);
             _sessionManager.SetActivePlayer(_sessionManager.LocalPlayerId);
+            _sessionManager.ClearGuestList();
             PlayersList.ItemsSource = null;
-            RoomCodeLabel.Text = "Room code: —";
+            RoomCodeText.Text = "—";
             StatusText.Text = "Session ended. Pin the game window to start a new session.";
-            _overlay?.SetBanner("Session ended");
-            _overlay?.SetPlayerName("Host");
+            _overlay?.SetTurn("Host", true, Array.Empty<string>());
             PassStickButton.IsEnabled = false;
             _sessionStarted = false;
 
@@ -348,8 +371,12 @@ public partial class MainWindow : Window
         ReleaseHeldKeysOnStickChange(_relay.MyId);
         _relay.SendPassStickAsync(_relay.MyId);
         _sessionManager.SetActivePlayer(_relay.MyId);
-        _overlay?.SetPlayerName("Host");
-        _overlay?.SetBanner(null);
+        UpdateOverlayName();
+        if (_enableStickSounds)
+        {
+            StickSoundPlayer.PlayReceive();
+            _lastReceiveSoundTicks = Environment.TickCount64;
+        }
         StatusText.Text = "Stick taken back.";
         _tray?.ShowToast("PassTheStick", "Stick returned to you");
         InputDebugLog.Log("[hotkey] Host reclaimed stick via Ctrl+Shift+Left");
@@ -646,14 +673,19 @@ public partial class MainWindow : Window
             _sessionManager.SetActivePlayer(_relay.MyId);
 
             _overlay = new OverlayWindow();
-            _overlay.SetPlayerName("Host");
+            _overlay.PassRequested += () =>
+            {
+                // Show pass picker near cursor without stealing foreground from the game.
+                _picker?.SetPlayers(_sessionManager.Players);
+                _picker?.ShowNearCursor();
+            };
             _overlay.Show();
             StartOverlayTracking();
 
             _picker = new PassStickPickerWindow(OnPickGuest);
             _picker.SetPlayers(_sessionManager.Players);
 
-            RoomCodeLabel.Text = "Room code: " + code;
+            RoomCodeText.Text = code;
             StatusText.Text = "Connected. Use Ctrl+Shift+Right to pass the stick.";
             _tray?.ShowToast("PassTheStick", "Host session started. Share the room code with friends.");
             _sessionStarted = true;
@@ -726,6 +758,16 @@ public partial class MainWindow : Window
             ReleaseHeldKeysOnStickChange(toId);
             _sessionManager.SetActivePlayer(toId);
             UpdateOverlayName();
+            if (_enableStickSounds && _relay != null &&
+                string.Equals(toId, _relay.MyId, StringComparison.Ordinal))
+            {
+                var t = Environment.TickCount64;
+                if (t - _lastReceiveSoundTicks > 350)
+                {
+                    StickSoundPlayer.PlayReceive();
+                    _lastReceiveSoundTicks = t;
+                }
+            }
         });
     }
 
@@ -761,8 +803,9 @@ public partial class MainWindow : Window
         ReleaseHeldKeysOnStickChange(p.Id);
         _relay.SendPassStickAsync(p.Id);
         _sessionManager.SetActivePlayer(p.Id);
-        _overlay?.SetPlayerName(p.Name);
-        _overlay?.SetBanner(null);
+        UpdateOverlayName();
+        if (_enableStickSounds)
+            StickSoundPlayer.PlayPass();
         StatusText.Text = "Stick passed to " + p.Name;
         TryFocusPinnedGame("[session] Brought game to foreground after stick pass");
         ResetInjectionCounters("stick passed");
@@ -774,9 +817,6 @@ public partial class MainWindow : Window
         Dispatcher.Invoke(() =>
         {
             _sessionManager.UpdatePlayers(players);
-            PlayersList.ItemsSource = null;
-            PlayersList.ItemsSource = _sessionManager.Players;
-            PassStickButton.IsEnabled = _sessionStarted && _gameTracker.IsPinned && PlayersList.SelectedItem is PlayerInfo;
             _picker?.SetPlayers(_sessionManager.Players);
             UpdateOverlayName();
         });
@@ -785,13 +825,66 @@ public partial class MainWindow : Window
     private void UpdateOverlayName()
     {
         var id = _sessionManager.ActivePlayerId;
-        if (string.IsNullOrEmpty(id) || id == _sessionManager.LocalPlayerId)
-            _overlay?.SetPlayerName("Host");
-        else
+        var hostId = _sessionManager.LocalPlayerId;
+
+        var hostHasStick = string.IsNullOrEmpty(id) || id == hostId;
+        var activeName = "Host";
+        if (!hostHasStick)
         {
             var p = _sessionManager.Players.FirstOrDefault(x => x.Id == id);
-            _overlay?.SetPlayerName(p?.Name ?? "Guest");
+            activeName = p?.Name ?? "Guest";
         }
+
+        if (_overlay != null)
+            _overlay.SetTurn(activeName, hostHasStick, BuildQueuePreview(activeName, hostHasStick));
+        RefreshPlayerRows();
+        UpdateActiveBannerUi(hostHasStick, activeName);
+    }
+
+    private void RefreshPlayerRows()
+    {
+        var activeId = _sessionManager.ActivePlayerId;
+        var rows = _sessionManager.Players
+            .Select(p => new PlayerRowViewModel(p, string.Equals(p.Id, activeId, StringComparison.Ordinal)))
+            .ToList();
+        PlayersList.ItemsSource = rows;
+        PassStickButton.IsEnabled =
+            _sessionStarted &&
+            _gameTracker.IsPinned &&
+            PlayersList.SelectedItem is PlayerRowViewModel;
+    }
+
+    private void UpdateActiveBannerUi(bool hostHasStick, string activeName)
+    {
+        if (hostHasStick)
+        {
+            ActiveBannerTitle.Text = "YOU HAVE THE STICK";
+            ActiveBannerSubtitle.Text = "Your keyboard is live in the pinned game.";
+            ActiveBanner.BorderBrush = (System.Windows.Media.Brush)FindResource("PtsBrushGreen");
+        }
+        else
+        {
+            ActiveBannerTitle.Text = $"{activeName} has the stick";
+            ActiveBannerSubtitle.Text = "Your keys are paused while a guest is playing.";
+            ActiveBanner.BorderBrush = (System.Windows.Media.Brush)FindResource("PtsBrushOrange");
+        }
+    }
+
+    private IReadOnlyList<string> BuildQueuePreview(string activeName, bool hostHasStick)
+    {
+        // Simple preview: next up in current join order, circular, max 3.
+        var names = new List<string>();
+        var all = new List<string> { "You" };
+        all.AddRange(_sessionManager.Players.Select(p => p.Name));
+
+        var activeLabel = hostHasStick ? "You" : activeName;
+        var idx = all.FindIndex(n => string.Equals(n, activeLabel, StringComparison.OrdinalIgnoreCase));
+        if (idx < 0) idx = 0;
+
+        for (int i = 1; i <= 3 && i < all.Count; i++)
+            names.Add(all[(idx + i) % all.Count]);
+
+        return names;
     }
 
     private void ReleaseHeldKeysOnStickChange(string? newActivePlayerId)
@@ -1033,7 +1126,7 @@ public partial class MainWindow : Window
             StatusText.Text = reason.Contains("heartbeat", StringComparison.OrdinalIgnoreCase)
                 ? "Heartbeat lost — reconnecting…"
                 : "Connection lost — reconnecting…";
-            _overlay?.SetBanner("Connection lost — reconnecting…");
+            _overlay?.SetTurn("Host", true, Array.Empty<string>());
             SetRelayIndicator("Not connected — click to view connection status", "#C33");
             PlayersList.ItemsSource = null;
             PassStickButton.IsEnabled = false;
@@ -1080,12 +1173,10 @@ public partial class MainWindow : Window
             _tray?.ShowToast("PassTheStick", "Solo test starting…");
             await Task.Delay(TimeSpan.FromSeconds(2));
             _sessionManager.SetActivePlayer("__test__");
-            _overlay?.SetPlayerName("Test Player");
-            _overlay?.SetBanner("Test Player has the stick");
+            _overlay?.SetTurn("Test Player", false, Array.Empty<string>());
             await Task.Delay(TimeSpan.FromSeconds(5));
             _sessionManager.SetActivePlayer(_sessionManager.LocalPlayerId);
-            _overlay?.SetPlayerName("Host");
-            _overlay?.SetBanner(null);
+            _overlay?.SetTurn("Host", true, Array.Empty<string>());
             _tray?.ShowToast("PassTheStick", "Solo test complete — keyboard blocking and passing both work correctly.");
         }
         catch (Exception ex)
@@ -1117,9 +1208,9 @@ public partial class MainWindow : Window
                     var code = await _relay.CreateRoomAsync();
                     Dispatcher.Invoke(() =>
                     {
-                        RoomCodeLabel.Text = "Room code: " + code;
+                        RoomCodeText.Text = code;
                         StatusText.Text = "Reconnected.";
-                        _overlay?.SetBanner(null);
+                        _overlay?.SetTurn("Host", true, Array.Empty<string>());
                     });
                     return;
                 }
@@ -1131,7 +1222,7 @@ public partial class MainWindow : Window
             Dispatcher.Invoke(() =>
             {
                 StatusText.Text = "Could not reconnect. Please restart the session.";
-                _overlay?.SetBanner("Could not reconnect. Please restart the session.");
+                _overlay?.SetTurn("Host", true, Array.Empty<string>());
             });
         }, ct);
     }
@@ -1149,8 +1240,8 @@ public partial class MainWindow : Window
                 MessageBoxImage.Information);
             return;
         }
-        if (PlayersList.SelectedItem is not PlayerInfo p) return;
-        OnPickGuest(p);
+        if (PlayersList.SelectedItem is not PlayerRowViewModel row) return;
+        OnPickGuest(row.Player);
     }
 
     private void PlayersList_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1159,18 +1250,158 @@ public partial class MainWindow : Window
         PassStickButton.IsEnabled =
             _sessionStarted &&
             _gameTracker.IsPinned &&
-            PlayersList.SelectedItem is PlayerInfo;
+            PlayersList.SelectedItem is PlayerRowViewModel;
     }
 
     private void PlayersList_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
-        if (PlayersList.SelectedItem is PlayerInfo p && PassStickButton.IsEnabled)
-            OnPickGuest(p);
+        if (PlayersList.SelectedItem is PlayerRowViewModel row && PassStickButton.IsEnabled)
+            OnPickGuest(row.Player);
     }
 
     private void TakeStickBackButton_Click(object sender, RoutedEventArgs e)
     {
         TakeStickBack();
+    }
+
+    private void OpenSettings_Click(object sender, RoutedEventArgs e)
+    {
+        var s = SettingsStore.Load();
+        SettingsRelayUrlText.Text = s.RelayUrlOverride ?? string.Empty;
+        SettingsSoundsCheck.IsChecked = s.EnableStickSounds;
+        SettingsBackdrop.Visibility = Visibility.Visible;
+        SettingsFlyout.Visibility = Visibility.Visible;
+    }
+
+    private void CloseSettings_Click(object sender, RoutedEventArgs e) => CloseSettings();
+
+    private void SettingsBackdrop_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (e.OriginalSource == SettingsBackdrop)
+            CloseSettings();
+    }
+
+    private void CloseSettings()
+    {
+        SettingsBackdrop.Visibility = Visibility.Collapsed;
+        SettingsFlyout.Visibility = Visibility.Collapsed;
+    }
+
+    private void SaveSettings_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var s = SettingsStore.Load();
+            var url = (SettingsRelayUrlText.Text ?? string.Empty).Trim();
+            s.RelayUrlOverride = string.IsNullOrEmpty(url) ? null : url;
+            s.EnableStickSounds = SettingsSoundsCheck.IsChecked == true;
+            SettingsStore.Save(s);
+            _enableStickSounds = s.EnableStickSounds;
+            _tray?.ShowToast("PassTheStick", "Settings saved.");
+            CloseSettings();
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(ex.Message, "PassTheStick", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void OpenDebugPanel_Click(object sender, RoutedEventArgs e)
+    {
+        DebugExpander.IsExpanded = true;
+        DebugExpander.BringIntoView();
+    }
+
+    private void PlayerRowPass_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button b || b.DataContext is not PlayerRowViewModel row)
+            return;
+        if (!_sessionStarted || _relay == null)
+        {
+            StatusText.Text = "Not connected — start a session first.";
+            ShowConnectionStatus();
+            return;
+        }
+        if (!_gameTracker.IsPinned)
+        {
+            System.Windows.MessageBox.Show(
+                "Please pin a game window first.",
+                "PassTheStick",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+        OnPickGuest(row.Player);
+    }
+
+    private void UpdateVersionFooter()
+    {
+        try
+        {
+            var v = Assembly.GetExecutingAssembly().GetName().Version;
+            var text = v == null ? "v—" : $"v{v.Major}.{v.Minor}.{v.Build}";
+            VersionFooterText.Text = text;
+            SettingsAboutText.Text =
+                $"PassTheStick host {text}. Shared keyboard for couch co-op over the network.";
+        }
+        catch { }
+    }
+
+    private void ShowOnboarding()
+    {
+        _onboardingStep = 0;
+        OnboardingOverlay.Visibility = Visibility.Visible;
+        ApplyOnboardingStep();
+    }
+
+    private void ApplyOnboardingStep()
+    {
+        switch (_onboardingStep)
+        {
+            case 0:
+                OnboardingTitle.Text = "Welcome to PassTheStick";
+                OnboardingBody.Text =
+                    "Share one keyboard (and gamepad) between friends over the network while everyone watches the same screen.";
+                OnboardingPrimaryButton.Content = "Next";
+                break;
+            case 1:
+                OnboardingTitle.Text = "Stay connected";
+                OnboardingBody.Text =
+                    "By default the app uses the cloud relay. For LAN-only sessions you can start a local relay from the tray, or set a custom WebSocket URL in Settings.";
+                OnboardingPrimaryButton.Content = "Next";
+                break;
+            default:
+                OnboardingTitle.Text = "You're ready";
+                OnboardingBody.Text =
+                    "Pin your game window, share the room code with guests, and use Ctrl+Shift+Right to pass the stick.";
+                OnboardingPrimaryButton.Content = "Get started";
+                break;
+        }
+    }
+
+    private void OnboardingPrimary_Click(object sender, RoutedEventArgs e)
+    {
+        if (_onboardingStep < 2)
+        {
+            _onboardingStep++;
+            ApplyOnboardingStep();
+        }
+        else
+            FinishOnboarding();
+    }
+
+    private void OnboardingSkip_Click(object sender, RoutedEventArgs e) => FinishOnboarding();
+
+    private void FinishOnboarding()
+    {
+        try
+        {
+            var s = SettingsStore.Load();
+            s.OnboardingCompleted = true;
+            SettingsStore.Save(s);
+        }
+        catch { }
+        OnboardingOverlay.Visibility = Visibility.Collapsed;
     }
 
     // Port readiness checks are handled inside RelayProcessManager now.

@@ -1,19 +1,17 @@
 using System.IO;
-using System.Diagnostics;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media.Imaging;
+using Hardcodet.Wpf.TaskbarNotification;
 using PassTheStick.Shared;
-using WinForms = System.Windows.Forms;
-using NotifyIcon = System.Windows.Forms.NotifyIcon;
-using ContextMenuStrip = System.Windows.Forms.ContextMenuStrip;
-using ToolStripMenuItem = System.Windows.Forms.ToolStripMenuItem;
-using ToolStripSeparator = System.Windows.Forms.ToolStripSeparator;
 
 namespace PassTheStick.Host;
 
+/// <summary>WPF tray icon (no WinForms). Uses Hardcodet.NotifyIcon.Wpf.</summary>
 public sealed class TrayIconManager : IDisposable
 {
-    private readonly NotifyIcon _notifyIcon;
-    private readonly SessionManager _session;
+    private readonly TaskbarIcon _taskbarIcon;
+    private readonly ContextMenu _contextMenu = new();
     private readonly Func<IReadOnlyList<PlayerInfo>> _getPlayers;
     private readonly Action<PlayerInfo> _passStickTo;
     private readonly Action _pinGame;
@@ -27,9 +25,6 @@ public sealed class TrayIconManager : IDisposable
     private readonly Action _testInjection;
     private readonly Action _exit;
     private string? _pendingUpdateUrl;
-
-    private ToolStripMenuItem? _playersHeader;
-    private ToolStripMenuItem? _relayItem;
 
     public TrayIconManager(
         SessionManager session,
@@ -46,7 +41,7 @@ public sealed class TrayIconManager : IDisposable
         Action testInjection,
         Action exit)
     {
-        _session = session;
+        _ = session;
         _getPlayers = getPlayers;
         _passStickTo = passStickTo;
         _pinGame = pinGame;
@@ -64,19 +59,22 @@ public sealed class TrayIconManager : IDisposable
         if (iconInfo == null)
             throw new InvalidOperationException("Missing embedded resource: passthestick.ico");
 
-        using var iconStream = iconInfo.Stream;
-        var trayIcon = new System.Drawing.Icon(iconStream);
+        using var ms = new MemoryStream();
+        iconInfo.Stream.CopyTo(ms);
+        ms.Position = 0;
 
-        _notifyIcon = new NotifyIcon
+        _taskbarIcon = new TaskbarIcon
         {
-            Visible = true,
-            Text = "PassTheStick",
-            Icon = trayIcon
+            ToolTipText = "PassTheStick",
+            IconSource = BitmapFrame.Create(ms, BitmapCreateOptions.None, BitmapCacheOption.OnLoad)
         };
 
-        _notifyIcon.ContextMenuStrip = BuildMenu();
-        _notifyIcon.DoubleClick += (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(() => _pinGame());
-        _notifyIcon.BalloonTipClicked += (_, _) =>
+        _contextMenu.Opened += ContextMenu_Opened;
+        _taskbarIcon.ContextMenu = _contextMenu;
+        _taskbarIcon.TrayMouseDoubleClick += (_, _) =>
+            System.Windows.Application.Current.Dispatcher.Invoke(_pinGame);
+
+        _taskbarIcon.TrayBalloonTipClicked += (_, _) =>
         {
             try
             {
@@ -88,92 +86,69 @@ public sealed class TrayIconManager : IDisposable
         };
     }
 
-    private ContextMenuStrip BuildMenu()
+    private void ContextMenu_Opened(object sender, RoutedEventArgs e)
     {
-        var menu = new ContextMenuStrip();
+        _contextMenu.Items.Clear();
 
-        menu.Items.Add(new ToolStripMenuItem("Pin current window as game", null, (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(_pinGame)));
-        menu.Items.Add(new ToolStripMenuItem("Take stick back", null, (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(_takeStickBack)));
-        menu.Items.Add(new ToolStripMenuItem("End session (close room)", null, (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(_endSession)));
-        menu.Items.Add(new ToolStripMenuItem("Connection status…", null, (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(_showConnectionStatus)));
-        menu.Items.Add(new ToolStripSeparator());
+        AddItem("Pin current window as game", _pinGame);
+        AddItem("Take stick back", _takeStickBack);
+        AddItem("End session (close room)", _endSession);
+        AddItem("Connection status…", _showConnectionStatus);
+        _contextMenu.Items.Add(new Separator());
 
-        _playersHeader = new ToolStripMenuItem("Pass stick to:")
-        {
-            Enabled = false
-        };
-        menu.Items.Add(_playersHeader);
-
-        menu.Opening += (_, _) => RefreshPlayers(menu);
-
-        menu.Items.Add(new ToolStripSeparator());
-
-        _relayItem = new ToolStripMenuItem("Start relay server", null, (_, _) =>
-        {
-            if (_isRelayRunning()) _stopRelay(); else _startRelay();
-        });
-        menu.Items.Add(_relayItem);
-
-        menu.Items.Add(new ToolStripMenuItem("Test injection", null, (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(_testInjection)));
-        menu.Items.Add(new ToolStripMenuItem("Solo test mode", null, (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(_soloTest)));
-        menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(new ToolStripMenuItem("Exit", null, (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(_exit)));
-
-        return menu;
-    }
-
-    private void RefreshPlayers(ContextMenuStrip menu)
-    {
-        if (_relayItem != null)
-            _relayItem.Text = _isRelayRunning() ? "Relay running (stop)" : "Start relay server";
-
-        // Remove old player entries (items between header and next separator)
-        var header = _playersHeader;
-        if (header == null) return;
-        int headerIndex = menu.Items.IndexOf(header);
-        if (headerIndex < 0) return;
-
-        int i = headerIndex + 1;
-        while (i < menu.Items.Count && menu.Items[i] is ToolStripMenuItem mi && mi.Tag as string == "player")
-            menu.Items.RemoveAt(i);
+        _contextMenu.Items.Add(new MenuItem { Header = "Pass stick to:", IsEnabled = false });
 
         var players = _getPlayers();
         foreach (var p in players)
         {
-            var item = new ToolStripMenuItem(p.Name, null, (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(() => _passStickTo(p)))
-            {
-                Tag = "player",
-                Enabled = true
-            };
-            menu.Items.Insert(i++, item);
+            var pl = p;
+            AddItem(pl.Name, () => _passStickTo(pl));
         }
 
         if (players.Count == 0)
+            _contextMenu.Items.Add(new MenuItem { Header = "(no guests yet)", IsEnabled = false });
+
+        _contextMenu.Items.Add(new Separator());
+
+        var relayRunning = _isRelayRunning();
+        AddItem(relayRunning ? "Relay running (stop)" : "Start relay server", () =>
         {
-            var none = new ToolStripMenuItem("(no guests yet)") { Tag = "player", Enabled = false };
-            menu.Items.Insert(i, none);
-        }
+            if (_isRelayRunning()) _stopRelay(); else _startRelay();
+        });
+
+        AddItem("Test injection", _testInjection);
+        AddItem("Solo test mode", _soloTest);
+        _contextMenu.Items.Add(new Separator());
+        AddItem("Exit", _exit);
     }
 
-    public void ShowToast(string title, string message)
+    private void AddItem(string header, Action action)
     {
-        _notifyIcon.BalloonTipTitle = title;
-        _notifyIcon.BalloonTipText = message;
-        _notifyIcon.ShowBalloonTip(3000);
+        var mi = new MenuItem { Header = header };
+        mi.Click += (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(action);
+        _contextMenu.Items.Add(mi);
     }
+
+    private static void Ui(Action a)
+    {
+        var d = System.Windows.Application.Current?.Dispatcher;
+        if (d == null) return;
+        if (d.CheckAccess()) a();
+        else d.Invoke(a);
+    }
+
+    public void ShowToast(string title, string message) =>
+        Ui(() => _taskbarIcon.ShowBalloonTip(title, message, BalloonIcon.Info));
 
     public void ShowUpdateToast(string title, string message, string updateUrl)
     {
         _pendingUpdateUrl = updateUrl;
-        _notifyIcon.BalloonTipTitle = title;
-        _notifyIcon.BalloonTipText = message;
-        _notifyIcon.ShowBalloonTip(10000);
+        Ui(() => _taskbarIcon.ShowBalloonTip(title, message, BalloonIcon.Info));
     }
 
     public void Dispose()
     {
-        _notifyIcon.Visible = false;
-        _notifyIcon.Dispose();
+        try { _taskbarIcon.Dispose(); }
+        catch { }
     }
 }
-

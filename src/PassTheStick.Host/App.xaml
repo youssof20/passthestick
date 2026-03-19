@@ -4,5 +4,11 @@
              Startup="App_OnStartup"
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/PtsTheme.xaml"/>
+                <ResourceDictionary Source="pack://application:,,,/Hardcodet.Wpf.TaskbarNotification;component/themes/generic.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>
