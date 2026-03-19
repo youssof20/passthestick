@@ -6,6 +6,28 @@
         Height="220" Width="360"
         WindowStartupLocation="CenterScreen">
     <StackPanel Margin="16">
+        <Border x:Name="HaveStickBanner"
+                Background="#222"
+                CornerRadius="8"
+                Padding="10"
+                Margin="0,0,0,12"
+                Visibility="Collapsed">
+            <StackPanel>
+                <TextBlock x:Name="HaveStickTitle"
+                           Text="YOU HAVE THE STICK"
+                           Foreground="#FFF"
+                           FontSize="18"
+                           FontWeight="SemiBold"
+                           TextWrapping="Wrap"/>
+                <TextBlock x:Name="HaveStickSubtitle"
+                           Text="Your keyboard is live — switch to the game's screenshare and play."
+                           Foreground="#BBB"
+                           FontSize="12"
+                           Margin="0,6,0,0"
+                           TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+
         <TextBlock Text="Room code:" Margin="0,0,0,4"/>
         <TextBox x:Name="RoomCodeBox" MaxLength="4" Width="80" HorizontalAlignment="Left" Margin="0,0,0,12"/>
         <TextBlock Text="Your name:" Margin="0,0,0,4"/>

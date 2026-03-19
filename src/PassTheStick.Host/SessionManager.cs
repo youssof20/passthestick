@@ -9,6 +9,7 @@ public sealed class SessionManager
 {
     private string? _activePlayerId;
     private List<PlayerInfo> _players = new();
+    private readonly HashSet<ushort> _heldScanCodes = new();
 
     public string? LocalPlayerId { get; set; }
     public string? ActivePlayerId { get => _activePlayerId; set => _activePlayerId = value; }
@@ -22,6 +23,20 @@ public sealed class SessionManager
     public void SetActivePlayer(string? playerId)
     {
         _activePlayerId = playerId;
+    }
+
+    public void NoteInjectedKeyState(ushort scanCode, bool down)
+    {
+        if (down) _heldScanCodes.Add(scanCode);
+        else _heldScanCodes.Remove(scanCode);
+    }
+
+    public List<ushort> ReleaseHeldKeys()
+    {
+        if (_heldScanCodes.Count == 0) return new List<ushort>();
+        var list = _heldScanCodes.ToList();
+        _heldScanCodes.Clear();
+        return list;
     }
 
     /// <summary>Update player list from relay. If active player left, reclaim stick to host.</summary>

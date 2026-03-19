@@ -1,4 +1,6 @@
 using System.Windows;
+using System.Windows.Interop;
+using System.Runtime.InteropServices;
 using PassTheStick.Shared;
 
 namespace PassTheStick.Guest;
@@ -22,6 +24,43 @@ public partial class MainWindow : Window
             _controllerCapture?.Dispose();
             _relay?.Dispose();
         };
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(nint hWnd);
+
+    private void ShowHaveStickBanner()
+    {
+        HaveStickTitle.Text = "YOU HAVE THE STICK";
+        HaveStickSubtitle.Text = "Your keyboard is live — switch to the game's screenshare and play.";
+        HaveStickBanner.Visibility = Visibility.Visible;
+
+        // Best-effort: bring this window to the user's attention without requiring them to click it.
+        try
+        {
+            WindowState = WindowState.Normal;
+            Show();
+            Activate();
+
+            Topmost = true;
+            Topmost = false;
+
+            var hwnd = new WindowInteropHelper(this).Handle;
+            if (hwnd != nint.Zero) SetForegroundWindow(hwnd);
+        }
+        catch { }
+    }
+
+    private void ShowWaitingBanner(string holderName)
+    {
+        HaveStickTitle.Text = "WAITING";
+        HaveStickSubtitle.Text = $"Waiting — {holderName} has the stick";
+        HaveStickBanner.Visibility = Visibility.Visible;
+    }
+
+    private void HideBanner()
+    {
+        HaveStickBanner.Visibility = Visibility.Collapsed;
     }
 
     private async void JoinButton_Click(object sender, RoutedEventArgs e)
@@ -50,8 +89,12 @@ public partial class MainWindow : Window
                 _relay.YouHaveItReceived += () =>
                 {
                     _haveStick = true;
-                    Dispatcher.Invoke(() => StatusText.Text = "You have the stick!");
-                    Dispatcher.Invoke(() => StickStatusText.Text = "You have the stick!");
+                    Dispatcher.Invoke(() =>
+                    {
+                        StatusText.Text = "You have the stick!";
+                        StickStatusText.Text = "You have the stick!";
+                        ShowHaveStickBanner();
+                    });
                 };
                 _relay.PassStickReceived += toId =>
                 {
@@ -68,6 +111,9 @@ public partial class MainWindow : Window
                         StickStatusText.Text = nowHaveStick
                             ? "You have the stick!"
                             : $"Waiting — {holder} has the stick";
+
+                        if (nowHaveStick) ShowHaveStickBanner();
+                        else ShowWaitingBanner(holder);
                     });
                 };
                 _relay.SessionEnded += reason =>
@@ -87,6 +133,7 @@ public partial class MainWindow : Window
                         RoomCodeBox.Text = "";
                         _players = new List<PlayerInfo>();
                         JoinButton.IsEnabled = true;
+                        HideBanner();
                     });
                 };
                 _relay.LatencyUpdatedMs += ms =>
@@ -112,6 +159,7 @@ public partial class MainWindow : Window
                         LatencyText.Text = "Latency: —";
                         RoomCodeBox.Text = "";
                         _players = new List<PlayerInfo>();
+                        HideBanner();
                     });
 
                     try { _keyboardCapture?.Dispose(); } catch { }
@@ -140,6 +188,7 @@ public partial class MainWindow : Window
                 _controllerCapture.Start();
                 StatusText.Text = "Joined. Wait for the host to pass you the stick.";
                 StickStatusText.Text = "Waiting — Host has the stick";
+                ShowWaitingBanner("Host");
                 break;
             }
             catch

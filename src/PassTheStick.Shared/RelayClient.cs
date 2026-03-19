@@ -104,6 +104,9 @@ public sealed class RelayClient : IDisposable
     public async Task SendPassStickAsync(string toId) =>
         await SendAsync(new PassStickMessage("PASS_STICK", toId));
 
+    public async Task CloseRoomAsync(string reason = "Host ended the session") =>
+        await SendAsync(new CloseRoomMessage("CLOSE_ROOM", reason));
+
     public async Task SendKeyEventAsync(int vk, int sc, bool down) =>
         await SendAsync(new KeyEventMessage("KEY_EVENT", vk, sc, down));
 

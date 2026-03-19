@@ -63,6 +63,10 @@ public record SessionEndedMessage(
     [property: JsonPropertyName("type")] string Type = "SESSION_ENDED",
     [property: JsonPropertyName("reason")] string Reason = "");
 
+public record CloseRoomMessage(
+    [property: JsonPropertyName("type")] string Type = "CLOSE_ROOM",
+    [property: JsonPropertyName("reason")] string Reason = "Host ended the session");
+
 public record ErrorMessage(
     [property: JsonPropertyName("type")] string Type = "ERROR",
     [property: JsonPropertyName("msg")] string Msg = "");

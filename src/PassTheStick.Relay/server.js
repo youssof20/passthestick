@@ -71,6 +71,18 @@ wss.on('connection', (ws) => {
       broadcast(room, JSON.stringify({ type: 'PASS_STICK', toId: msg.toId }));
     }
 
+    else if (msg.type === 'CLOSE_ROOM') {
+      const room = rooms.get(ws.roomCode);
+      if (!room || !ws.isHost) return;
+      const reason = (msg.reason || 'Host ended the session').toString();
+      room.guests.forEach(g => {
+        if (g.readyState === WebSocket.OPEN) {
+          g.send(JSON.stringify({ type: 'SESSION_ENDED', reason }));
+        }
+      });
+      rooms.delete(ws.roomCode);
+    }
+
     else if (msg.type === 'HOST_REJOIN') {
       const room = rooms.get(msg.roomCode);
       if (!room) { ws.send(JSON.stringify({ type: 'ERROR', msg: 'Room not found' })); return; }

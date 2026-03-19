@@ -13,21 +13,25 @@ public static class KeyboardInjectionHelper
     [DllImport("user32.dll")]
     private static extern uint MapVirtualKey(uint uCode, uint uMapType);
 
-    /// <summary>Inject a KEY_EVENT from the relay. Uses host layout (MapVirtualKey) not guest scan code.</summary>
-    public static void InjectKeyEvent(KeyEventMessage msg)
+    public static ushort MapToHostScanCode(int vk, int guestScanCode)
     {
-        uint scanCode = MapVirtualKey((uint)msg.Vk, MAPVK_VK_TO_VSC);
+        uint scanCode = MapVirtualKey((uint)vk, MAPVK_VK_TO_VSC);
         if (scanCode == 0)
         {
-            scanCode = (uint)msg.Sc; // fallback if mapping fails
+            scanCode = (uint)guestScanCode; // fallback if mapping fails
             InputDebugLog.Log(
-                $"MapVirtualKey(vk={msg.Vk}) returned 0; using guest scan code sc={msg.Sc} \u2192 host sc={scanCode}");
+                $"MapVirtualKey(vk={vk}) returned 0; using guest scan code sc={guestScanCode} \u2192 host sc={scanCode}");
         }
         else
         {
-            InputDebugLog.Log($"Mapping vk={msg.Vk} guestSc={msg.Sc} \u2192 host scan code={scanCode}");
+            InputDebugLog.Log($"Mapping vk={vk} guestSc={guestScanCode} \u2192 host scan code={scanCode}");
         }
 
-        InputInjector.InjectKey((ushort)scanCode, msg.Down);
+        return (ushort)scanCode;
+    }
+
+    public static void InjectScanCode(ushort scanCode, bool down)
+    {
+        InputInjector.InjectKey(scanCode, down);
     }
 }

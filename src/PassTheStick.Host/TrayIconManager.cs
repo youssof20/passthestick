@@ -23,6 +23,8 @@ public sealed class TrayIconManager : IDisposable
     private readonly Func<bool> _isRelayRunning;
     private readonly Action _startRelay;
     private readonly Action _stopRelay;
+    private readonly Action _endSession;
+    private readonly Action _testInjection;
     private readonly Action _exit;
     private string? _pendingUpdateUrl;
 
@@ -40,6 +42,8 @@ public sealed class TrayIconManager : IDisposable
         Func<bool> isRelayRunning,
         Action startRelay,
         Action stopRelay,
+        Action endSession,
+        Action testInjection,
         Action exit)
     {
         _session = session;
@@ -52,6 +56,8 @@ public sealed class TrayIconManager : IDisposable
         _isRelayRunning = isRelayRunning;
         _startRelay = startRelay;
         _stopRelay = stopRelay;
+        _endSession = endSession;
+        _testInjection = testInjection;
         _exit = exit;
 
         var iconInfo = System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/passthestick.ico"));
@@ -88,6 +94,7 @@ public sealed class TrayIconManager : IDisposable
 
         menu.Items.Add(new ToolStripMenuItem("Pin current window as game", null, (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(_pinGame)));
         menu.Items.Add(new ToolStripMenuItem("Take stick back", null, (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(_takeStickBack)));
+        menu.Items.Add(new ToolStripMenuItem("End session (close room)", null, (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(_endSession)));
         menu.Items.Add(new ToolStripMenuItem("Connection status…", null, (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(_showConnectionStatus)));
         menu.Items.Add(new ToolStripSeparator());
 
@@ -107,6 +114,7 @@ public sealed class TrayIconManager : IDisposable
         });
         menu.Items.Add(_relayItem);
 
+        menu.Items.Add(new ToolStripMenuItem("Test injection", null, (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(_testInjection)));
         menu.Items.Add(new ToolStripMenuItem("Solo test mode", null, (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(_soloTest)));
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(new ToolStripMenuItem("Exit", null, (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(_exit)));

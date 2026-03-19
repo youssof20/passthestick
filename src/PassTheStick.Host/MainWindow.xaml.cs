@@ -129,6 +129,8 @@ public partial class MainWindow : Window
                 () => _relayProcess.IsRunning,
                 StartRelayServerFromTray,
                 StopRelayServerFromTray,
+                EndSessionFromTray,
+                TestInjectionFromTray,
                 RequestExit);
 
             _hotkey.HotkeyConflict += msg =>
@@ -172,6 +174,83 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void EndSessionFromTray()
+    {
+        try
+        {
+            if (_relay == null || !_relay.IsConnected)
+            {
+                _tray?.ShowToast("PassTheStick", "Not connected — no room to close.");
+                return;
+            }
+
+            var result = System.Windows.MessageBox.Show(
+                "End the session and disconnect all guests?\n\nThis closes the room (guests will see \"Session ended\" and can join a new code).",
+                "PassTheStick",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result != MessageBoxResult.Yes) return;
+
+            await _relay.CloseRoomAsync("Host ended the session");
+
+            // Locally reset host state but keep app open.
+            ReleaseHeldKeysOnStickChange(_sessionManager.LocalPlayerId);
+            _sessionManager.SetActivePlayer(_sessionManager.LocalPlayerId);
+            PlayersList.ItemsSource = null;
+            RoomCodeLabel.Text = "Room code: —";
+            StatusText.Text = "Session ended. Pin the game window to start a new session.";
+            _overlay?.SetBanner("Session ended");
+            _overlay?.SetPlayerName("Host");
+            PassStickButton.IsEnabled = false;
+            _sessionStarted = false;
+
+            try
+            {
+                var s = SettingsStore.Load();
+                s.LastRoomCode = null;
+                SettingsStore.Save(s);
+            }
+            catch { }
+
+            _tray?.ShowToast("PassTheStick", "Session ended — room closed.");
+        }
+        catch (Exception ex)
+        {
+            _tray?.ShowToast("PassTheStick", "Failed to close room: " + ex.Message);
+        }
+    }
+
+    private async void TestInjectionFromTray()
+    {
+        try
+        {
+            if (!_gameTracker.IsPinned)
+            {
+                _tray?.ShowToast("PassTheStick", "Test injection: pin a game window first.");
+                return;
+            }
+            if (!_gameTracker.IsGameForeground())
+            {
+                _tray?.ShowToast("PassTheStick", "Test injection: click the game window so it is foreground.");
+                return;
+            }
+
+            InputDebugLog.Log("[test] Sending W key down/up (100ms)...");
+            // W key virtual key = 0x57; guestSc isn't relevant here, just map locally.
+            var sc = KeyboardInjectionHelper.MapToHostScanCode(0x57, 17);
+            KeyboardInjectionHelper.InjectScanCode(sc, true);
+            await Task.Delay(100);
+            KeyboardInjectionHelper.InjectScanCode(sc, false);
+
+            _tray?.ShowToast("PassTheStick", "Test injection sent — did the character move?");
+        }
+        catch (Exception ex)
+        {
+            _tray?.ShowToast("PassTheStick", "Test injection failed: " + ex.Message);
+        }
+    }
+
     private void ShowConnectionStatus()
     {
         EnsureConnectionDialog();
@@ -203,6 +282,7 @@ public partial class MainWindow : Window
             ShowConnectionStatus();
             return;
         }
+        ReleaseHeldKeysOnStickChange(_relay.MyId);
         _relay.SendPassStickAsync(_relay.MyId);
         _sessionManager.SetActivePlayer(_relay.MyId);
         _overlay?.SetPlayerName("Host");
@@ -451,31 +531,8 @@ public partial class MainWindow : Window
             _relay.Disconnected += OnDisconnected;
             await _relay.ConnectAsync();
 
-            // Session persistence (best-effort): if we have a last room code, ask user to rejoin.
             var settings = SettingsStore.Load();
-            var lastRoom = settings.LastRoomCode?.Trim();
-            string code;
-            if (!string.IsNullOrWhiteSpace(lastRoom))
-            {
-                var r = System.Windows.MessageBox.Show(
-                    $"You were in room {lastRoom}.\nDo you want to reconnect?",
-                    "PassTheStick",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
-                if (r == MessageBoxResult.Yes)
-                {
-                    code = await _relay.RejoinHostAsync(lastRoom);
-                }
-                else
-                {
-                    code = await _relay.CreateRoomAsync();
-                }
-            }
-            else
-            {
-                code = await _relay.CreateRoomAsync();
-            }
+            var code = await _relay.CreateRoomAsync();
 
             _sessionManager.LocalPlayerId = _relay.MyId;
             _sessionManager.SetActivePlayer(_relay.MyId);
@@ -497,17 +554,10 @@ public partial class MainWindow : Window
             Dispatcher.Invoke(() => SetRelayIndicator("Connected — relay ready", "#2E8B57")); // green
             _connDialog?.Close();
 
-            // Save session state for best-effort rejoin.
+            // Save last relay url for convenience (room codes are ephemeral; rooms are deleted when host ends session).
             try
             {
-                settings.LastRoomCode = code;
                 settings.LastRelayUrl = Constants.RelayWebSocketUrl;
-                try
-                {
-                    var proc = Process.GetProcessById((int)_gameTracker.GameProcessId);
-                    settings.LastGameExePath = proc.MainModule?.FileName;
-                }
-                catch { }
                 SettingsStore.Save(settings);
             }
             catch { }
@@ -520,6 +570,7 @@ public partial class MainWindow : Window
     {
         Dispatcher.Invoke(() =>
         {
+            ReleaseHeldKeysOnStickChange(toId);
             _sessionManager.SetActivePlayer(toId);
             UpdateOverlayName();
         });
@@ -554,6 +605,7 @@ public partial class MainWindow : Window
             ShowConnectionStatus();
             return;
         }
+        ReleaseHeldKeysOnStickChange(p.Id);
         _relay.SendPassStickAsync(p.Id);
         _sessionManager.SetActivePlayer(p.Id);
         _overlay?.SetPlayerName(p.Name);
@@ -586,6 +638,26 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ReleaseHeldKeysOnStickChange(string? newActivePlayerId)
+    {
+        // Only relevant when a guest had the stick; if host had it, there should be no injected-held keys.
+        var previous = _sessionManager.ActivePlayerId;
+        var hostId = _sessionManager.LocalPlayerId;
+        var previousWasGuest = !string.IsNullOrWhiteSpace(previous) && !string.Equals(previous, hostId, StringComparison.Ordinal);
+
+        // If the stick is moving away from the previous guest (to anyone else), release any held keys.
+        if (!previousWasGuest) return;
+        if (string.Equals(previous, newActivePlayerId, StringComparison.Ordinal)) return;
+
+        var held = _sessionManager.ReleaseHeldKeys();
+        if (held.Count == 0) return;
+
+        foreach (var sc in held)
+            InputInjector.InjectKey(sc, keyDown: false);
+
+        InputDebugLog.Log("[session] Released held keys on stick pass: " + string.Join(",", held));
+    }
+
     private void OnKeyEvent(KeyEventMessage msg)
     {
         if (!_gameTracker.IsGameForeground())
@@ -606,7 +678,9 @@ public partial class MainWindow : Window
                 $"Injecting KEY_EVENT: pinnedHWND=0x{_gameTracker.GameHwnd:X} PID={_gameTracker.GameProcessId} (fromId={msg.FromId})");
         }
 
-        KeyboardInjectionHelper.InjectKeyEvent(msg);
+        var scanCode = KeyboardInjectionHelper.MapToHostScanCode(msg.Vk, msg.Sc);
+        _sessionManager.NoteInjectedKeyState(scanCode, msg.Down);
+        KeyboardInjectionHelper.InjectScanCode(scanCode, msg.Down);
     }
 
     private void OnPadState(PadStateMessage msg)
