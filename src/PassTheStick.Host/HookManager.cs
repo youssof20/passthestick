@@ -15,6 +15,10 @@ public sealed class HookManager : IDisposable
     private readonly GameWindowTracker _gameWindowTracker;
     private nint _hookId = nint.Zero;
     private readonly LowLevelKeyboardProc _keyboardHookProc; // keep delegate alive for GC
+    private int _hostMashCount;
+    private DateTime _firstHostMashUtc = DateTime.MinValue;
+
+    public event Action? OverrideRequested;
 
     public HookManager(SessionManager sessionManager, GameWindowTracker gameWindowTracker)
     {
@@ -33,6 +37,8 @@ public sealed class HookManager : IDisposable
         if (_hookId == nint.Zero)
             throw new InvalidOperationException("SetWindowsHookEx(WH_KEYBOARD_LL) failed. Run as administrator for some games.");
     }
+
+    public bool IsInstalled => _hookId != nint.Zero;
 
     public void Uninstall()
     {
@@ -55,29 +61,39 @@ public sealed class HookManager : IDisposable
                 var isGameForeground = _gameWindowTracker.IsGameForeground();
                 if (isGameForeground)
                 {
-                    if (InputDebugLog.Enabled)
+                    var active = string.IsNullOrEmpty(_sessionManager.ActivePlayerId) ? "host" : _sessionManager.ActivePlayerId;
+                    InputDebugLog.Log(InputDebugLog.LogLevel.Verbose,
+                        $"[hook] SUPPRESSED {KeyNames.VkToName((int)kbd.vkCode)} vk={kbd.vkCode} sc={kbd.scanCode} injected={isInjected} hostActive={isHostActive} gameFg={isGameForeground} activePlayer={active}");
+
+                    // Parsec-style safety valve: host mashes 3+ keys within 1s -> reclaim stick.
+                    var now = DateTime.UtcNow;
+                    if ((now - _firstHostMashUtc).TotalSeconds > 1)
                     {
-                        var active = string.IsNullOrEmpty(_sessionManager.ActivePlayerId)
-                            ? "host"
-                            : _sessionManager.ActivePlayerId;
-                        InputDebugLog.Log(
-                            $"SUPPRESSED local key vk={kbd.vkCode} sc={kbd.scanCode} wParam={wParam} (guest has stick; activePlayerId={active})");
+                        _hostMashCount = 0;
+                        _firstHostMashUtc = now;
+                    }
+                    _hostMashCount++;
+                    if (_hostMashCount >= 3)
+                    {
+                        _hostMashCount = 0;
+                        OverrideRequested?.Invoke();
                     }
                     return (nint)1; // suppress
                 }
 
-                if (InputDebugLog.Enabled)
-                {
-                    var fgHwnd = GetForegroundWindow();
-                    GetWindowThreadProcessId(fgHwnd, out var fgPid);
-                    var foregroundName = TryGetProcessName(fgPid);
-                    var gameName = TryGetProcessName(_gameWindowTracker.GameProcessId);
-                    var active = string.IsNullOrEmpty(_sessionManager.ActivePlayerId)
-                        ? "host"
-                        : _sessionManager.ActivePlayerId;
-                    InputDebugLog.Log(
-                        $"SKIPPED local suppress — game not foreground (foreground: {foregroundName}, game: {gameName}; activePlayerId={active}; vk={kbd.vkCode})");
-                }
+                var fgHwnd = GetForegroundWindow();
+                GetWindowThreadProcessId(fgHwnd, out var fgPid);
+                var foregroundName = TryGetProcessName(fgPid);
+                var gameName = TryGetProcessName(_gameWindowTracker.GameProcessId);
+                var active2 = string.IsNullOrEmpty(_sessionManager.ActivePlayerId) ? "host" : _sessionManager.ActivePlayerId;
+                InputDebugLog.Log(InputDebugLog.LogLevel.Verbose,
+                    $"[hook] PASS {KeyNames.VkToName((int)kbd.vkCode)} vk={kbd.vkCode} injected={isInjected} hostActive={isHostActive} gameFg={isGameForeground} fg={foregroundName} game={gameName} activePlayer={active2}");
+            }
+            else
+            {
+                // Pass-through (host active or injected key)
+                InputDebugLog.Log(InputDebugLog.LogLevel.Verbose,
+                    $"[hook] PASS {KeyNames.VkToName((int)kbd.vkCode)} vk={kbd.vkCode} injected={isInjected} hostActive={isHostActive}");
             }
         }
         return CallNextHookEx(_hookId, nCode, wParam, lParam);

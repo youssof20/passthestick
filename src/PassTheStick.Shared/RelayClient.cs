@@ -38,6 +38,7 @@ public sealed class RelayClient : IDisposable
     public async Task ConnectAsync()
     {
         var uri = new Uri(Constants.RelayWebSocketUrl);
+        InputDebugLog.Log(InputDebugLog.LogLevel.Info, $"[relay] Connecting to {uri}...");
         // Bypass system proxy settings; localhost relay should connect directly.
         _ws.Options.Proxy = null;
         _ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(20);
@@ -47,6 +48,7 @@ public sealed class RelayClient : IDisposable
         _lastPongTs = 0;
         await _ws.ConnectAsync(uri, _cts.Token);
         MyId = null;
+        InputDebugLog.Log(InputDebugLog.LogLevel.Info, $"[relay] Connected to {uri}");
         Connected?.Invoke();
         _receiveTask = ReceiveLoopAsync();
         StartHeartbeatLoop();
@@ -147,6 +149,7 @@ public sealed class RelayClient : IDisposable
             if (!_disconnectNotified)
             {
                 _disconnectNotified = true;
+                InputDebugLog.Log(InputDebugLog.LogLevel.Warning, $"[relay] Disconnected: {_forcedDisconnectReason ?? _ws.CloseStatusDescription ?? "Connection closed"}");
                 Disconnected?.Invoke(_forcedDisconnectReason ?? _ws.CloseStatusDescription ?? "Connection closed");
             }
         }
@@ -161,6 +164,8 @@ public sealed class RelayClient : IDisposable
             if (!root.TryGetProperty("type", out var typeEl))
                 return;
             var type = typeEl.GetString();
+            if (!string.IsNullOrWhiteSpace(type))
+                InputDebugLog.Log(InputDebugLog.LogLevel.Verbose, $"[relay] ← {type}");
             switch (type)
             {
                 case "CREATED":

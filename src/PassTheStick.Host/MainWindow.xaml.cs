@@ -12,6 +12,20 @@ namespace PassTheStick.Host;
 
 public partial class MainWindow : Window
 {
+    public enum InjectionState
+    {
+        Ready,
+        NoGamePinned,
+        NotConnected,
+        GuestHasStick,
+        HostHasStick,
+        GameNotForeground,
+        Injecting,
+        Error
+    }
+
+    private InjectionState _currentState;
+
     private readonly SessionManager _sessionManager;
     private readonly HookManager _hookManager;
     private readonly GameWindowTracker _gameTracker;
@@ -28,6 +42,12 @@ public partial class MainWindow : Window
     private PassTheStick.Shared.RelayConnectionDialog? _connDialog;
     private CancellationTokenSource? _connectCts;
     private DispatcherTimer? _overlayTimer;
+    private System.Threading.Timer? _focusMonitor;
+    private DispatcherTimer? _gameWatchdog;
+    private long _injectedCount;
+    private long _failedCount;
+    private long _droppedCount;
+    private readonly Dictionary<string, System.Windows.Controls.Border> _echoKeys = new();
 
     public void ShowUpdateNotification(string latestVersion, string url)
     {
@@ -49,10 +69,25 @@ public partial class MainWindow : Window
         InitializeComponent();
         InputDebugLog.Enabled = false;
         InputDebugLog.OnInputLog += AppendInputLog;
+        try
+        {
+            // Default to Info to keep logs readable; Verbose requires expanding the debug panel.
+            LogLevelCombo.SelectedIndex = 1; // Info
+            InputDebugLog.MinLevel = InputDebugLog.LogLevel.Info;
+        }
+        catch { }
         _sessionManager = new SessionManager();
         _gameTracker = new GameWindowTracker();
         _hookManager = new HookManager(_sessionManager, _gameTracker);
         _hookManager.Install();
+        _hookManager.OverrideRequested += () =>
+        {
+            Dispatcher.BeginInvoke(() =>
+            {
+                InputDebugLog.Log(InputDebugLog.LogLevel.Warning, "[override] Host mashed keys — reclaiming stick");
+                TakeStickBack();
+            });
+        };
         Closed += (_, _) =>
         {
             _connectCts?.Cancel();
@@ -63,6 +98,8 @@ public partial class MainWindow : Window
             _overlay?.Close();
             _picker?.Close();
             _overlayTimer?.Stop();
+            _gameWatchdog?.Stop();
+            _focusMonitor?.Dispose();
             InputDebugLog.OnInputLog -= AppendInputLog;
             _hookManager.Dispose();
             _vigem.Dispose();
@@ -78,7 +115,26 @@ public partial class MainWindow : Window
 
     private void InputLogExpander_Collapsed(object sender, RoutedEventArgs e)
     {
+        InputDebugLog.Flush();
         InputDebugLog.Enabled = false;
+    }
+
+    private void LogLevelCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        try
+        {
+            var selected = (LogLevelCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Info";
+            InputDebugLog.MinLevel = selected switch
+            {
+                "Verbose" => InputDebugLog.LogLevel.Verbose,
+                "Info" => InputDebugLog.LogLevel.Info,
+                "Warning" => InputDebugLog.LogLevel.Warning,
+                "Error" => InputDebugLog.LogLevel.Error,
+                _ => InputDebugLog.LogLevel.Info
+            };
+            InputDebugLog.Log(InputDebugLog.LogLevel.Info, $"[log] Level set to {selected}");
+        }
+        catch { }
     }
 
     private void ClearLog_Click(object sender, RoutedEventArgs e)
@@ -120,6 +176,9 @@ public partial class MainWindow : Window
     {
         try
         {
+            LogStartupDiagnostics("app start");
+            BuildKeyEchoMap();
+            ResetInjectionCounters("startup");
             _relayProcess = new RelayProcessManager();
             _tray = new TrayIconManager(
                 _sessionManager,
@@ -152,6 +211,7 @@ public partial class MainWindow : Window
             StatusText.Text = "Select and pin your game window to start a session.";
             PassStickButton.IsEnabled = false;
             RefreshWindows();
+            StartGameWatchdog();
 
             await Task.CompletedTask;
         }
@@ -293,6 +353,7 @@ public partial class MainWindow : Window
         StatusText.Text = "Stick taken back.";
         _tray?.ShowToast("PassTheStick", "Stick returned to you");
         InputDebugLog.Log("[hotkey] Host reclaimed stick via Ctrl+Shift+Left");
+        ResetInjectionCounters("stick reclaimed");
     }
 
     private void EnsureConnectionDialog()
@@ -382,6 +443,8 @@ public partial class MainWindow : Window
 
             _gameTracker.PinWindow(wi.Hwnd);
             PinnedGameLabel.Text = "Game: " + wi.Title;
+            LogStartupDiagnostics("after pin");
+            ResetInjectionCounters("game pinned");
             var gameElevated = _gameTracker.IsPinnedProcessElevated();
             var hostIsAdmin = ElevationHelper.IsRunningAsAdmin();
             if (gameElevated && !hostIsAdmin)
@@ -414,6 +477,48 @@ public partial class MainWindow : Window
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
         }
+    }
+
+    private void LogStartupDiagnostics(string when)
+    {
+        try
+        {
+            InputDebugLog.Log(InputDebugLog.LogLevel.Info, "=== PassTheStick Diagnostic Dump ===");
+            InputDebugLog.Log(InputDebugLog.LogLevel.Info, $"When: {when}");
+            var ver = typeof(MainWindow).Assembly.GetName().Version?.ToString() ?? "unknown";
+            InputDebugLog.Log(InputDebugLog.LogLevel.Info, $"Version: {ver}");
+            InputDebugLog.Log(InputDebugLog.LogLevel.Info, $"OS: {Environment.OSVersion}");
+            InputDebugLog.Log(InputDebugLog.LogLevel.Info, $"Is Admin: {ElevationHelper.IsRunningAsAdmin()}");
+            InputDebugLog.Log(InputDebugLog.LogLevel.Info, $"Process ID: {Process.GetCurrentProcess().Id}");
+            InputDebugLog.Log(InputDebugLog.LogLevel.Info, $"Relay URL: {Constants.RelayWebSocketUrl}");
+            InputDebugLog.Log(InputDebugLog.LogLevel.Info, $"Hook installed: {_hookManager.IsInstalled}");
+
+            if (_gameTracker.IsPinned)
+            {
+                var gamePid = _gameTracker.GameProcessId;
+                var hwnd = _gameTracker.GameHwnd;
+                var name = "(unknown)";
+                try { name = Process.GetProcessById((int)gamePid).ProcessName; } catch { }
+                InputDebugLog.Log(InputDebugLog.LogLevel.Info, $"Game pinned: {name}");
+                InputDebugLog.Log(InputDebugLog.LogLevel.Info, $"Game PID: {gamePid}");
+                InputDebugLog.Log(InputDebugLog.LogLevel.Info, $"Game HWND: 0x{hwnd:X}");
+
+                var gameElevated = _gameTracker.IsPinnedProcessElevated();
+                var weElevated = ElevationHelper.IsRunningAsAdmin();
+                InputDebugLog.Log(InputDebugLog.LogLevel.Info, $"Game elevated: {gameElevated}");
+                InputDebugLog.Log(InputDebugLog.LogLevel.Info, $"We elevated: {weElevated}");
+                if (gameElevated && !weElevated)
+                    InputDebugLog.Log(InputDebugLog.LogLevel.Warning,
+                        "⚠ MISMATCH: Game is elevated, we are not. SendInput will likely fail with error 5.");
+            }
+            else
+            {
+                InputDebugLog.Log(InputDebugLog.LogLevel.Info, "Game: NOT PINNED");
+            }
+
+            InputDebugLog.Log(InputDebugLog.LogLevel.Info, "=== End Diagnostic Dump ===");
+        }
+        catch { }
     }
 
     private async Task EnsureSessionStartedAsync()
@@ -659,6 +764,9 @@ public partial class MainWindow : Window
         _overlay?.SetPlayerName(p.Name);
         _overlay?.SetBanner(null);
         StatusText.Text = "Stick passed to " + p.Name;
+        TryFocusPinnedGame("[session] Brought game to foreground after stick pass");
+        ResetInjectionCounters("stick passed");
+        StartFocusMonitor();
     }
 
     private void OnPlayerList(List<PlayerInfo> players)
@@ -701,15 +809,26 @@ public partial class MainWindow : Window
         if (held.Count == 0) return;
 
         foreach (var sc in held)
-            InputInjector.InjectKey(sc, keyDown: false);
+        {
+            var ok = InputInjector.InjectKeyWithResult(sc, keyDown: false, out _);
+            if (ok) _injectedCount++; else _failedCount++;
+        }
 
         InputDebugLog.Log("[session] Released held keys on stick pass: " + string.Join(",", held));
+        UpdateInjectionStatsText();
     }
 
     private void OnKeyEvent(KeyEventMessage msg)
     {
+        SetState(InjectionState.Injecting, $"KEY_EVENT from={msg.FromId} vk={msg.Vk}({KeyNames.VkToName(msg.Vk)}) down={msg.Down}");
+        InputDebugLog.Log(InputDebugLog.LogLevel.Info,
+            $"[recv] KEY vk={msg.Vk}({KeyNames.VkToName(msg.Vk)}) sc={msg.Sc} down={msg.Down} from={Short(msg.FromId)} state={_currentState}");
+
         if (!_gameTracker.IsGameForeground())
         {
+            SetState(InjectionState.GameNotForeground, "Dropped: game not foreground");
+            _droppedCount++;
+            UpdateInjectionStatsText();
             InputDebugLog.Log(_gameTracker.DescribeWhyNotForegroundForKeyEvent(msg.FromId, msg.Vk, msg.Down));
             return;
         }
@@ -728,7 +847,163 @@ public partial class MainWindow : Window
 
         var scanCode = KeyboardInjectionHelper.MapToHostScanCode(msg.Vk, msg.Sc);
         _sessionManager.NoteInjectedKeyState(scanCode, msg.Down);
-        KeyboardInjectionHelper.InjectScanCode(scanCode, msg.Down);
+        if (msg.Down) FlashEcho(KeyNames.VkToName(msg.Vk));
+
+        var ok = InputInjector.InjectKeyWithResult(scanCode, msg.Down, out _);
+        if (ok) _injectedCount++; else _failedCount++;
+        UpdateInjectionStatsText();
+        SetState(_sessionManager.IsLocalPlayerActive ? InjectionState.HostHasStick : InjectionState.GuestHasStick, "Injected key event");
+    }
+
+    private void SetState(InjectionState newState, string reason)
+    {
+        if (_currentState == newState) return;
+        var prev = _currentState;
+        _currentState = newState;
+        InputDebugLog.Log(InputDebugLog.LogLevel.Info, $"[state] {prev} → {newState}: {reason}");
+    }
+
+    private static string Short(string? id) =>
+        string.IsNullOrWhiteSpace(id) ? "server" : (id.Length <= 6 ? id : id.Substring(0, 6));
+
+    private void ResetInjectionCounters(string reason)
+    {
+        _injectedCount = 0;
+        _failedCount = 0;
+        _droppedCount = 0;
+        UpdateInjectionStatsText();
+        InputDebugLog.Log(InputDebugLog.LogLevel.Info, $"[stats] Reset counters: {reason}");
+    }
+
+    private void UpdateInjectionStatsText()
+    {
+        try
+        {
+            InjectionStatsText.Text = $"Injected: {_injectedCount:N0} | Failed: {_failedCount:N0} | Dropped: {_droppedCount:N0}";
+        }
+        catch { }
+    }
+
+    private void BuildKeyEchoMap()
+    {
+        _echoKeys.Clear();
+        _echoKeys["W"] = Echo_W;
+        _echoKeys["A"] = Echo_A;
+        _echoKeys["S"] = Echo_S;
+        _echoKeys["D"] = Echo_D;
+        _echoKeys["Space"] = Echo_Space;
+        _echoKeys["Enter"] = Echo_Enter;
+        _echoKeys["Esc"] = Echo_Esc;
+        _echoKeys["Up"] = Echo_Up;
+        _echoKeys["Down"] = Echo_Down;
+        _echoKeys["Left"] = Echo_Left;
+        _echoKeys["Right"] = Echo_Right;
+    }
+
+    private async void FlashEcho(string key)
+    {
+        try
+        {
+            if (!_echoKeys.TryGetValue(key, out var b)) return;
+            b.Background = System.Windows.Media.Brushes.SeaGreen;
+            await Task.Delay(200);
+            b.Background = System.Windows.Media.Brushes.Transparent;
+        }
+        catch { }
+    }
+
+    private void StartFocusMonitor()
+    {
+        _focusMonitor?.Dispose();
+        _focusMonitor = new System.Threading.Timer(_ =>
+        {
+            try
+            {
+                // Only when a guest has the stick.
+                var active = _sessionManager.ActivePlayerId;
+                if (string.IsNullOrWhiteSpace(active) || active == _sessionManager.LocalPlayerId) return;
+
+                var fg = GetForegroundWindow();
+                if (fg == nint.Zero) return;
+                GetWindowThreadProcessId(fg, out var pid);
+                var name = TryGetProcessName(pid);
+                var isGame = pid == _gameTracker.GameProcessId;
+                if (isGame) return;
+
+                Dispatcher.BeginInvoke(() =>
+                    InputDebugLog.Log(InputDebugLog.LogLevel.Info,
+                        $"[focus] Foreground: {name} PID={pid} (gamePID={_gameTracker.GameProcessId}) activePlayer: {Short(active)}"));
+            }
+            catch { }
+        }, null, 2000, 2000);
+    }
+
+    private void StartGameWatchdog()
+    {
+        _gameWatchdog?.Stop();
+        _gameWatchdog = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        _gameWatchdog.Tick += (_, _) =>
+        {
+            try
+            {
+                if (!_gameTracker.IsPinned) return;
+                var pid = _gameTracker.GameProcessId;
+
+                var alive = true;
+                try { _ = Process.GetProcessById((int)pid); }
+                catch { alive = false; }
+
+                if (!alive)
+                {
+                    InputDebugLog.Log(InputDebugLog.LogLevel.Warning, "[game] ⚠ Game process ended");
+                    _tray?.ShowToast("PassTheStick", "Game closed — unpin and repin to continue.");
+                    _gameTracker.ClearPin();
+                    PinnedGameLabel.Text = "Game: (not pinned)";
+                    ResetInjectionCounters("game ended");
+                    return;
+                }
+
+                // If HWND is gone but process alive, attempt rescan.
+                if (!_gameTracker.IsPinnedHwndValid())
+                {
+                    InputDebugLog.Log(InputDebugLog.LogLevel.Info, "[game] Window handle invalid — rescanning...");
+                    if (_gameTracker.TryRescanHwndForPid())
+                    {
+                        InputDebugLog.Log(InputDebugLog.LogLevel.Info, $"[game] Window updated: 0x{_gameTracker.GameHwnd:X}");
+                    }
+                }
+            }
+            catch { }
+        };
+        _gameWatchdog.Start();
+    }
+
+    private void TryFocusPinnedGame(string logLine)
+    {
+        try
+        {
+            if (!_gameTracker.IsPinned) return;
+            var hwnd = _gameTracker.GameHwnd;
+            if (hwnd == nint.Zero) return;
+            SetForegroundWindow(hwnd);
+            InputDebugLog.Log(InputDebugLog.LogLevel.Info, logLine);
+        }
+        catch { }
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(nint hWnd);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern nint GetForegroundWindow();
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(nint hWnd, out uint lpdwProcessId);
+
+    private static string TryGetProcessName(uint pid)
+    {
+        try { using var p = Process.GetProcessById((int)pid); return p.ProcessName; }
+        catch { return "unknown"; }
     }
 
     private void OnPadState(PadStateMessage msg)

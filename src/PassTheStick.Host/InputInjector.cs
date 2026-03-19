@@ -19,12 +19,44 @@ public static class InputInjector
     /// </summary>
     /// <param name="scanCode">Hardware scan code (e.g. 17 for W on QWERTY).</param>
     /// <param name="keyDown">True for key down, false for key up.</param>
-    public static void InjectKey(ushort scanCode, bool keyDown)
+    private static nint _lastDesktop = nint.Zero;
+
+    private static void SyncThreadDesktop()
+    {
+        // Sunshine-style pattern: keep thread attached to the current input desktop.
+        // This helps after UAC prompts / desktop switches.
+        var desktop = OpenInputDesktop(0, false, DESKTOP_SWITCHDESKTOP);
+        if (desktop == nint.Zero) return;
+
+        if (desktop != _lastDesktop)
+        {
+            try
+            {
+                SetThreadDesktop(desktop);
+                InputDebugLog.Log(InputDebugLog.LogLevel.Info, "[desktop] Thread desktop synced");
+            }
+            catch { }
+
+            // Close previously cached handle.
+            if (_lastDesktop != nint.Zero)
+            {
+                try { CloseDesktop(_lastDesktop); } catch { }
+            }
+            _lastDesktop = desktop;
+        }
+        else
+        {
+            // No change; close the new handle we opened.
+            CloseDesktop(desktop);
+        }
+    }
+
+    public static bool InjectKeyWithResult(ushort scanCode, bool keyDown, out int win32Error)
     {
         var dwFlags = keyDown ? KEYEVENTF_SCANCODE : (KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP);
 
-        InputDebugLog.Log(
-            $"Injecting: sc={scanCode} down={keyDown} flags=0x{dwFlags:X4}");
+        InputDebugLog.Log(InputDebugLog.LogLevel.Verbose,
+            $"[inject] Attempt sc={scanCode} down={keyDown} flags=0x{dwFlags:X4}");
 
         var inputs = new INPUT[1];
         inputs[0].type = INPUT_KEYBOARD;
@@ -35,23 +67,43 @@ public static class InputInjector
         inputs[0].ki.dwExtraInfo = IntPtr.Zero;
 
         // CRITICAL: must be Marshal.SizeOf(typeof(INPUT)) for correct marshalling.
+        SyncThreadDesktop();
         var result = SendInput(1, inputs, Marshal.SizeOf(typeof(INPUT)));
-        if (result > 0)
-        {
-            InputDebugLog.Log($"SendInput result: {result} (success)");
-        }
-        else
-        {
-            var err = Marshal.GetLastWin32Error();
-            InputDebugLog.Log($"SendInput result: {result} ERROR: {err}");
+        var err = Marshal.GetLastWin32Error();
 
-            if (err == 5)
-                InputDebugLog.Log("SendInput FAILED: Access denied/elevation mismatch (error 5). Run PassTheStick as administrator.");
-            else if (err == 6)
-                InputDebugLog.Log("SendInput FAILED: Invalid handle (error 6). Game window handle may be invalid.");
-            else if (err == 87)
-                InputDebugLog.Log("SendInput FAILED: Invalid parameter (error 87). This indicates INPUT struct marshalling/layout mismatch.");
+        // Retry once after desktop sync on failure.
+        if (result == 0 && err != 0)
+        {
+            SyncThreadDesktop();
+            result = SendInput(1, inputs, Marshal.SizeOf(typeof(INPUT)));
+            err = Marshal.GetLastWin32Error();
+            InputDebugLog.Log(InputDebugLog.LogLevel.Verbose, $"[inject] Retry result={result} err={err}");
         }
+
+        win32Error = err;
+        if (result == 0)
+        {
+            var reason = err switch
+            {
+                5 => "Access denied — game may be running elevated",
+                6 => "Invalid handle",
+                87 => "Invalid parameter — INPUT struct malformed",
+                1400 => "Invalid window handle",
+                _ => $"Win32 error {err}"
+            };
+            InputDebugLog.Log(InputDebugLog.LogLevel.Warning,
+                $"[inject] FAILED sc={scanCode} down={keyDown} err={err} ({reason})");
+            return false;
+        }
+        
+        InputDebugLog.Log(InputDebugLog.LogLevel.Info,
+            $"[inject] OK sc={scanCode} down={keyDown}");
+        return true;
+    }
+
+    public static void InjectKey(ushort scanCode, bool keyDown)
+    {
+        _ = InjectKeyWithResult(scanCode, keyDown, out _);
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -91,4 +143,15 @@ public static class InputInjector
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+
+    private const uint DESKTOP_SWITCHDESKTOP = 0x0100;
+
+    [DllImport("user32.dll")]
+    private static extern nint OpenInputDesktop(uint dwFlags, bool fInherit, uint dwDesiredAccess);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetThreadDesktop(nint hDesktop);
+
+    [DllImport("user32.dll")]
+    private static extern bool CloseDesktop(nint hDesktop);
 }

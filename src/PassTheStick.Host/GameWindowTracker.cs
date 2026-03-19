@@ -12,9 +12,11 @@ public sealed class GameWindowTracker
 {
     private nint _gameHwnd;
     private uint _gameProcessId;
-    private nint _lastKnownForeground;
-    private uint _lastKnownForegroundPid;
-    private DateTime _lastKnownForegroundTimeUtc = DateTime.MinValue;
+    private nint _lastKnownFgHwnd = nint.Zero;
+    private uint _lastKnownFgPid;
+    private string _lastKnownFgName = "";
+    private DateTime _lastKnownFgTimeUtc = DateTime.MinValue;
+    private const int FG_CACHE_MS = 500;
 
     public bool IsPinned => _gameHwnd != nint.Zero && _gameProcessId != 0 && IsWindow(_gameHwnd);
 
@@ -25,6 +27,33 @@ public sealed class GameWindowTracker
     }
 
     public nint GameHwnd => _gameHwnd;
+
+    public void ClearPin()
+    {
+        _gameHwnd = nint.Zero;
+        _gameProcessId = 0;
+    }
+
+    public bool IsPinnedHwndValid() => _gameHwnd != nint.Zero && IsWindow(_gameHwnd);
+
+    public bool TryRescanHwndForPid()
+    {
+        if (_gameProcessId == 0) return false;
+        nint found = nint.Zero;
+        EnumWindows((hwnd, _) =>
+        {
+            if (hwnd == nint.Zero) return true;
+            if (!IsWindowVisible(hwnd)) return true;
+            GetWindowThreadProcessId(hwnd, out var pid);
+            if (pid != _gameProcessId) return true;
+            found = hwnd;
+            return false;
+        }, nint.Zero);
+
+        if (found == nint.Zero) return false;
+        _gameHwnd = found;
+        return true;
+    }
 
     /// <summary>Pin a specific window as the game target.</summary>
     public void PinWindow(nint hwnd)
@@ -56,39 +85,35 @@ public sealed class GameWindowTracker
     {
         if (!IsPinned) return false;
         var fg = GetForegroundWindow();
-        uint fgPid = 0;
 
         if (fg != nint.Zero)
         {
-            GetWindowThreadProcessId(fg, out fgPid);
-            _lastKnownForeground = fg;
-            _lastKnownForegroundPid = fgPid;
-            _lastKnownForegroundTimeUtc = DateTime.UtcNow;
-        }
-        else
-        {
-            // Transient state: between focus changes Windows can return NULL.
-            // Use last-known foreground for a short grace period.
-            var ageMs = (DateTime.UtcNow - _lastKnownForegroundTimeUtc).TotalMilliseconds;
-            if (_lastKnownForegroundPid != 0 && ageMs < 500)
-            {
-                fg = _lastKnownForeground;
-                fgPid = _lastKnownForegroundPid;
-            }
-            else
-            {
-                fgPid = 0;
-            }
-        }
+            GetWindowThreadProcessId(fg, out uint pid);
+            var name = GetProcessName(pid);
+            _lastKnownFgHwnd = fg;
+            _lastKnownFgPid = pid;
+            _lastKnownFgName = name;
+            _lastKnownFgTimeUtc = DateTime.UtcNow;
 
-        var matchPid = fgPid == _gameProcessId;
-        var hwndMatch = fg == _gameHwnd;
-        if (InputDebugLog.Enabled)
+            var hwndMatch = fg == _gameHwnd;
+            var pidMatch = pid == _gameProcessId;
+            var result = hwndMatch || pidMatch;
+
             InputDebugLog.Log(
-                $"Foreground check: fgHWND=0x{fg:X} fgPID={fgPid} pinnedHWND=0x{_gameHwnd:X} gamePID={_gameProcessId} hwndMatch={hwndMatch} pidMatch={matchPid}");
+                $"[fg] {(result ? "GAME" : "other")} fg=0x{fg:X} ({name} PID={pid}) pinned=0x{_gameHwnd:X} (PID={_gameProcessId}) hwnd={hwndMatch} pid={pidMatch}");
 
-        // Prefer HWND match, but accept PID match (some games recreate top-level HWND).
-        return hwndMatch || matchPid;
+            return result;
+        }
+
+        // NULL foreground — use cached state if fresh
+        var ms = (DateTime.UtcNow - _lastKnownFgTimeUtc).TotalMilliseconds;
+        var cached = _lastKnownFgPid != 0 && ms < FG_CACHE_MS;
+        var cachedResult = cached && (_lastKnownFgPid == _gameProcessId || _lastKnownFgHwnd == _gameHwnd);
+
+        InputDebugLog.Log(
+            $"[fg] NULL foreground — cache={cached} age={ms:F0}ms last={_lastKnownFgName} PID={_lastKnownFgPid} result={cachedResult}");
+
+        return cachedResult;
     }
 
     /// <summary>Human-readable reason KEY_EVENT was not injected (debug).</summary>
@@ -104,18 +129,19 @@ public sealed class GameWindowTracker
         if (fg != nint.Zero)
         {
             GetWindowThreadProcessId(fg, out fgPid);
-            _lastKnownForeground = fg;
-            _lastKnownForegroundPid = fgPid;
-            _lastKnownForegroundTimeUtc = DateTime.UtcNow;
+            _lastKnownFgHwnd = fg;
+            _lastKnownFgPid = fgPid;
+            _lastKnownFgName = GetProcessName(fgPid);
+            _lastKnownFgTimeUtc = DateTime.UtcNow;
         }
         else
         {
-            var ageMs = (DateTime.UtcNow - _lastKnownForegroundTimeUtc).TotalMilliseconds;
-            if (_lastKnownForegroundPid != 0 && ageMs < 500)
+            var ageMs = (DateTime.UtcNow - _lastKnownFgTimeUtc).TotalMilliseconds;
+            if (_lastKnownFgPid != 0 && ageMs < FG_CACHE_MS)
             {
                 usedCached = true;
-                fg = _lastKnownForeground;
-                fgPid = _lastKnownForegroundPid;
+                fg = _lastKnownFgHwnd;
+                fgPid = _lastKnownFgPid;
             }
         }
         var sameHwnd = fg == _gameHwnd;
@@ -142,18 +168,19 @@ public sealed class GameWindowTracker
         if (fg != nint.Zero)
         {
             GetWindowThreadProcessId(fg, out fgPid);
-            _lastKnownForeground = fg;
-            _lastKnownForegroundPid = fgPid;
-            _lastKnownForegroundTimeUtc = DateTime.UtcNow;
+            _lastKnownFgHwnd = fg;
+            _lastKnownFgPid = fgPid;
+            _lastKnownFgName = GetProcessName(fgPid);
+            _lastKnownFgTimeUtc = DateTime.UtcNow;
         }
         else
         {
-            var ageMs = (DateTime.UtcNow - _lastKnownForegroundTimeUtc).TotalMilliseconds;
-            if (_lastKnownForegroundPid != 0 && ageMs < 500)
+            var ageMs = (DateTime.UtcNow - _lastKnownFgTimeUtc).TotalMilliseconds;
+            if (_lastKnownFgPid != 0 && ageMs < FG_CACHE_MS)
             {
                 usedCached = true;
-                fg = _lastKnownForeground;
-                fgPid = _lastKnownForegroundPid;
+                fg = _lastKnownFgHwnd;
+                fgPid = _lastKnownFgPid;
             }
         }
         var sameHwnd = fg == _gameHwnd;
@@ -182,15 +209,14 @@ public sealed class GameWindowTracker
     private static string TryGetProcessName(uint pid)
     {
         if (pid == 0) return "(none)";
-        try
-        {
-            using var p = Process.GetProcessById((int)pid);
-            return p.ProcessName;
-        }
-        catch
-        {
-            return "unknown";
-        }
+        try { using var p = Process.GetProcessById((int)pid); return p.ProcessName; }
+        catch { return "unknown"; }
+    }
+
+    private string GetProcessName(uint pid)
+    {
+        // Instance wrapper to match the v0.1.18 debug prompt shape.
+        return TryGetProcessName(pid);
     }
 
     public bool IsPinnedProcessElevated()
@@ -215,6 +241,14 @@ public sealed class GameWindowTracker
 
     [DllImport("user32.dll")]
     private static extern bool IsWindow(nint hWnd);
+
+    private delegate bool EnumWindowsProc(nint hWnd, nint lParam);
+
+    [DllImport("user32.dll")]
+    private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, nint lParam);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindowVisible(nint hWnd);
 
     [DllImport("user32.dll")]
     private static extern bool GetWindowRect(nint hWnd, out RECT lpRect);

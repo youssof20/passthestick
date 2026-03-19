@@ -39,6 +39,16 @@
                     <RowDefinition Height="120"/>
                 </Grid.RowDefinitions>
                 <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,4">
+                    <ComboBox x:Name="LogLevelCombo"
+                              Width="110"
+                              Height="22"
+                              Margin="0,0,6,0"
+                              SelectionChanged="LogLevelCombo_SelectionChanged">
+                        <ComboBoxItem Content="Verbose"/>
+                        <ComboBoxItem Content="Info"/>
+                        <ComboBoxItem Content="Warning"/>
+                        <ComboBoxItem Content="Error"/>
+                    </ComboBox>
                     <Button Content="Copy logs" Click="CopyInputLogs_Click" Width="80" Height="22" Margin="0,0,6,0"/>
                     <Button Content="Clear" Click="ClearLog_Click" Width="50" Height="22"/>
                 </StackPanel>
@@ -73,6 +83,29 @@
                        MouseLeftButtonUp="RelayStatusText_MouseLeftButtonUp"
                        TextWrapping="Wrap"/>
         </DockPanel>
+
+        <TextBlock x:Name="InjectionStatsText"
+                   Text="Injected: 0 | Failed: 0 | Dropped: 0"
+                   Foreground="#666"
+                   FontSize="12"
+                   Margin="0,8,0,0"
+                   TextWrapping="Wrap"/>
+
+        <WrapPanel x:Name="KeyEchoPanel" Margin="0,6,0,0">
+            <Border x:Name="Echo_W" BorderBrush="#444" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Text="W"/></Border>
+            <Border x:Name="Echo_A" BorderBrush="#444" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Text="A"/></Border>
+            <Border x:Name="Echo_S" BorderBrush="#444" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Text="S"/></Border>
+            <Border x:Name="Echo_D" BorderBrush="#444" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Text="D"/></Border>
+
+            <Border x:Name="Echo_Space" BorderBrush="#444" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Text="Space"/></Border>
+            <Border x:Name="Echo_Enter" BorderBrush="#444" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Text="Enter"/></Border>
+            <Border x:Name="Echo_Esc" BorderBrush="#444" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Text="Esc"/></Border>
+
+            <Border x:Name="Echo_Up" BorderBrush="#444" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Text="↑"/></Border>
+            <Border x:Name="Echo_Down" BorderBrush="#444" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Text="↓"/></Border>
+            <Border x:Name="Echo_Left" BorderBrush="#444" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Text="←"/></Border>
+            <Border x:Name="Echo_Right" BorderBrush="#444" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Text="→"/></Border>
+        </WrapPanel>
 
         <TextBlock x:Name="StatusText" Text="" Foreground="#666" FontSize="12" Margin="0,8,0,0" TextWrapping="Wrap"/>
     </StackPanel>
