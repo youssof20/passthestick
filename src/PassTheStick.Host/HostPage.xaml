@@ -288,4 +288,5 @@
                 </StackPanel>
             </DockPanel>
         </Grid>
+    </Grid>
 </UserControl>
