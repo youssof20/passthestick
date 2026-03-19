@@ -7,56 +7,62 @@
         Height="640" Width="520"
         WindowStartupLocation="CenterScreen">
     <Window.Resources>
+        <!-- ControlTemplate.Triggers allows Setter TargetName; Style.Triggers does not. -->
         <DataTemplate DataType="{x:Type local:PlayerRowViewModel}">
-            <Border x:Name="RowBorder" Padding="6,4" Background="Transparent" CornerRadius="6">
-                <DockPanel LastChildFill="True">
-                    <Button DockPanel.Dock="Right"
-                            Content="Pass"
-                            Padding="10,4"
-                            Margin="8,0,0,0"
-                            Opacity="0"
-                            x:Name="PassHoverBtn"
-                            Click="PlayerRowPass_Click"/>
-                    <Border Width="4" CornerRadius="2" Margin="0,2,10,2" DockPanel.Dock="Left" VerticalAlignment="Stretch">
-                        <Border.Style>
-                            <Style TargetType="Border">
-                                <Setter Property="Background" Value="Transparent"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                        <Setter Property="Background" Value="{StaticResource PtsBrushGreen}"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Border.Style>
-                    </Border>
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
-                        <Border Margin="10,0,0,0" Padding="6,2" CornerRadius="4"
-                                Background="{StaticResource PtsBrushBgTertiary}">
-                            <Border.Style>
-                                <Style TargetType="Border">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                            <Setter Property="Visibility" Value="Visible"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
-                            <TextBlock Text="ACTIVE" FontSize="10" Foreground="{StaticResource PtsBrushGreen}"/>
+            <ContentControl Content="{Binding}">
+                <ContentControl.Template>
+                    <ControlTemplate TargetType="ContentControl">
+                        <Border x:Name="RowBorder"
+                                Padding="6,4"
+                                Background="Transparent"
+                                CornerRadius="6">
+                            <DockPanel LastChildFill="True">
+                                <Button x:Name="PassHoverBtn"
+                                        DockPanel.Dock="Right"
+                                        Content="Pass"
+                                        Padding="10,4"
+                                        Margin="8,0,0,0"
+                                        Opacity="0"
+                                        Click="PlayerRowPass_Click"/>
+                                <Border Width="4" CornerRadius="2" Margin="0,2,10,2" DockPanel.Dock="Left" VerticalAlignment="Stretch">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                    <Setter Property="Background" Value="{StaticResource PtsBrushGreen}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                </Border>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
+                                    <Border Margin="10,0,0,0" Padding="6,2" CornerRadius="4"
+                                            Background="{StaticResource PtsBrushBgTertiary}">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock Text="ACTIVE" FontSize="10" Foreground="{StaticResource PtsBrushGreen}"/>
+                                    </Border>
+                                </StackPanel>
+                            </DockPanel>
                         </Border>
-                    </StackPanel>
-                </DockPanel>
-                <Border.Style>
-                    <Style TargetType="Border">
-                        <Style.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
+                        <ControlTemplate.Triggers>
+                            <Trigger SourceName="RowBorder" Property="IsMouseOver" Value="True">
                                 <Setter TargetName="PassHoverBtn" Property="Opacity" Value="1"/>
                             </Trigger>
-                        </Style.Triggers>
-                    </Style>
-                </Border.Style>
-            </Border>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </ContentControl.Template>
+            </ContentControl>
         </DataTemplate>
     </Window.Resources>
 
