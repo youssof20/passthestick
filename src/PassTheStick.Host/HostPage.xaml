@@ -53,7 +53,8 @@
                                                         <Setter Property="Visibility" Value="Visible"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
-                                            </Border.Style>
+                                            </Style>
+                                        </Border.Style>
                                         <TextBlock Text="ACTIVE" FontSize="10" Foreground="{StaticResource PtsBrushGreen}"/>
                                     </Border>
                                 </StackPanel>
