@@ -154,8 +154,35 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
-                <Grid Grid.Row="0">
+                <Border x:Name="ElevationWarningBanner"
+                        Grid.Row="0"
+                        Visibility="Collapsed"
+                        Background="#3D1515"
+                        BorderBrush="#FF4444"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="10,8"
+                        Margin="0,0,0,10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock TextWrapping="Wrap" Foreground="#FFCCCC" FontSize="12"
+                                   Text="⚠ The pinned game is running as administrator. PassTheStick must also run as administrator for keyboard injection to work reliably."/>
+                        <Button Grid.Column="1"
+                                Content="Restart as administrator"
+                                Style="{StaticResource PtsOutlinedButton}"
+                                FontSize="11"
+                                Padding="10,6"
+                                Margin="12,0,0,0"
+                                VerticalAlignment="Center"
+                                Click="RestartAsAdmin_Click"/>
+                    </Grid>
+                </Border>
+                <Grid Grid.Row="1">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
@@ -174,14 +201,14 @@
                 </Grid>
 
                 <TextBlock x:Name="PinnedGameLabel"
-                           Grid.Row="1"
+                           Grid.Row="2"
                            Text="No game selected — pin a window to start"
                            Foreground="{StaticResource PtsBrushTextLabel}"
                            FontSize="12"
                            Margin="0,8,0,8"
                            TextWrapping="Wrap"/>
 
-                <Grid Grid.Row="2">
+                <Grid Grid.Row="3">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="160"/>
@@ -301,6 +328,13 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
                         <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,6">
+                            <Button Content="Test: inject W"
+                                    Style="{StaticResource PtsSecondaryButton}"
+                                    FontSize="11"
+                                    Click="TestInjectW_Click"
+                                    Padding="10,6"
+                                    Margin="0,0,8,0"
+                                    ToolTip="Sends W down/up to the pinned game — use before testing with a guest"/>
                             <ComboBox x:Name="LogLevelCombo"
                                       Width="110"
                                       Height="28"

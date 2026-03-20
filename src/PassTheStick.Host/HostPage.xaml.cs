@@ -325,6 +325,7 @@ public partial class HostPage : UserControl
             _overlay?.SetTurn("Host", true, Array.Empty<string>());
             _sessionStarted = false;
             RefreshPlayerRows();
+            UpdateShellGameSessionNoActivate();
 
             try
             {
@@ -346,29 +347,133 @@ public partial class HostPage : UserControl
     {
         try
         {
-            if (!_gameTracker.IsPinned)
-            {
-                _tray?.ShowToast("PassTheStick", "Test injection: pin a game window first.");
-                return;
-            }
-            if (!_gameTracker.IsGameForeground())
-            {
-                _tray?.ShowToast("PassTheStick", "Test injection: click the game window so it is foreground.");
-                return;
-            }
-
-            InputDebugLog.Log("[test] Sending W key down/up (100ms)...");
-            // W key virtual key = 0x57; guestSc isn't relevant here, just map locally.
-            var sc = KeyboardInjectionHelper.MapToHostScanCode(0x57, 17);
-            KeyboardInjectionHelper.InjectScanCode(sc, true);
-            await Task.Delay(100);
-            KeyboardInjectionHelper.InjectScanCode(sc, false);
-
-            _tray?.ShowToast("PassTheStick", "Test injection sent — did the character move?");
+            await RunTestWInjectionAsync(showToast: true);
         }
         catch (Exception ex)
         {
             _tray?.ShowToast("PassTheStick", "Test injection failed: " + ex.Message);
+        }
+    }
+
+    private async void TestInjectW_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            await RunTestWInjectionAsync(showToast: false);
+        }
+        catch (Exception ex)
+        {
+            AppendInputLog("[test] Error: " + ex.Message);
+        }
+    }
+
+    private void RestartAsAdmin_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var exe = Environment.ProcessPath;
+            if (string.IsNullOrWhiteSpace(exe))
+                exe = Assembly.GetExecutingAssembly().Location;
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = exe,
+                UseShellExecute = true,
+                Verb = "runas"
+            });
+            System.Windows.Application.Current.Shutdown();
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                "Could not restart elevated.\n\n" + ex.Message,
+                "PassTheStick",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+    }
+
+    /// <summary>Forces game focus, then injects W down / up with logging (used by tray + debug panel).</summary>
+    private async Task RunTestWInjectionAsync(bool showToast)
+    {
+        if (!_gameTracker.IsPinned)
+        {
+            if (showToast)
+                _tray?.ShowToast("PassTheStick", "Test injection: pin a game window first.");
+            AppendInputLog("[test] Pin a game window first.");
+            return;
+        }
+
+        InputDebugLog.Log(InputDebugLog.LogLevel.Info, "[test] Inject W: focus game → 200ms → down → 200ms → up");
+
+        await Dispatcher.InvokeAsync(() =>
+            GameFocusHelper.ForceGameForeground(_gameTracker.GameHwnd, "Test inject W"));
+        await Task.Delay(200);
+
+        var downOk = false;
+        var upOk = false;
+        await Dispatcher.InvokeAsync(() =>
+        {
+            var sc = KeyboardInjectionHelper.MapToHostScanCode(0x57, 17);
+            var hwnd = _gameTracker.GameHwnd;
+            downOk = InputInjector.InjectKeyWithResult(sc, true, out _, hwnd);
+        });
+        await Task.Delay(200);
+        await Dispatcher.InvokeAsync(() =>
+        {
+            var sc = KeyboardInjectionHelper.MapToHostScanCode(0x57, 17);
+            var hwnd = _gameTracker.GameHwnd;
+            upOk = InputInjector.InjectKeyWithResult(sc, false, out _, hwnd);
+        });
+
+        var ok = downOk && upOk;
+        var msg = ok
+            ? "[test] ✓ W key down/up sent — check game movement and [inject] Verification lines in log."
+            : "[test] ✗ W inject failed — check elevation (UIPI) and foreground window in log.";
+        await Dispatcher.InvokeAsync(() => AppendInputLog(msg));
+        if (showToast)
+            _tray?.ShowToast("PassTheStick", ok ? "Test injection sent." : "Test injection failed — see logs.");
+    }
+
+    private async Task FocusGameAfterHandoffAsync(string context)
+    {
+        if (!_autoFocusGame) return;
+        await Task.Delay(150);
+        await Dispatcher.InvokeAsync(() =>
+        {
+            if (!_gameTracker.IsPinned) return;
+            GameFocusHelper.ForceGameForeground(_gameTracker.GameHwnd, context);
+        });
+    }
+
+    private void UpdateShellGameSessionNoActivate()
+    {
+        try
+        {
+            if (Window.GetWindow(this) is not ShellWindow shell) return;
+            var guestHasStick = _sessionStarted && _gameTracker.IsPinned && !_sessionManager.IsLocalPlayerActive;
+            shell.SetGameSessionNoActivate(guestHasStick);
+        }
+        catch
+        {
+            // ignore
+        }
+    }
+
+    /// <summary>Re-apply shell WS_EX_NOACTIVATE after returning to Host tab (see <see cref="ShellWindow.NavButton_Click"/>).</summary>
+    public void SyncShellNoActivateFromSession() => UpdateShellGameSessionNoActivate();
+
+    private void RefreshElevationWarningUi()
+    {
+        try
+        {
+            var show = _gameTracker.IsPinned &&
+                       _gameTracker.IsPinnedProcessElevated() &&
+                       !ElevationHelper.IsRunningAsAdmin();
+            ElevationWarningBanner.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        }
+        catch
+        {
+            // ignore
         }
     }
 
@@ -480,7 +585,7 @@ public partial class HostPage : UserControl
         catch { }
     }
 
-    private void TakeStickBack()
+    private async void TakeStickBack()
     {
         if (_relay == null || string.IsNullOrWhiteSpace(_relay.MyId))
         {
@@ -489,9 +594,11 @@ public partial class HostPage : UserControl
             return;
         }
         ReleaseHeldKeysOnStickChange(_relay.MyId);
-        _relay.SendPassStickAsync(_relay.MyId);
+        await _relay.SendPassStickAsync(_relay.MyId);
         _sessionManager.SetActivePlayer(_relay.MyId);
         UpdateOverlayName();
+        UpdateShellGameSessionNoActivate();
+        RefreshElevationWarningUi();
         if (_enableStickSounds)
         {
             StickSoundPlayer.PlayReceive();
@@ -501,6 +608,11 @@ public partial class HostPage : UserControl
         _tray?.ShowToast("PassTheStick", "Stick returned to you");
         InputDebugLog.Log("[hotkey] Host reclaimed stick via Ctrl+Shift+Left");
         ResetInjectionCounters("stick reclaimed");
+        if (_autoFocusGame && _gameTracker.IsPinned)
+        {
+            await Task.Delay(100);
+            GameFocusHelper.ForceGameForeground(_gameTracker.GameHwnd, "take stick back");
+        }
     }
 
     private void EnsureConnectionDialog()
@@ -594,6 +706,7 @@ public partial class HostPage : UserControl
             ResetInjectionCounters("game pinned");
             var gameElevated = _gameTracker.IsPinnedProcessElevated();
             var hostIsAdmin = ElevationHelper.IsRunningAsAdmin();
+            RefreshElevationWarningUi();
             if (gameElevated && !hostIsAdmin)
             {
                 _tray?.ShowToast("PassTheStick", "Run as administrator (game is elevated).");
@@ -604,7 +717,13 @@ public partial class HostPage : UserControl
             {
                 StatusText.Text = "Game pinned. Starting session…";
             }
+            UpdateShellGameSessionNoActivate();
             await EnsureSessionStartedAsync();
+            if (_autoFocusGame)
+            {
+                await Task.Delay(100);
+                GameFocusHelper.ForceGameForeground(_gameTracker.GameHwnd, "after pin");
+            }
         }
         catch (TaskCanceledException)
         {
@@ -824,6 +943,12 @@ public partial class HostPage : UserControl
             _connVm.AddLog("Connected.");
             Dispatcher.Invoke(RefreshConnectedRelayPill);
             _connDialog?.Close();
+            await Dispatcher.InvokeAsync(() =>
+            {
+                UpdateShellGameSessionNoActivate();
+                RefreshElevationWarningUi();
+            });
+            _ = FocusGameAfterHandoffAsync("relay connected, room ready");
 
             // Best-effort: keep relay URL + last room code for reconnect after network blips.
             try
@@ -895,6 +1020,8 @@ public partial class HostPage : UserControl
             ReleaseHeldKeysOnStickChange(toId);
             _sessionManager.SetActivePlayer(toId);
             UpdateOverlayName();
+            UpdateShellGameSessionNoActivate();
+            RefreshElevationWarningUi();
             if (_enableStickSounds && _relay != null &&
                 string.Equals(toId, _relay.MyId, StringComparison.Ordinal))
             {
@@ -906,6 +1033,7 @@ public partial class HostPage : UserControl
                 }
             }
         });
+        _ = FocusGameAfterHandoffAsync("PASS_STICK relay");
     }
 
     private nint WndProc(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)
@@ -924,12 +1052,24 @@ public partial class HostPage : UserControl
                     TakeStickBack();
                 }
             });
+
+            // Take-back hotkey can briefly activate our message window — refocus game after.
+            if (kind == HotkeyManager.HotkeyKind.TakeBack)
+            {
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(50);
+                    Dispatcher.BeginInvoke(() =>
+                        TryFocusPinnedGame("after take-back hotkey (WM_HOTKEY)"));
+                });
+            }
+
             handled = true;
         }
         return nint.Zero;
     }
 
-    private void OnPickGuest(PlayerInfo p)
+    private async void OnPickGuest(PlayerInfo p)
     {
         if (_relay == null || !_relay.IsConnected)
         {
@@ -938,15 +1078,17 @@ public partial class HostPage : UserControl
             return;
         }
         ReleaseHeldKeysOnStickChange(p.Id);
-        _relay.SendPassStickAsync(p.Id);
+        await _relay.SendPassStickAsync(p.Id);
         _sessionManager.SetActivePlayer(p.Id);
         UpdateOverlayName();
+        UpdateShellGameSessionNoActivate();
+        RefreshElevationWarningUi();
         if (_enableStickSounds)
             StickSoundPlayer.PlayPass();
         StatusText.Text = "Stick passed to " + p.Name;
-        TryFocusPinnedGame("[session] Brought game to foreground after stick pass");
         ResetInjectionCounters("stick passed");
         StartFocusMonitor();
+        await FocusGameAfterHandoffAsync("after Pass stick (UI)");
     }
 
     private void OnPlayerList(List<PlayerInfo> players)
@@ -1055,9 +1197,10 @@ public partial class HostPage : UserControl
         var held = _sessionManager.ReleaseHeldKeys();
         if (held.Count == 0) return;
 
+        var gameHwnd = _gameTracker.GameHwnd;
         foreach (var sc in held)
         {
-            var ok = InputInjector.InjectKeyWithResult(sc, keyDown: false, out _);
+            var ok = InputInjector.InjectKeyWithResult(sc, keyDown: false, out _, gameHwnd);
             if (ok) _injectedCount++; else _failedCount++;
         }
 
@@ -1067,9 +1210,22 @@ public partial class HostPage : UserControl
 
     private void OnKeyEvent(KeyEventMessage msg)
     {
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.Invoke(() => OnKeyEvent(msg));
+            return;
+        }
+
         SetState(InjectionState.Injecting, $"KEY_EVENT from={msg.FromId} vk={msg.Vk}({KeyNames.VkToName(msg.Vk)}) down={msg.Down}");
         InputDebugLog.Log(InputDebugLog.LogLevel.Info,
             $"[recv] KEY vk={msg.Vk}({KeyNames.VkToName(msg.Vk)}) sc={msg.Sc} down={msg.Down} from={Short(msg.FromId)} state={_currentState}");
+
+        if (!_gameTracker.IsGameForeground())
+        {
+            // Guest has stick: our UI may have stolen focus — try to restore game before dropping.
+            if (!_sessionManager.IsLocalPlayerActive && _gameTracker.IsPinned)
+                GameFocusHelper.ForceGameForeground(_gameTracker.GameHwnd, "KEY_EVENT while guest active");
+        }
 
         if (!_gameTracker.IsGameForeground())
         {
@@ -1096,7 +1252,7 @@ public partial class HostPage : UserControl
         _sessionManager.NoteInjectedKeyState(scanCode, msg.Down);
         if (msg.Down) FlashEcho(KeyNames.VkToName(msg.Vk));
 
-        var ok = InputInjector.InjectKeyWithResult(scanCode, msg.Down, out _);
+        var ok = InputInjector.InjectKeyWithResult(scanCode, msg.Down, out _, _gameTracker.GameHwnd);
         if (ok) _injectedCount++; else _failedCount++;
         UpdateInjectionStatsText();
         SetState(_sessionManager.IsLocalPlayerActive ? InjectionState.HostHasStick : InjectionState.GuestHasStick, "Injected key event");
@@ -1218,6 +1374,8 @@ public partial class HostPage : UserControl
                     _gameTracker.ClearPin();
                     PinnedGameLabel.Text = "Game: (not pinned)";
                     ResetInjectionCounters("game ended");
+                    UpdateShellGameSessionNoActivate();
+                    RefreshElevationWarningUi();
                     return;
                 }
 
@@ -1228,6 +1386,7 @@ public partial class HostPage : UserControl
                     if (_gameTracker.TryRescanHwndForPid())
                     {
                         InputDebugLog.Log(InputDebugLog.LogLevel.Info, $"[game] Window updated: 0x{_gameTracker.GameHwnd:X}");
+                        TryFocusPinnedGame("HWND restored after rescan");
                     }
                 }
             }
@@ -1244,14 +1403,10 @@ public partial class HostPage : UserControl
             if (!_gameTracker.IsPinned) return;
             var hwnd = _gameTracker.GameHwnd;
             if (hwnd == nint.Zero) return;
-            SetForegroundWindow(hwnd);
-            InputDebugLog.Log(InputDebugLog.LogLevel.Info, logLine);
+            GameFocusHelper.ForceGameForeground(hwnd, logLine);
         }
         catch { }
     }
-
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
-    private static extern bool SetForegroundWindow(nint hWnd);
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern nint GetForegroundWindow();
@@ -1338,11 +1493,14 @@ public partial class HostPage : UserControl
         Dispatcher.Invoke(() =>
         {
             var held = _sessionManager.ReleaseHeldKeys();
+            var gameHwnd = _gameTracker.GameHwnd;
             foreach (var sc in held)
             {
-                InputInjector.InjectKeyWithResult(sc, false, out _);
+                InputInjector.InjectKeyWithResult(sc, false, out _, gameHwnd);
                 AppendInputLog($"[disconnect] Released held key sc={sc}");
             }
+
+            UpdateShellGameSessionNoActivate();
 
             StatusText.Text = reason.Contains("heartbeat", StringComparison.OrdinalIgnoreCase)
                 ? "Heartbeat lost — reconnecting…"
@@ -1481,7 +1639,10 @@ public partial class HostPage : UserControl
                         RefreshConnectedRelayPill();
                         _overlay?.SetTurn("Host", true, Array.Empty<string>());
                         RefreshPlayerRows();
+                        UpdateShellGameSessionNoActivate();
+                        RefreshElevationWarningUi();
                     });
+                    _ = FocusGameAfterHandoffAsync("reconnected");
                     return;
                 }
                 catch
@@ -1573,6 +1734,7 @@ public partial class HostPage : UserControl
             _showOverlayDuringSessions = s.ShowOverlayDuringSessions;
             ApplyOverlaySettingToActiveSession();
             ReapplyHotkeysFromSettings();
+            UpdateShellGameSessionNoActivate();
         }
         catch { }
     }

@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Interop;
 using PassTheStick.Shared;
 
 namespace PassTheStick.Host;
@@ -13,6 +14,20 @@ public partial class PassStickPickerWindow : Window
     {
         _onSelect = onSelect;
         InitializeComponent();
+    }
+
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        try
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            Win32WindowStyles.SetNoActivate(hwnd, true);
+        }
+        catch
+        {
+            // ignore
+        }
     }
 
     public void SetPlayers(IReadOnlyList<PlayerInfo> players)

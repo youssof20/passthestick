@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using PassTheStick.Shared;
 
@@ -109,6 +110,12 @@ public partial class ShellWindow : Window
             _ => _hostPage
         };
         ApplyNavVisuals();
+
+        // WS_EX_NOACTIVATE on the shell is for Host+game sessions only; other tabs must stay activatable.
+        if (tag == "host")
+            _hostPage.SyncShellNoActivateFromSession();
+        else
+            SetGameSessionNoActivate(false);
     }
 
     private void NavButton_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
@@ -221,5 +228,22 @@ public partial class ShellWindow : Window
             // ignore
         }
         OnboardingOverlay.Visibility = Visibility.Collapsed;
+    }
+
+    /// <summary>
+    /// While a guest has the stick, avoid stealing foreground from the game (Discord / overlay pattern).
+    /// Call with <c>false</c> when the host needs normal focus (settings, onboarding, host has stick).
+    /// </summary>
+    public void SetGameSessionNoActivate(bool active)
+    {
+        try
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            Win32WindowStyles.SetNoActivate(hwnd, active);
+        }
+        catch
+        {
+            // ignore
+        }
     }
 }

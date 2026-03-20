@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media.Animation;
 
 namespace PassTheStick.Host;
@@ -16,6 +17,20 @@ public partial class OverlayWindow : Window
     public OverlayWindow()
     {
         InitializeComponent();
+    }
+
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        try
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            Win32WindowStyles.SetNoActivate(hwnd, true);
+        }
+        catch
+        {
+            // ignore
+        }
     }
 
     public void SetTurn(string activeName, bool hostHasStick, IReadOnlyList<string> queuePreview)

@@ -30,8 +30,6 @@ public static class KeyboardInjectionHelper
         return (ushort)scanCode;
     }
 
-    public static void InjectScanCode(ushort scanCode, bool down)
-    {
-        InputInjector.InjectKey(scanCode, down);
-    }
+    public static void InjectScanCode(ushort scanCode, bool down, nint gameHwnd = default) =>
+        InputInjector.InjectKey(scanCode, down, gameHwnd);
 }
