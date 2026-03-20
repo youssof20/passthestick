@@ -6,7 +6,7 @@
         <StackPanel Margin="0,0,8,0">
             <TextBlock Text="Settings"
                        FontSize="20"
-                       FontWeight="SemiBold"
+                       FontWeight="Light"
                        Foreground="{StaticResource PtsBrushTextPrimary}"
                        Margin="0,0,0,16"/>
 
@@ -24,6 +24,8 @@
                              ToolTip="Override relay WebSocket URL (e.g. wss://… or ws://localhost:8080). Empty = default."/>
                     <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                         <Button Content="Test connection"
+                                Style="{StaticResource PtsOutlinedButton}"
+                                FontSize="12"
                                 Padding="10,6"
                                 Click="TestRelayConnection_Click"/>
                         <TextBlock x:Name="RelayTestResult"
@@ -31,11 +33,11 @@
                                    VerticalAlignment="Center"
                                    FontSize="11"
                                    TextWrapping="Wrap"
-                                   Foreground="{StaticResource PtsBrushTextSecondary}"/>
+                                   Foreground="{StaticResource PtsBrushTextBody}"/>
                     </StackPanel>
                     <TextBlock TextWrapping="Wrap"
                                FontSize="11"
-                               Foreground="{StaticResource PtsBrushTextSecondary}"
+                               Foreground="{StaticResource PtsBrushTextLabel}"
                                Margin="0,8,0,0"
                                Text="Relay URL is saved when you leave the field or start a session. Test uses the URL above (5s timeout)."/>
                 </StackPanel>
@@ -49,21 +51,21 @@
                     Margin="0,0,0,12">
                 <StackPanel>
                     <TextBlock Text="HOTKEYS" Style="{StaticResource PtsLabel}"/>
-                    <DockPanel Margin="0,8,0,4">
-                        <TextBlock DockPanel.Dock="Left" Foreground="{StaticResource PtsBrushTextSecondary}" MinWidth="140">
+                    <DockPanel Margin="0,8,0,4" LastChildFill="True">
+                        <TextBlock DockPanel.Dock="Left" Foreground="{StaticResource PtsBrushTextLabel}" MinWidth="140" VerticalAlignment="Center">
                             Pass stick</TextBlock>
                         <TextBlock x:Name="PassHotkeyLabel" DockPanel.Dock="Left" VerticalAlignment="Center"
                                    Foreground="{StaticResource PtsBrushTextPrimary}" MinWidth="200"/>
-                        <TextBlock HorizontalAlignment="Right">
+                        <TextBlock HorizontalAlignment="Right" VerticalAlignment="Center">
                             <Hyperlink Click="ChangePassHotkey_Click" Foreground="{StaticResource PtsBrushGreen}">Change</Hyperlink>
                         </TextBlock>
                     </DockPanel>
-                    <DockPanel Margin="0,4,0,0">
-                        <TextBlock DockPanel.Dock="Left" Foreground="{StaticResource PtsBrushTextSecondary}" MinWidth="140">
+                    <DockPanel Margin="0,4,0,0" LastChildFill="True">
+                        <TextBlock DockPanel.Dock="Left" Foreground="{StaticResource PtsBrushTextLabel}" MinWidth="140" VerticalAlignment="Center">
                             Take stick back</TextBlock>
                         <TextBlock x:Name="TakeBackHotkeyLabel" DockPanel.Dock="Left" VerticalAlignment="Center"
                                    Foreground="{StaticResource PtsBrushTextPrimary}" MinWidth="200"/>
-                        <TextBlock HorizontalAlignment="Right">
+                        <TextBlock HorizontalAlignment="Right" VerticalAlignment="Center">
                             <Hyperlink Click="ChangeTakeBackHotkey_Click" Foreground="{StaticResource PtsBrushGreen}">Change</Hyperlink>
                         </TextBlock>
                     </DockPanel>
@@ -78,30 +80,50 @@
                     Margin="0,0,0,12">
                 <StackPanel>
                     <TextBlock Text="BEHAVIOR" Style="{StaticResource PtsLabel}"/>
-                    <CheckBox x:Name="AutoFocusGameCheck"
-                              Margin="0,10,0,0"
-                              Foreground="{StaticResource PtsBrushTextPrimary}"
-                              Content="Auto-focus game window when stick is received"
-                              Checked="BehaviorCheck_Changed"
-                              Unchecked="BehaviorCheck_Changed"/>
-                    <CheckBox x:Name="ReleaseHeldKeysCheck"
-                              Margin="0,8,0,0"
-                              Foreground="{StaticResource PtsBrushTextPrimary}"
-                              Content="Release held keys on stick pass"
-                              Checked="BehaviorCheck_Changed"
-                              Unchecked="BehaviorCheck_Changed"/>
-                    <CheckBox x:Name="ShowOverlayCheck"
-                              Margin="0,8,0,0"
-                              Foreground="{StaticResource PtsBrushTextPrimary}"
-                              Content="Show overlay during sessions"
-                              Checked="BehaviorCheck_Changed"
-                              Unchecked="BehaviorCheck_Changed"/>
-                    <CheckBox x:Name="SettingsSoundsCheck"
-                              Margin="0,8,0,0"
-                              Foreground="{StaticResource PtsBrushTextPrimary}"
-                              Content="Enable sounds (Windows system sounds on pass/receive)"
-                              Checked="BehaviorCheck_Changed"
-                              Unchecked="BehaviorCheck_Changed"/>
+                    <DockPanel Margin="0,10,0,0" LastChildFill="True">
+                        <ToggleButton x:Name="AutoFocusGameCheck"
+                                      DockPanel.Dock="Right"
+                                      Style="{StaticResource PtsToggle}"
+                                      VerticalAlignment="Center"
+                                      Checked="BehaviorCheck_Changed"
+                                      Unchecked="BehaviorCheck_Changed"/>
+                        <TextBlock TextWrapping="Wrap" VerticalAlignment="Center"
+                                   Foreground="{StaticResource PtsBrushTextBody}"
+                                   Text="Auto-focus game window when stick is received"/>
+                    </DockPanel>
+                    <DockPanel Margin="0,8,0,0" LastChildFill="True">
+                        <ToggleButton x:Name="ReleaseHeldKeysCheck"
+                                      DockPanel.Dock="Right"
+                                      Style="{StaticResource PtsToggle}"
+                                      VerticalAlignment="Center"
+                                      Checked="BehaviorCheck_Changed"
+                                      Unchecked="BehaviorCheck_Changed"/>
+                        <TextBlock TextWrapping="Wrap" VerticalAlignment="Center"
+                                   Foreground="{StaticResource PtsBrushTextBody}"
+                                   Text="Release held keys on stick pass"/>
+                    </DockPanel>
+                    <DockPanel Margin="0,8,0,0" LastChildFill="True">
+                        <ToggleButton x:Name="ShowOverlayCheck"
+                                      DockPanel.Dock="Right"
+                                      Style="{StaticResource PtsToggle}"
+                                      VerticalAlignment="Center"
+                                      Checked="BehaviorCheck_Changed"
+                                      Unchecked="BehaviorCheck_Changed"/>
+                        <TextBlock TextWrapping="Wrap" VerticalAlignment="Center"
+                                   Foreground="{StaticResource PtsBrushTextBody}"
+                                   Text="Show overlay during sessions"/>
+                    </DockPanel>
+                    <DockPanel Margin="0,8,0,0" LastChildFill="True">
+                        <ToggleButton x:Name="SettingsSoundsCheck"
+                                      DockPanel.Dock="Right"
+                                      Style="{StaticResource PtsToggle}"
+                                      VerticalAlignment="Center"
+                                      Checked="BehaviorCheck_Changed"
+                                      Unchecked="BehaviorCheck_Changed"/>
+                        <TextBlock TextWrapping="Wrap" VerticalAlignment="Center"
+                                   Foreground="{StaticResource PtsBrushTextBody}"
+                                   Text="Enable sounds (Windows system sounds on pass/receive)"/>
+                    </DockPanel>
                 </StackPanel>
             </Border>
 
@@ -116,17 +138,21 @@
                     <TextBlock x:Name="AboutVersionText"
                                Margin="0,8,0,0"
                                TextWrapping="Wrap"
-                               Foreground="{StaticResource PtsBrushTextSecondary}"/>
+                               Foreground="{StaticResource PtsBrushTextBody}"/>
                     <TextBlock Margin="0,6,0,0"
                                TextWrapping="Wrap"
-                               Foreground="{StaticResource PtsBrushTextSecondary}"
+                               Foreground="{StaticResource PtsBrushTextLabel}"
                                Text="Open source · MIT License"/>
                     <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                         <Button Content="View on GitHub"
+                                Style="{StaticResource PtsSecondaryButton}"
+                                FontSize="12"
                                 Padding="10,6"
                                 Click="GitHub_Click"/>
                         <Button Content="Check for updates"
                                 Margin="8,0,0,0"
+                                Style="{StaticResource PtsSecondaryButton}"
+                                FontSize="12"
                                 Padding="10,6"
                                 Click="CheckUpdates_Click"/>
                     </StackPanel>

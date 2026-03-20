@@ -74,7 +74,7 @@ public partial class SettingsPage : UserControl
         try
         {
             RelayTestResult.Text = "Testing…";
-            RelayTestResult.Foreground = (Brush)FindResource("PtsBrushTextSecondary");
+            RelayTestResult.Foreground = (Brush)FindResource("PtsBrushTextBody");
 
             var raw = (SettingsRelayUrlText.Text ?? string.Empty).Trim();
             var probe = new AppSettings

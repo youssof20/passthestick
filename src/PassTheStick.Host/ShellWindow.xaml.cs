@@ -112,21 +112,32 @@ public partial class ShellWindow : Window
 
     private void ApplyNavVisuals()
     {
-        SetNav(NavHost, _nav == "host");
-        SetNav(NavGuest, _nav == "guest");
-        SetNav(NavSettings, _nav == "settings");
+        SetNav(NavHost, HostNavBorder, _nav == "host");
+        SetNav(NavGuest, GuestNavBorder, _nav == "guest");
+        SetNav(NavSettings, SettingsNavBorder, _nav == "settings");
     }
 
-    private static void SetNav(Button btn, bool active)
+    private void SetNav(Button btn, Border accentBorder, bool active)
     {
+        var primary = TryFindResource("PtsBrushPrimary") as SolidColorBrush;
+        var muted = TryFindResource("PtsBrushTextMuted") as SolidColorBrush;
+        accentBorder.BorderBrush = active ? primary ?? Brushes.Transparent : Brushes.Transparent;
+
         var sp = btn.Content as StackPanel;
         if (sp == null || sp.Children.Count < 2) return;
         var icon = sp.Children[0] as TextBlock;
         var label = sp.Children[1] as TextBlock;
-        var fg = active ? Color.FromRgb(0x00, 0xC8, 0x96) : Color.FromRgb(0x55, 0x55, 0x55);
-        var brush = new SolidColorBrush(fg);
-        if (icon != null) icon.Foreground = brush;
-        if (label != null) label.Foreground = brush;
+        if (active)
+        {
+            if (icon != null) icon.Foreground = primary ?? new SolidColorBrush(Color.FromRgb(0x00, 0xC8, 0x96));
+            if (label != null) label.Foreground = primary ?? new SolidColorBrush(Color.FromRgb(0x00, 0xC8, 0x96));
+        }
+        else
+        {
+            if (icon != null) icon.Foreground = muted ?? new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55));
+            if (label != null) label.Foreground = muted ?? new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55));
+        }
+
         btn.Background = active
             ? new SolidColorBrush(Color.FromArgb(0x26, 0x00, 0xC8, 0x96))
             : Brushes.Transparent;

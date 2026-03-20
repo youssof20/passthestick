@@ -22,11 +22,11 @@
             <StackPanel>
                 <TextBlock Text="Join a session"
                            FontSize="20"
-                           FontWeight="SemiBold"
+                           FontWeight="Light"
                            Foreground="{StaticResource PtsBrushTextPrimary}"/>
                 <TextBlock Text="Enter the room code your host shared"
                            FontSize="13"
-                           Foreground="{StaticResource PtsBrushTextSecondary}"
+                           Foreground="{StaticResource PtsBrushTextBody}"
                            Margin="0,6,0,0"/>
 
                 <TextBlock Text="ROOM CODE" Style="{StaticResource PtsLabel}" Margin="0,20,0,6"/>
@@ -35,6 +35,7 @@
                          CharacterCasing="Upper"
                          HorizontalContentAlignment="Center"
                          FontFamily="{StaticResource PtsMonoFont}"
+                         FontWeight="Light"
                          FontSize="24"
                          Padding="12,10"
                          Margin="0,0,0,12"/>
@@ -48,16 +49,13 @@
                 <Button x:Name="JoinButton"
                         Content="Join session"
                         Click="JoinButton_Click"
+                        Style="{StaticResource PtsPrimaryButton}"
                         Padding="0,12"
-                        FontSize="14"
-                        FontWeight="SemiBold"
-                        Background="{StaticResource PtsBrushGreen}"
-                        Foreground="#0F0F0F"
-                        BorderThickness="0"/>
+                        FontSize="14"/>
 
                 <TextBlock x:Name="JoinStatusText"
                            Text=""
-                           Foreground="{StaticResource PtsBrushTextSecondary}"
+                           Foreground="{StaticResource PtsBrushTextBody}"
                            Margin="0,12,0,0"
                            TextWrapping="Wrap"/>
             </StackPanel>
@@ -76,7 +74,7 @@
             <StackPanel>
                 <TextBlock x:Name="WaitingHeader"
                            Text="Room: ----  •  Connected (—ms)"
-                           Foreground="{StaticResource PtsBrushTextSecondary}"
+                           Foreground="{StaticResource PtsBrushTextLabel}"
                            Margin="0,0,0,12"/>
 
                 <Border Background="{StaticResource PtsBrushBgTertiary}"
@@ -87,8 +85,8 @@
                         Margin="0,0,0,12">
                     <StackPanel>
                         <TextBlock Text="&#x23F3;" FontSize="36" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                        <TextBlock x:Name="WaitingTitle" Text="Waiting for your turn" FontSize="18" FontWeight="SemiBold" TextAlignment="Center"/>
-                        <TextBlock x:Name="WaitingSubtitle" Text="Host is playing right now" Foreground="{StaticResource PtsBrushTextSecondary}" Margin="0,8,0,0" TextAlignment="Center"/>
+                        <TextBlock x:Name="WaitingTitle" Text="Waiting for your turn" FontSize="18" FontWeight="Light" Foreground="{StaticResource PtsBrushTextPrimary}" TextAlignment="Center"/>
+                        <TextBlock x:Name="WaitingSubtitle" Text="Host is playing right now" Foreground="{StaticResource PtsBrushTextBody}" Margin="0,8,0,0" TextAlignment="Center"/>
                     </StackPanel>
                 </Border>
 
@@ -124,36 +122,36 @@
                         <TextBlock Text="&#x1F3AE;" FontSize="48" HorizontalAlignment="Center"/>
                         <TextBlock Text="YOU HAVE THE STICK"
                                    FontSize="24"
-                                   FontWeight="Bold"
+                                   FontWeight="Light"
                                    TextAlignment="Center"
                                    Foreground="{StaticResource PtsBrushTextPrimary}"
                                    Margin="0,8,0,0"/>
                         <TextBlock Text="Your keyboard is live now."
-                                   Foreground="{StaticResource PtsBrushTextSecondary}"
+                                   Foreground="{StaticResource PtsBrushTextBody}"
                                    Margin="0,10,0,0"
                                    TextAlignment="Center"/>
                         <TextBlock Text="Switch to the screen share and play!"
-                                   Foreground="{StaticResource PtsBrushTextSecondary}"
+                                   Foreground="{StaticResource PtsBrushTextBody}"
                                    Margin="0,4,0,0"
                                    TextAlignment="Center"/>
                         <TextBlock x:Name="ActiveStatusLine"
                                    Text="Latency: —ms  •  Connected"
-                                   Foreground="{StaticResource PtsBrushTextSecondary}"
+                                   Foreground="{StaticResource PtsBrushTextLabel}"
                                    Margin="0,16,0,0"
                                    TextAlignment="Center"/>
                     </StackPanel>
                 </Border>
 
                 <WrapPanel Grid.Row="1" Margin="16,0,16,16">
-                    <Border x:Name="G_Echo_W" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="W"/></Border>
-                    <Border x:Name="G_Echo_A" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="A"/></Border>
-                    <Border x:Name="G_Echo_S" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="S"/></Border>
-                    <Border x:Name="G_Echo_D" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="D"/></Border>
-                    <Border x:Name="G_Echo_Space" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="Space"/></Border>
-                    <Border x:Name="G_Echo_Up" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="↑"/></Border>
-                    <Border x:Name="G_Echo_Down" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="↓"/></Border>
-                    <Border x:Name="G_Echo_Left" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="←"/></Border>
-                    <Border x:Name="G_Echo_Right" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextSecondary}" Text="→"/></Border>
+                    <Border x:Name="G_Echo_W" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextLabel}" Text="W"/></Border>
+                    <Border x:Name="G_Echo_A" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextLabel}" Text="A"/></Border>
+                    <Border x:Name="G_Echo_S" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextLabel}" Text="S"/></Border>
+                    <Border x:Name="G_Echo_D" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextLabel}" Text="D"/></Border>
+                    <Border x:Name="G_Echo_Space" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextLabel}" Text="Space"/></Border>
+                    <Border x:Name="G_Echo_Up" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextLabel}" Text="↑"/></Border>
+                    <Border x:Name="G_Echo_Down" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextLabel}" Text="↓"/></Border>
+                    <Border x:Name="G_Echo_Left" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextLabel}" Text="←"/></Border>
+                    <Border x:Name="G_Echo_Right" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8"><TextBlock Foreground="{StaticResource PtsBrushTextLabel}" Text="→"/></Border>
                 </WrapPanel>
             </Grid>
         </Border>
@@ -161,7 +159,7 @@
         <TextBlock Grid.Row="1"
                    x:Name="FooterText"
                    Text=""
-                   Foreground="{StaticResource PtsBrushTextSecondary}"
+                   Foreground="{StaticResource PtsBrushTextBody}"
                    Margin="0,12,0,0"
                    TextWrapping="Wrap"/>
     </Grid>

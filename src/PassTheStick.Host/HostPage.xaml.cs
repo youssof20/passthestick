@@ -1109,8 +1109,7 @@ public partial class HostPage : UserControl
             var tb = b.Child as TextBlock;
             var oldFg = tb?.Foreground;
 
-            // Pressed: orange at ~30% opacity, orange border/text.
-            b.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x4D, 0xFF, 0x6B, 0x35));
+            b.Background = (System.Windows.Media.Brush)FindResource("PtsBrushTertiaryPressTint");
             b.BorderBrush = (System.Windows.Media.Brush)FindResource("PtsBrushOrange");
             if (tb != null)
                 tb.Foreground = (System.Windows.Media.Brush)FindResource("PtsBrushOrange");
@@ -1118,7 +1117,7 @@ public partial class HostPage : UserControl
             b.Background = oldBg;
             b.BorderBrush = oldBorder;
             if (tb != null)
-                tb.Foreground = oldFg ?? (System.Windows.Media.Brush)FindResource("PtsBrushTextSecondary");
+                tb.Foreground = oldFg ?? (System.Windows.Media.Brush)FindResource("PtsBrushTextLabel");
         }
         catch { }
     }

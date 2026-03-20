@@ -1,17 +1,32 @@
 <Window x:Class="PassTheStick.Host.PassStickPickerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Pass the stick"
+        Title=""
         Icon="pack://application:,,,/appicon.png"
         Width="260" Height="280"
         WindowStartupLocation="Manual"
         ShowActivated="False"
         Topmost="True"
         ResizeMode="NoResize"
-        ShowInTaskbar="False">
-    <StackPanel Margin="12">
-        <TextBlock Text="Select a guest:" Margin="0,0,0,8"/>
-        <ListBox x:Name="GuestsList" Height="160" SelectionMode="Single" MouseDoubleClick="GuestsList_MouseDoubleClick"/>
-        <Button Content="Pass stick to selected" Click="PassButton_Click" Margin="0,8,0,0"/>
-    </StackPanel>
+        ShowInTaskbar="False"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent">
+    <Border Background="{StaticResource PtsBrushBgSecondary}"
+            BorderBrush="{StaticResource PtsBrushBorder}"
+            BorderThickness="1"
+            CornerRadius="8"
+            MouseLeftButtonDown="Window_MouseLeftButtonDown">
+        <StackPanel Margin="12">
+            <TextBlock Text="Select a guest:"
+                       Margin="0,0,0,8"
+                       Foreground="{StaticResource PtsBrushTextBody}"/>
+            <ListBox x:Name="GuestsList" Height="160" SelectionMode="Single" MouseDoubleClick="GuestsList_MouseDoubleClick"/>
+            <Button Content="Pass stick to selected"
+                    Style="{StaticResource PtsPrimaryButton}"
+                    FontSize="12"
+                    Click="PassButton_Click"
+                    Margin="0,8,0,0"/>
+        </StackPanel>
+    </Border>
 </Window>

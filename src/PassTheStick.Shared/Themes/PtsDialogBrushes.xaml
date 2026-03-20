@@ -6,9 +6,8 @@
     <SolidColorBrush x:Key="PtsDlgBorder" Color="#2E2E2E"/>
     <SolidColorBrush x:Key="PtsDlgText" Color="#F0F0F0"/>
     <SolidColorBrush x:Key="PtsDlgMuted" Color="#888888"/>
-    <SolidColorBrush x:Key="PtsDlgSubtle" Color="#666666"/>
+    <SolidColorBrush x:Key="PtsDlgSubtle" Color="#888888"/>
     <SolidColorBrush x:Key="PtsDlgLogBg" Color="#121212"/>
     <SolidColorBrush x:Key="PtsDlgLogFg" Color="#CCCCCC"/>
     <SolidColorBrush x:Key="PtsDlgGreen" Color="#00C896"/>
-    <FontFamily x:Key="PtsDlgFont">Segoe UI</FontFamily>
 </ResourceDictionary>

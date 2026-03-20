@@ -52,4 +52,13 @@ public partial class PassStickPickerWindow : Window
             Close();
         }
     }
+
+    private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.LeftButton == MouseButtonState.Pressed)
+        {
+            try { DragMove(); }
+            catch { /* drag can fail */ }
+        }
+    }
 }

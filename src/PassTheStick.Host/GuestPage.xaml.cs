@@ -242,7 +242,7 @@ public partial class GuestPage : UserControl
             var tb = b.Child as TextBlock;
             var oldFg = tb?.Foreground;
 
-            b.Background = new SolidColorBrush(Color.FromArgb(0x4D, 0xFF, 0x6B, 0x35));
+            b.Background = (Brush)FindResource("PtsBrushTertiaryPressTint");
             b.BorderBrush = (Brush)FindResource("PtsBrushOrange");
             if (tb != null)
                 tb.Foreground = (Brush)FindResource("PtsBrushOrange");
@@ -250,7 +250,7 @@ public partial class GuestPage : UserControl
             b.Background = oldBg;
             b.BorderBrush = oldBorder;
             if (tb != null)
-                tb.Foreground = oldFg ?? (Brush)FindResource("PtsBrushTextSecondary");
+                tb.Foreground = oldFg ?? (Brush)FindResource("PtsBrushTextLabel");
         }
         catch
         {

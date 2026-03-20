@@ -17,7 +17,7 @@
     <Border x:Name="Root"
             CornerRadius="20"
             Background="{StaticResource PtsBrushBgSecondary}"
-            Opacity="0.85"
+            Opacity="0.92"
             BorderBrush="{StaticResource PtsBrushBorder}"
             BorderThickness="1"
             Padding="0">
@@ -45,12 +45,12 @@
                         <TextBlock x:Name="TitleText"
                                    Text="You're playing"
                                    FontSize="14"
-                                   FontWeight="SemiBold"
+                                   FontWeight="Light"
                                    Foreground="{StaticResource PtsBrushTextPrimary}"/>
                         <TextBlock x:Name="SubtitleText"
                                    Text=""
                                    FontSize="11"
-                                   Foreground="{StaticResource PtsBrushTextSecondary}"
+                                   Foreground="{StaticResource PtsBrushTextLabel}"
                                    Margin="0,2,0,0"
                                    Visibility="Collapsed"/>
                     </StackPanel>
@@ -77,11 +77,13 @@
                             <Button x:Name="PassButton"
                                     DockPanel.Dock="Left"
                                     Content="Pass →"
+                                    Style="{StaticResource PtsOutlinedButton}"
+                                    FontSize="11"
                                     Padding="10,6"
                                     Click="PassButton_Click"/>
                             <TextBlock Text="Ctrl+Shift+→"
                                        DockPanel.Dock="Right"
-                                       Foreground="{StaticResource PtsBrushTextSecondary}"
+                                       Foreground="{StaticResource PtsBrushTextLabel}"
                                        FontSize="11"
                                        VerticalAlignment="Center"/>
                         </DockPanel>

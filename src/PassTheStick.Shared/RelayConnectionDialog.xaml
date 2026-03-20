@@ -46,7 +46,7 @@
     <Border Background="{StaticResource PtsDlgBg}"
             BorderBrush="{StaticResource PtsDlgBorder}"
             BorderThickness="1"
-            CornerRadius="0">
+            CornerRadius="8">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="32"/>
@@ -90,7 +90,7 @@
 
                 <TextBlock Text="Connecting to relay server…"
                            FontSize="15"
-                           FontWeight="SemiBold"
+                           FontWeight="Light"
                            Foreground="{StaticResource PtsDlgText}"
                            Margin="0,0,0,6"/>
 
@@ -112,7 +112,7 @@
                         <TextBlock Text="RELAY URL"
                                    Foreground="{StaticResource PtsDlgSubtle}"
                                    FontSize="10"
-                                   FontWeight="SemiBold"
+                                   FontWeight="Normal"
                                    Margin="0,0,0,6"/>
                         <DockPanel>
                             <TextBox x:Name="RelayUrlBox"

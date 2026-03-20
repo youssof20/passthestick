@@ -19,6 +19,15 @@ public partial class HotkeyCaptureWindow : Window
 
     private void Cancel_Click(object sender, RoutedEventArgs e) => Close();
 
+    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.LeftButton == MouseButtonState.Pressed)
+        {
+            try { DragMove(); }
+            catch { /* drag can fail */ }
+        }
+    }
+
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.Escape)

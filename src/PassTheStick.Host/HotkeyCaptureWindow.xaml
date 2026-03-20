@@ -1,39 +1,80 @@
 <Window x:Class="PassTheStick.Host.HotkeyCaptureWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Hotkey"
+        Title=""
         Width="420"
-        Height="200"
-        WindowStyle="ToolWindow"
+        Height="220"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         Topmost="True"
-        Background="{StaticResource PtsBrushBgPrimary}"
         PreviewKeyDown="Window_PreviewKeyDown"
         Loaded="HotkeyCaptureWindow_Loaded">
-    <Border Padding="20" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" Margin="12">
-        <StackPanel>
-            <TextBlock Text="PRESS YOUR NEW HOTKEY COMBINATION"
-                       FontWeight="Bold"
-                       FontSize="12"
-                       Foreground="{StaticResource PtsBrushTextPrimary}"
-                       TextWrapping="Wrap"/>
-            <TextBlock Text="Use at least one of Ctrl, Shift, Alt, or Win. Esc cancels."
-                       Margin="0,8,0,0"
-                       FontSize="11"
-                       Foreground="{StaticResource PtsBrushTextSecondary}"
-                       TextWrapping="Wrap"/>
-            <TextBlock x:Name="PreviewText"
-                       Margin="0,14,0,0"
-                       FontSize="14"
-                       FontWeight="SemiBold"
-                       Foreground="{StaticResource PtsBrushGreen}"
-                       TextWrapping="Wrap"/>
-            <Button Content="Cancel"
-                    Margin="0,18,0,0"
-                    HorizontalAlignment="Left"
-                    Padding="12,6"
-                    Click="Cancel_Click"/>
-        </StackPanel>
+    <Border Background="{StaticResource PtsBrushBgSecondary}"
+            BorderBrush="{StaticResource PtsBrushBorder}"
+            BorderThickness="1"
+            CornerRadius="8"
+            Margin="12">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="36"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Border Grid.Row="0"
+                    Background="{StaticResource PtsBrushBgSecondary}"
+                    CornerRadius="8,8,0,0"
+                    BorderBrush="{StaticResource PtsBrushBorder}"
+                    BorderThickness="0,0,0,1"
+                    Padding="12,0"
+                    MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <Grid>
+                    <TextBlock Text="Set hotkey"
+                               VerticalAlignment="Center"
+                               Foreground="{StaticResource PtsBrushTextPrimary}"
+                               FontSize="13"
+                               FontWeight="Light"/>
+                    <Button Content="&#x2715;"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Width="32"
+                            Height="26"
+                            Padding="0"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Foreground="{StaticResource PtsBrushTextLabel}"
+                            Cursor="Hand"
+                            FontSize="12"
+                            Click="Cancel_Click"
+                            ToolTip="Close"/>
+                </Grid>
+            </Border>
+            <StackPanel Grid.Row="1" Margin="20,16,20,20">
+                <TextBlock Text="PRESS YOUR NEW HOTKEY COMBINATION"
+                           FontWeight="Normal"
+                           FontSize="12"
+                           Foreground="{StaticResource PtsBrushTextPrimary}"
+                           TextWrapping="Wrap"/>
+                <TextBlock Text="Use at least one of Ctrl, Shift, Alt, or Win. Esc cancels."
+                           Margin="0,8,0,0"
+                           FontSize="11"
+                           Foreground="{StaticResource PtsBrushTextLabel}"
+                           TextWrapping="Wrap"/>
+                <TextBlock x:Name="PreviewText"
+                           Margin="0,14,0,0"
+                           FontSize="14"
+                           FontWeight="Normal"
+                           Foreground="{StaticResource PtsBrushGreen}"
+                           TextWrapping="Wrap"/>
+                <Button Content="Cancel"
+                        Style="{StaticResource PtsSecondaryButton}"
+                        FontSize="12"
+                        Margin="0,18,0,0"
+                        HorizontalAlignment="Left"
+                        Padding="12,6"
+                        Click="Cancel_Click"/>
+            </StackPanel>
+        </Grid>
     </Border>
 </Window>

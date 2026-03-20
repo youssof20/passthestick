@@ -4,14 +4,6 @@
         xmlns:local="clr-namespace:PassTheStick.Host"
         Background="{StaticResource PtsBrushBgPrimary}">
     <UserControl.Resources>
-        <Style x:Key="PtsTakeBackButton" TargetType="Button">
-            <Setter Property="Background" Value="{StaticResource PtsBrushOrange}"/>
-            <Setter Property="Foreground" Value="#0F0F0F"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="12,6"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-        </Style>
         <!-- ControlTemplate.Triggers allows Setter TargetName; Style.Triggers does not. -->
         <DataTemplate DataType="{x:Type local:PlayerRowViewModel}">
             <ContentControl Content="{Binding}">
@@ -25,9 +17,12 @@
                                 <Button x:Name="PassHoverBtn"
                                         DockPanel.Dock="Right"
                                         Content="Pass"
-                                        Padding="10,4"
+                                        Style="{StaticResource PtsOutlinedButton}"
+                                        FontSize="11"
+                                        Padding="8,4"
                                         Margin="8,0,0,0"
                                         Opacity="0"
+                                        Cursor="Hand"
                                         Click="PlayerRowPass_Click"/>
                                 <Border Width="4" CornerRadius="2" Margin="0,2,10,2" DockPanel.Dock="Left" VerticalAlignment="Stretch">
                                     <Border.Style>
@@ -83,7 +78,7 @@
         <DockPanel Grid.Row="0" Margin="0,0,0,12" LastChildFill="False">
             <StackPanel Orientation="Horizontal">
                 <Image Width="18" Height="18" Source="pack://application:,,,/appicon.png" Margin="0,0,8,0" RenderOptions.BitmapScalingMode="HighQuality"/>
-                <TextBlock Text="PassTheStick" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <TextBlock Text="PassTheStick" FontSize="14" FontWeight="Light" Foreground="{StaticResource PtsBrushTextPrimary}" VerticalAlignment="Center"/>
             </StackPanel>
 
             <Border DockPanel.Dock="Right"
@@ -93,7 +88,8 @@
                     BorderBrush="{StaticResource PtsBrushBorder}"
                     BorderThickness="1"
                     Padding="10,6"
-                    Background="#1A1A1A">
+                    Background="{StaticResource PtsBrushBgSecondary}"
+                    Cursor="Hand">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Ellipse x:Name="RelayDot" Width="8" Height="8" Fill="{StaticResource PtsBrushRed}" Margin="0,1,8,0"/>
                     <TextBlock x:Name="RelayStatusText"
@@ -109,8 +105,8 @@
 
         <!-- ROOM CODE -->
         <Border Grid.Row="1"
-                Background="#1A1A1A"
-                BorderBrush="#2E2E2E"
+                Background="{StaticResource PtsBrushBgSecondary}"
+                BorderBrush="{StaticResource PtsBrushBorder}"
                 BorderThickness="1"
                 CornerRadius="8"
                 Padding="12"
@@ -127,12 +123,14 @@
                            Text="—"
                            FontFamily="{StaticResource PtsMonoFont}"
                            FontSize="28"
-                           FontWeight="Bold"
+                           FontWeight="Light"
                            Foreground="{StaticResource PtsBrushTextPrimary}"
                            Margin="0,6,0,0"/>
                 <Button Grid.Row="2"
                         Content="Copy code"
-                        Style="{StaticResource PtsGhostButton}"
+                        Style="{StaticResource PtsSecondaryButton}"
+                        FontSize="11"
+                        Padding="10,5"
                         HorizontalAlignment="Left"
                         Margin="0,6,0,0"
                         Click="CopyRoomCode_Click"/>
@@ -141,8 +139,8 @@
 
         <!-- GAME -->
         <Border Grid.Row="2"
-                Background="#1A1A1A"
-                BorderBrush="#2E2E2E"
+                Background="{StaticResource PtsBrushBgSecondary}"
+                BorderBrush="{StaticResource PtsBrushBorder}"
                 BorderThickness="1"
                 CornerRadius="8"
                 Padding="12"
@@ -164,20 +162,17 @@
                             Content="↻ Refresh"
                             Width="70"
                             Height="24"
+                            Style="{StaticResource PtsSecondaryButton}"
                             FontSize="11"
                             Padding="0"
                             VerticalAlignment="Center"
-                            Background="Transparent"
-                            Foreground="#666666"
-                            BorderBrush="#2E2E2E"
-                            BorderThickness="1"
                             Click="RefreshWindowsButton_Click"/>
                 </Grid>
 
                 <TextBlock x:Name="PinnedGameLabel"
                            Grid.Row="1"
                            Text="No game selected — pin a window to start"
-                           Foreground="#888888"
+                           Foreground="{StaticResource PtsBrushTextLabel}"
                            FontSize="12"
                            Margin="0,8,0,8"
                            TextWrapping="Wrap"/>
@@ -199,8 +194,9 @@
                             Content="Pin selected window"
                             Width="160"
                             Height="34"
-                            Padding="8,4"
+                            Style="{StaticResource PtsPrimaryButton}"
                             FontSize="12"
+                            Padding="8,4"
                             Click="PinSelectedButton_Click"/>
                 </Grid>
             </Grid>
@@ -216,14 +212,14 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock Text="PLAYERS" Style="{StaticResource PtsSectionLabel}" Margin="0,0,0,0" VerticalAlignment="Center"/>
                     <Border Grid.Column="1"
-                            Background="#252525"
+                            Background="{StaticResource PtsBrushBgTertiary}"
                             CornerRadius="10"
                             Padding="6,2"
                             VerticalAlignment="Center">
                         <TextBlock x:Name="PlayersCountBadge"
                                    Text="0 connected"
                                    FontSize="11"
-                                   Foreground="#888888"/>
+                                   Foreground="{StaticResource PtsBrushTextLabel}"/>
                     </Border>
                 </Grid>
 
@@ -231,14 +227,15 @@
                     <Button x:Name="PassStickButton"
                             DockPanel.Dock="Right"
                             Content="Pass to selected"
-                            Padding="10,5"
+                            Style="{StaticResource PtsSecondaryButton}"
                             FontSize="11"
+                            Padding="10,5"
                             Margin="8,0,0,0"
                             Click="PassStickButton_Click"
                             IsEnabled="False"/>
                     <TextBlock x:Name="StatusText"
                                TextWrapping="Wrap"
-                               Foreground="#888888"
+                               Foreground="{StaticResource PtsBrushTextLabel}"
                                FontSize="12"
                                VerticalAlignment="Center"
                                Text="Select and pin your game window to start a session."/>
@@ -247,7 +244,7 @@
                 <ListBox x:Name="PlayersList"
                          Margin="0,0,0,10"
                          MinHeight="80"
-                         Background="#1A1A1A"
+                         Background="{StaticResource PtsBrushBgSecondary}"
                          BorderThickness="0"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                          ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -276,13 +273,13 @@
                         <StackPanel>
                             <TextBlock x:Name="ActiveBannerTitle"
                                        Text="🎮  Your keyboard is live"
-                                       Foreground="#F0F0F0"
+                                       Foreground="{StaticResource PtsBrushTextPrimary}"
                                        FontSize="13"
-                                       FontWeight="Medium"
+                                       FontWeight="Normal"
                                        TextWrapping="Wrap"/>
                             <TextBlock x:Name="ActiveBannerSubtitle"
                                        Text="Input scoped to pinned game window"
-                                       Foreground="#666666"
+                                       Foreground="{StaticResource PtsBrushTextLabel}"
                                        FontSize="11"
                                        Margin="0,2,0,0"
                                        TextWrapping="Wrap"/>
@@ -292,24 +289,25 @@
                                 VerticalAlignment="Center"
                                 Margin="12,0,0,0"
                                 Content="Take it back"
-                                Style="{StaticResource PtsTakeBackButton}"
+                                Style="{StaticResource PtsOutlinedButton}"
+                                FontSize="12"
                                 Visibility="Collapsed"
                                 Click="TakeStickBackButton_Click"/>
                     </Grid>
                 </Border>
 
                 <WrapPanel x:Name="KeyEchoPanel" Margin="0,0,0,10">
-                    <Border x:Name="Echo_W" Background="#252525" BorderBrush="#2E2E2E" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="#888888" Text="W"/></Border>
-                    <Border x:Name="Echo_A" Background="#252525" BorderBrush="#2E2E2E" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="#888888" Text="A"/></Border>
-                    <Border x:Name="Echo_S" Background="#252525" BorderBrush="#2E2E2E" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="#888888" Text="S"/></Border>
-                    <Border x:Name="Echo_D" Background="#252525" BorderBrush="#2E2E2E" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="#888888" Text="D"/></Border>
-                    <Border x:Name="Echo_Space" Background="#252525" BorderBrush="#2E2E2E" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="#888888" Text="Space"/></Border>
-                    <Border x:Name="Echo_Enter" Background="#252525" BorderBrush="#2E2E2E" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="#888888" Text="Enter"/></Border>
-                    <Border x:Name="Echo_Esc" Background="#252525" BorderBrush="#2E2E2E" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="#888888" Text="Esc"/></Border>
-                    <Border x:Name="Echo_Up" Background="#252525" BorderBrush="#2E2E2E" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="#888888" Text="↑"/></Border>
-                    <Border x:Name="Echo_Down" Background="#252525" BorderBrush="#2E2E2E" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="#888888" Text="↓"/></Border>
-                    <Border x:Name="Echo_Left" Background="#252525" BorderBrush="#2E2E2E" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="#888888" Text="←"/></Border>
-                    <Border x:Name="Echo_Right" Background="#252525" BorderBrush="#2E2E2E" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="#888888" Text="→"/></Border>
+                    <Border x:Name="Echo_W" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="{StaticResource PtsBrushTextLabel}" Text="W"/></Border>
+                    <Border x:Name="Echo_A" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="{StaticResource PtsBrushTextLabel}" Text="A"/></Border>
+                    <Border x:Name="Echo_S" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="{StaticResource PtsBrushTextLabel}" Text="S"/></Border>
+                    <Border x:Name="Echo_D" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="{StaticResource PtsBrushTextLabel}" Text="D"/></Border>
+                    <Border x:Name="Echo_Space" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="{StaticResource PtsBrushTextLabel}" Text="Space"/></Border>
+                    <Border x:Name="Echo_Enter" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="{StaticResource PtsBrushTextLabel}" Text="Enter"/></Border>
+                    <Border x:Name="Echo_Esc" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="{StaticResource PtsBrushTextLabel}" Text="Esc"/></Border>
+                    <Border x:Name="Echo_Up" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="{StaticResource PtsBrushTextLabel}" Text="↑"/></Border>
+                    <Border x:Name="Echo_Down" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="{StaticResource PtsBrushTextLabel}" Text="↓"/></Border>
+                    <Border x:Name="Echo_Left" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="{StaticResource PtsBrushTextLabel}" Text="←"/></Border>
+                    <Border x:Name="Echo_Right" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="{StaticResource PtsBrushTextLabel}" Text="→"/></Border>
                 </WrapPanel>
 
                 <Expander x:Name="DebugExpander" Header="Debug" IsExpanded="False" Margin="0,0,0,8"
@@ -331,13 +329,13 @@
                                 <ComboBoxItem Content="Warning"/>
                                 <ComboBoxItem Content="Error"/>
                             </ComboBox>
-                            <Button Content="Copy logs" Click="CopyInputLogs_Click" Padding="10,6" Margin="0,0,8,0"/>
-                            <Button Content="Clear" Click="ClearLog_Click" Padding="10,6"/>
+                            <Button Content="Copy logs" Style="{StaticResource PtsSecondaryButton}" FontSize="11" Click="CopyInputLogs_Click" Padding="10,6" Margin="0,0,8,0"/>
+                            <Button Content="Clear" Style="{StaticResource PtsSecondaryButton}" FontSize="11" Click="ClearLog_Click" Padding="10,6"/>
                         </StackPanel>
                         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                             <TextBox x:Name="InputLogText"
-                                     Background="#252525"
-                                     BorderBrush="#2E2E2E"
+                                     Background="{StaticResource PtsBrushBgTertiary}"
+                                     BorderBrush="{StaticResource PtsBrushBorder}"
                                      BorderThickness="1"
                                      FontFamily="{StaticResource PtsMonoFont}"
                                      FontSize="12"
@@ -363,7 +361,7 @@
             <DockPanel VerticalAlignment="Center">
                 <Button DockPanel.Dock="Right"
                         Content="Debug"
-                        Style="{StaticResource PtsGhostButton}"
+                        Style="{StaticResource PtsSecondaryButton}"
                         Padding="10,4"
                         FontSize="11"
                         Height="24"

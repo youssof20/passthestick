@@ -12,9 +12,9 @@
         ResizeMode="NoResize"
         WindowStyle="None"
         AllowsTransparency="False"
-        Background="#0F0F0F"
+        Background="{StaticResource PtsBrushBgPrimary}"
         WindowStartupLocation="CenterScreen">
-    <Border BorderBrush="#2E2E2E" BorderThickness="1">
+    <Border BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="40"/>
@@ -29,8 +29,8 @@
                         <Image Width="24" Height="24" Source="pack://application:,,,/appicon.png" RenderOptions.BitmapScalingMode="HighQuality"/>
                         <TextBlock Text="PassTheStick"
                                    FontSize="13"
-                                   FontWeight="Medium"
-                                   Foreground="#F0F0F0"
+                                   FontWeight="Light"
+                                   Foreground="{StaticResource PtsBrushTextPrimary}"
                                    VerticalAlignment="Center"
                                    Margin="8,0,0,0"/>
                     </StackPanel>
@@ -44,6 +44,7 @@
                                 Foreground="#C0C0C0"
                                 Background="Transparent"
                                 BorderThickness="0"
+                                Cursor="Hand"
                                 Click="MinimizeButton_Click"
                                 ToolTip="Minimize"/>
                         <Button x:Name="CloseButton"
@@ -55,6 +56,7 @@
                                 Foreground="#C0C0C0"
                                 Background="Transparent"
                                 BorderThickness="0"
+                                Cursor="Hand"
                                 Click="CloseButton_Click"
                                 ToolTip="Close"/>
                     </StackPanel>
@@ -78,12 +80,8 @@
                                TextWrapping="Wrap"/>
                     <Button DockPanel.Dock="Right"
                             Content="Download"
-                            Padding="12,4"
                             Margin="12,0,0,0"
-                            Background="#4A9EFF"
-                            Foreground="#0F0F0F"
-                            FontWeight="SemiBold"
-                            BorderThickness="0"
+                            Style="{StaticResource PtsPrimaryButton}"
                             Click="UpdateDownload_Click"/>
                 </DockPanel>
             </Border>
@@ -96,82 +94,97 @@
 
                 <Border Grid.Column="0"
                         Background="#0A0A0A"
-                        BorderBrush="#2E2E2E"
+                        BorderBrush="{StaticResource PtsBrushBorder}"
                         BorderThickness="0,0,1,0">
                     <Grid>
                         <StackPanel Margin="0,12,0,0" VerticalAlignment="Top">
-                            <Button x:Name="NavHost"
-                                    Tag="host"
-                                    Click="NavButton_Click"
-                                    Background="Transparent"
-                                    BorderThickness="0"
-                                    Padding="0,10"
-                                    Cursor="Hand">
-                                <StackPanel>
-                                    <TextBlock Text="&#x1F3AE;"
-                                               FontSize="18"
-                                               HorizontalAlignment="Center"
-                                               Foreground="#00C896"/>
-                                    <TextBlock Text="HOST"
-                                               FontSize="9"
-                                               FontWeight="SemiBold"
-                                               HorizontalAlignment="Center"
-                                               Margin="0,4,0,0"
-                                               Foreground="#00C896"/>
-                                </StackPanel>
-                            </Button>
-                            <Button x:Name="NavGuest"
-                                    Tag="guest"
-                                    Click="NavButton_Click"
-                                    Background="Transparent"
-                                    BorderThickness="0"
-                                    Padding="0,10"
-                                    Cursor="Hand">
-                                <StackPanel>
-                                    <TextBlock Text="&#x1F464;"
-                                               FontSize="18"
-                                               HorizontalAlignment="Center"
-                                               Foreground="#555555"/>
-                                    <TextBlock Text="GUEST"
-                                               FontSize="9"
-                                               FontWeight="SemiBold"
-                                               HorizontalAlignment="Center"
-                                               Margin="0,4,0,0"
-                                               Foreground="#555555"/>
-                                </StackPanel>
-                            </Button>
-                            <Button x:Name="NavSettings"
-                                    Tag="settings"
-                                    Click="NavButton_Click"
-                                    Background="Transparent"
-                                    BorderThickness="0"
-                                    Padding="0,10"
-                                    Cursor="Hand">
-                                <StackPanel>
-                                    <TextBlock Text="&#x2699;"
-                                               FontSize="18"
-                                               HorizontalAlignment="Center"
-                                               Foreground="#555555"/>
-                                    <TextBlock Text="SETTINGS"
-                                               FontSize="7"
-                                               FontWeight="SemiBold"
-                                               HorizontalAlignment="Center"
-                                               Margin="0,4,0,0"
-                                               Foreground="#555555"/>
-                                </StackPanel>
-                            </Button>
+                            <Border x:Name="HostNavBorder"
+                                    BorderThickness="2,0,0,0"
+                                    BorderBrush="Transparent"
+                                    Background="Transparent">
+                                <Button x:Name="NavHost"
+                                        Tag="host"
+                                        Click="NavButton_Click"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Padding="0,10"
+                                        Cursor="Hand">
+                                    <StackPanel>
+                                        <TextBlock Text="&#x1F3AE;"
+                                                   FontSize="18"
+                                                   HorizontalAlignment="Center"
+                                                   Foreground="{StaticResource PtsBrushPrimary}"/>
+                                        <TextBlock Text="HOST"
+                                                   FontSize="10"
+                                                   FontWeight="Normal"
+                                                   HorizontalAlignment="Center"
+                                                   Margin="0,4,0,0"
+                                                   Foreground="{StaticResource PtsBrushPrimary}"/>
+                                    </StackPanel>
+                                </Button>
+                            </Border>
+                            <Border x:Name="GuestNavBorder"
+                                    BorderThickness="2,0,0,0"
+                                    BorderBrush="Transparent"
+                                    Background="Transparent">
+                                <Button x:Name="NavGuest"
+                                        Tag="guest"
+                                        Click="NavButton_Click"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Padding="0,10"
+                                        Cursor="Hand">
+                                    <StackPanel>
+                                        <TextBlock Text="&#x1F464;"
+                                                   FontSize="18"
+                                                   HorizontalAlignment="Center"
+                                                   Foreground="{StaticResource PtsBrushTextMuted}"/>
+                                        <TextBlock Text="GUEST"
+                                                   FontSize="10"
+                                                   FontWeight="Normal"
+                                                   HorizontalAlignment="Center"
+                                                   Margin="0,4,0,0"
+                                                   Foreground="{StaticResource PtsBrushTextMuted}"/>
+                                    </StackPanel>
+                                </Button>
+                            </Border>
+                            <Border x:Name="SettingsNavBorder"
+                                    BorderThickness="2,0,0,0"
+                                    BorderBrush="Transparent"
+                                    Background="Transparent">
+                                <Button x:Name="NavSettings"
+                                        Tag="settings"
+                                        Click="NavButton_Click"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Padding="0,10"
+                                        Cursor="Hand">
+                                    <StackPanel>
+                                        <TextBlock Text="&#x2699;"
+                                                   FontSize="18"
+                                                   HorizontalAlignment="Center"
+                                                   Foreground="{StaticResource PtsBrushTextMuted}"/>
+                                        <TextBlock Text="SETTINGS"
+                                                   FontSize="10"
+                                                   FontWeight="Normal"
+                                                   HorizontalAlignment="Center"
+                                                   Margin="0,4,0,0"
+                                                   Foreground="{StaticResource PtsBrushTextMuted}"/>
+                                    </StackPanel>
+                                </Button>
+                            </Border>
                         </StackPanel>
                         <TextBlock x:Name="SidebarVersionText"
                                    VerticalAlignment="Bottom"
                                    HorizontalAlignment="Center"
                                    Margin="0,0,0,8"
                                    FontSize="10"
-                                   Foreground="#333333"
+                                   Foreground="{StaticResource PtsBrushTextMuted}"
                                    Text="v—"/>
                     </Grid>
                 </Border>
 
-                <Border Grid.Column="1" Background="#0F0F0F" Padding="16">
+                <Border Grid.Column="1" Background="{StaticResource PtsBrushBgPrimary}" Padding="16">
                     <ContentControl x:Name="MainContent"/>
                 </Border>
             </Grid>
@@ -182,55 +195,47 @@
                     Background="#99000000"
                     Visibility="Collapsed"
                     Panel.ZIndex="200">
-                <Border Background="#1A1A1A"
+                <Border Background="{StaticResource PtsBrushBgSecondary}"
                         CornerRadius="16"
                         Padding="24"
                         Width="400"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
-                        BorderBrush="#2E2E2E"
+                        BorderBrush="{StaticResource PtsBrushBorder}"
                         BorderThickness="1">
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
                             <Image Width="32" Height="32" Source="pack://application:,,,/appicon.png" RenderOptions.BitmapScalingMode="HighQuality"/>
                             <TextBlock Text="PassTheStick"
                                        FontSize="18"
-                                       FontWeight="SemiBold"
-                                       Foreground="#F0F0F0"
+                                       FontWeight="Light"
+                                       Foreground="{StaticResource PtsBrushTextPrimary}"
                                        VerticalAlignment="Center"
                                        Margin="10,0,0,0"/>
                         </StackPanel>
                         <TextBlock x:Name="OnboardingTitle"
                                    FontSize="20"
-                                   FontWeight="SemiBold"
-                                   Foreground="#F0F0F0"
+                                   FontWeight="Light"
+                                   Foreground="{StaticResource PtsBrushTextPrimary}"
                                    Text="Welcome"
                                    TextAlignment="Center"/>
                         <TextBlock x:Name="OnboardingBody"
                                    Margin="0,14,0,0"
                                    TextWrapping="Wrap"
-                                   Foreground="#888888"
+                                   Foreground="{StaticResource PtsBrushTextBody}"
                                    FontSize="13"
                                    LineHeight="20"
                                    TextAlignment="Center"/>
                         <Button x:Name="OnboardingPrimaryButton"
                                 Content="Next"
                                 Margin="0,24,0,0"
-                                Padding="16,12"
                                 HorizontalAlignment="Stretch"
-                                Background="{StaticResource PtsBrushGreen}"
-                                Foreground="#0F0F0F"
-                                FontWeight="SemiBold"
-                                BorderThickness="0"
+                                Style="{StaticResource PtsPrimaryButton}"
                                 Click="OnboardingPrimary_Click"/>
                         <Button Content="Skip"
                                 Margin="0,10,0,0"
-                                Padding="12,8"
                                 HorizontalAlignment="Stretch"
-                                Background="Transparent"
-                                Foreground="#888888"
-                                BorderBrush="#2E2E2E"
-                                BorderThickness="1"
+                                Style="{StaticResource PtsSecondaryButton}"
                                 Click="OnboardingSkip_Click"/>
                     </StackPanel>
                 </Border>
