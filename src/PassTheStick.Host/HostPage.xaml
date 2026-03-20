@@ -128,8 +128,7 @@
                                FontFamily="{StaticResource PtsMonoFont}"
                                FontSize="32"
                                FontWeight="Light"
-                               Foreground="{StaticResource PtsBrushTextPrimary}"
-                               CharacterSpacing="150"/>
+                               Foreground="{StaticResource PtsBrushTextPrimary}"/>
                 </StackPanel>
                 <Button Grid.Column="1"
                         Content="Copy code"
