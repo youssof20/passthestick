@@ -2,6 +2,18 @@ namespace PassTheStick.Shared;
 
 public static class KeyNames
 {
+    /// <summary>Human-readable shortcut for Win32 RegisterHotKey fsModifiers + vk.</summary>
+    public static string FormatRegisterHotKey(uint fsModifiers, uint vk)
+    {
+        var parts = new List<string>();
+        if ((fsModifiers & 0x0001) != 0) parts.Add("Alt");
+        if ((fsModifiers & 0x0002) != 0) parts.Add("Ctrl");
+        if ((fsModifiers & 0x0004) != 0) parts.Add("Shift");
+        if ((fsModifiers & 0x0008) != 0) parts.Add("Win");
+        if (vk != 0) parts.Add(VkToName((int)vk));
+        return parts.Count == 0 ? "(none)" : string.Join(" + ", parts);
+    }
+
     public static string VkToName(int vk) => vk switch
     {
         65 => "A", 66 => "B", 67 => "C", 68 => "D", 69 => "E",

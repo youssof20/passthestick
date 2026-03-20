@@ -37,8 +37,11 @@ public partial class ShellWindow : Window
             SidebarVersionText.Text = text;
             _settingsPage.SetVersionLabel(text);
 
-            if (!SettingsStore.Load().OnboardingCompleted)
+            var loadedSettings = SettingsStore.Load();
+            if (!loadedSettings.OnboardingCompleted)
                 ShowOnboarding();
+
+            _settingsPage.ReloadFromStore();
         }
         catch
         {

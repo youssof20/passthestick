@@ -55,9 +55,11 @@ public sealed class TrayIconManager : IDisposable
         _testInjection = testInjection;
         _exit = exit;
 
-        var iconInfo = System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/passthestick.ico"));
+        var iconInfo =
+            System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/appicon.png"))
+            ?? System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/passthestick.ico"));
         if (iconInfo == null)
-            throw new InvalidOperationException("Missing embedded resource: passthestick.ico");
+            throw new InvalidOperationException("Missing embedded app icon resource.");
 
         using var ms = new MemoryStream();
         iconInfo.Stream.CopyTo(ms);

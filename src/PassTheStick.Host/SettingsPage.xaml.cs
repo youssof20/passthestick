@@ -1,9 +1,11 @@
 using System.Diagnostics;
+using System.Net.WebSockets;
 using System.Net.Http;
 using System.Reflection;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using PassTheStick.Shared;
 
 namespace PassTheStick.Host;
@@ -15,12 +17,32 @@ public partial class SettingsPage : UserControl
     public SettingsPage()
     {
         InitializeComponent();
-        Loaded += (_, _) =>
-        {
-            var s = SettingsStore.Load();
-            SettingsRelayUrlText.Text = s.RelayUrlOverride ?? string.Empty;
-            SettingsSoundsCheck.IsChecked = s.EnableStickSounds;
-        };
+        Loaded += SettingsPage_Loaded;
+    }
+
+    private void SettingsPage_Loaded(object sender, RoutedEventArgs e)
+    {
+        ReloadFromStore();
+    }
+
+    /// <summary>Reload controls from disk (e.g. after migration).</summary>
+    public void ReloadFromStore()
+    {
+        var s = SettingsStore.Load();
+        SettingsRelayUrlText.Text = s.RelayUrlOverride ?? string.Empty;
+        SettingsSoundsCheck.IsChecked = s.EnableStickSounds;
+        AutoFocusGameCheck.IsChecked = s.AutoFocusGameOnStickReceive;
+        ReleaseHeldKeysCheck.IsChecked = s.ReleaseHeldKeysOnStickPass;
+        ShowOverlayCheck.IsChecked = s.ShowOverlayDuringSessions;
+        RefreshHotkeyLabels(s);
+        RelayTestResult.Text = string.Empty;
+    }
+
+    private void RefreshHotkeyLabels(AppSettings? s = null)
+    {
+        s ??= SettingsStore.Load();
+        PassHotkeyLabel.Text = KeyNames.FormatRegisterHotKey(s.PassStickHotkeyModifiers, s.PassStickHotkeyVk);
+        TakeBackHotkeyLabel.Text = KeyNames.FormatRegisterHotKey(s.TakeStickBackHotkeyModifiers, s.TakeStickBackHotkeyVk);
     }
 
     public void SetVersionLabel(string versionText)
@@ -35,21 +57,111 @@ public partial class SettingsPage : UserControl
         }
     }
 
-    private void SaveSettings_Click(object sender, RoutedEventArgs e)
+    private void PersistRelayUrlFromUi()
+    {
+        var s = SettingsStore.Load();
+        var url = (SettingsRelayUrlText.Text ?? string.Empty).Trim();
+        s.RelayUrlOverride = string.IsNullOrEmpty(url) ? null : url;
+        SettingsStore.Save(s);
+        OnSettingsSaved?.Invoke();
+    }
+
+    private void SettingsRelayUrlText_LostFocus(object sender, RoutedEventArgs e) =>
+        PersistRelayUrlFromUi();
+
+    private async void TestRelayConnection_Click(object sender, RoutedEventArgs e)
     {
         try
         {
-            var s = SettingsStore.Load();
-            var url = (SettingsRelayUrlText.Text ?? string.Empty).Trim();
-            s.RelayUrlOverride = string.IsNullOrEmpty(url) ? null : url;
-            s.EnableStickSounds = SettingsSoundsCheck.IsChecked == true;
-            SettingsStore.Save(s);
-            OnSettingsSaved?.Invoke();
-            System.Windows.MessageBox.Show("Settings saved.", "PassTheStick", MessageBoxButton.OK, MessageBoxImage.Information);
+            RelayTestResult.Text = "Testing…";
+            RelayTestResult.Foreground = (Brush)FindResource("PtsBrushTextSecondary");
+
+            var raw = (SettingsRelayUrlText.Text ?? string.Empty).Trim();
+            var probe = new AppSettings
+            {
+                RelayUrlOverride = string.IsNullOrEmpty(raw) ? null : raw,
+                SettingsSchemaVersion = 2
+            };
+            var wsUrl = Constants.ResolveRelayUrl(probe);
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var ws = new ClientWebSocket();
+            ws.Options.Proxy = null;
+            var sw = Stopwatch.StartNew();
+            await ws.ConnectAsync(new Uri(wsUrl), cts.Token);
+            sw.Stop();
+
+            RelayTestResult.Foreground = (Brush)FindResource("PtsBrushGreen");
+            RelayTestResult.Text = $"✓ Connected ({sw.ElapsedMilliseconds}ms)";
+            PersistRelayUrlFromUi();
         }
         catch (Exception ex)
         {
-            System.Windows.MessageBox.Show(ex.Message, "PassTheStick", MessageBoxButton.OK, MessageBoxImage.Warning);
+            RelayTestResult.Foreground = (Brush)FindResource("PtsBrushRed");
+            RelayTestResult.Text = "✗ Failed: " + ex.Message;
+        }
+    }
+
+    private void ChangePassHotkey_Click(object sender, RoutedEventArgs e) =>
+        RunHotkeyCapture(isPassStick: true);
+
+    private void ChangeTakeBackHotkey_Click(object sender, RoutedEventArgs e) =>
+        RunHotkeyCapture(isPassStick: false);
+
+    private void RunHotkeyCapture(bool isPassStick)
+    {
+        var owner = Window.GetWindow(this);
+        var cap = new HotkeyCaptureWindow { Owner = owner };
+        cap.Completed += (mods, vk) =>
+        {
+            var s = SettingsStore.Load();
+            if (isPassStick)
+            {
+                s.PassStickHotkeyModifiers = mods;
+                s.PassStickHotkeyVk = vk;
+            }
+            else
+            {
+                s.TakeStickBackHotkeyModifiers = mods;
+                s.TakeStickBackHotkeyVk = vk;
+            }
+
+            if (s.PassStickHotkeyModifiers == s.TakeStickBackHotkeyModifiers &&
+                s.PassStickHotkeyVk == s.TakeStickBackHotkeyVk)
+            {
+                System.Windows.MessageBox.Show(
+                    "Pass and take-back shortcuts must be different.",
+                    "PassTheStick",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            SettingsStore.Save(s);
+            RefreshHotkeyLabels(s);
+            OnSettingsSaved?.Invoke();
+        };
+        cap.ShowDialog();
+    }
+
+    private void BehaviorCheck_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!IsLoaded)
+            return;
+
+        try
+        {
+            var s = SettingsStore.Load();
+            s.AutoFocusGameOnStickReceive = AutoFocusGameCheck.IsChecked == true;
+            s.ReleaseHeldKeysOnStickPass = ReleaseHeldKeysCheck.IsChecked == true;
+            s.ShowOverlayDuringSessions = ShowOverlayCheck.IsChecked == true;
+            s.EnableStickSounds = SettingsSoundsCheck.IsChecked == true;
+            SettingsStore.Save(s);
+            OnSettingsSaved?.Invoke();
+        }
+        catch
+        {
+            // ignore
         }
     }
 

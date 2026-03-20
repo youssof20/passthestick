@@ -20,14 +20,28 @@ public partial class RelayConnectionDialog : Window
 
     private async void Retry_Click(object sender, RoutedEventArgs e)
     {
-        if (Vm.RetryAsync == null) return;
-        await Vm.RetryAsync();
+        try
+        {
+            if (Vm.RetryAsync == null) return;
+            await Vm.RetryAsync();
+        }
+        catch (Exception ex)
+        {
+            Vm.AddLog("Error: " + ex.Message);
+        }
     }
 
     private async void StartRelay_Click(object sender, RoutedEventArgs e)
     {
-        if (Vm.StartRelayAsync == null) return;
-        await Vm.StartRelayAsync();
+        try
+        {
+            if (Vm.StartRelayAsync == null) return;
+            await Vm.StartRelayAsync();
+        }
+        catch (Exception ex)
+        {
+            Vm.AddLog("Error: " + ex.Message);
+        }
     }
 
     private void SaveUrl_Click(object sender, RoutedEventArgs e)

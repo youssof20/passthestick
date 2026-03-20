@@ -51,6 +51,20 @@ public partial class HostPage : UserControl
     private bool _enableStickSounds;
     private long _lastReceiveSoundTicks;
     private bool _shellClosedHooked;
+    private readonly List<string> _hidHideBlockedInstanceIds = new();
+    private bool _hidHideSessionActive;
+    private bool _autoFocusGame = true;
+    private bool _releaseHeldOnPass = true;
+    private bool _showOverlayDuringSessions = true;
+    private DispatcherTimer? _relayConnectingPulseTimer;
+    private bool _relayConnectingPulseUp = true;
+
+    /// <summary>Tray, WndProc hook, and hotkey conflict wiring must run only once — Host tab fires Loaded every time it becomes visible.</summary>
+    private bool _hostHeavyInitDone;
+
+    private bool _wndProcHookRegistered;
+    private string? _lastHotkeyConflictMsg;
+    private long _lastHotkeyConflictTicks;
 
     public HostPage()
     {
@@ -179,52 +193,64 @@ public partial class HostPage : UserControl
                         _focusMonitor?.Dispose();
                         InputDebugLog.OnInputLog -= AppendInputLog;
                         _hookManager.Dispose();
+                        StopHidHideSession();
                         _vigem.Dispose();
                         _relay?.Dispose();
                     };
                 }
             }
 
-            LogStartupDiagnostics("app start");
-            BuildKeyEchoMap();
-            ResetInjectionCounters("startup");
-            _relayProcess = new RelayProcessManager();
-            _tray = new TrayIconManager(
-                _sessionManager,
-                () => _sessionManager.Players,
-                OnPickGuest,
-                () => _gameTracker.PinCurrentForeground(),
-                SoloTestModeAsync,
-                TakeStickBack,
-                ShowConnectionStatus,
-                () => _relayProcess.IsRunning,
-                StartRelayServerFromTray,
-                StopRelayServerFromTray,
-                EndSessionFromTray,
-                TestInjectionFromTray,
-                RequestExit);
-
-            _hotkey.HotkeyConflict += msg =>
+            if (!_hostHeavyInitDone)
             {
-                try { _tray?.ShowToast("PassTheStick", msg); } catch { }
-                InputDebugLog.Log(msg);
-            };
+                _hostHeavyInitDone = true;
+                LogStartupDiagnostics("app start");
+                BuildKeyEchoMap();
+                ResetInjectionCounters("startup");
+                _relayProcess = new RelayProcessManager();
+                _tray = new TrayIconManager(
+                    _sessionManager,
+                    () => _sessionManager.Players,
+                    OnPickGuest,
+                    () => _gameTracker.PinCurrentForeground(),
+                    SoloTestModeAsync,
+                    TakeStickBack,
+                    ShowConnectionStatus,
+                    () => _relayProcess!.IsRunning,
+                    StartRelayServerFromTray,
+                    StopRelayServerFromTray,
+                    EndSessionFromTray,
+                    TestInjectionFromTray,
+                    RequestExit);
 
-            var shellWindow = Window.GetWindow(this) ?? throw new InvalidOperationException("HostPage must be hosted in a Window.");
-            var helper = new WindowInteropHelper(shellWindow);
-            helper.EnsureHandle();
-            _hotkey.Register(helper.Handle);
-            var src = HwndSource.FromHwnd(helper.Handle);
-            src?.AddHook(WndProc);
+                _hotkey.HotkeyConflict += OnHotkeyConflictToast;
 
-            RoomCodeText.Text = "—";
-            StatusText.Text = "Select and pin your game window to start a session.";
-            PassStickButton.IsEnabled = false;
+                var shellWindow = Window.GetWindow(this) ?? throw new InvalidOperationException("HostPage must be hosted in a Window.");
+                var helper = new WindowInteropHelper(shellWindow);
+                helper.EnsureHandle();
+                var src = HwndSource.FromHwnd(helper.Handle);
+                if (src != null && !_wndProcHookRegistered)
+                {
+                    src.AddHook(WndProc);
+                    _wndProcHookRegistered = true;
+                }
+
+                StartGameWatchdog();
+
+                RoomCodeText.Text = "—";
+                StatusText.Text = "Select and pin your game window to start a session.";
+                PassStickButton.IsEnabled = false;
+            }
+            else
+            {
+                // Returning to Host tab: don't wipe session UI or spawn another tray icon.
+                if (_sessionStarted && _gameTracker.IsPinned)
+                {
+                    PassStickButton.IsEnabled = PlayersList.SelectedItem is PlayerRowViewModel;
+                }
+            }
+
             RefreshWindows();
-            StartGameWatchdog();
-
-            var sett = SettingsStore.Load();
-            _enableStickSounds = sett.EnableStickSounds;
+            RefreshSettingsFromStore();
 
             UpdateOverlayName();
 
@@ -238,6 +264,25 @@ public partial class HostPage : UserControl
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
+    }
+
+    private void OnHotkeyConflictToast(string msg)
+    {
+        try
+        {
+            var now = Environment.TickCount64;
+            if (msg == _lastHotkeyConflictMsg && now - _lastHotkeyConflictTicks < 30_000)
+                return;
+            _lastHotkeyConflictMsg = msg;
+            _lastHotkeyConflictTicks = now;
+            _tray?.ShowToast("PassTheStick", msg);
+        }
+        catch
+        {
+            // ignore
+        }
+
+        InputDebugLog.Log(msg);
     }
 
     private void RequestExit()
@@ -271,6 +316,8 @@ public partial class HostPage : UserControl
             if (result != MessageBoxResult.Yes) return;
 
             await _relay.CloseRoomAsync("Host ended the session");
+
+            StopHidHideSession();
 
             // Locally reset host state but keep app open.
             ReleaseHeldKeysOnStickChange(_sessionManager.LocalPlayerId);
@@ -339,15 +386,51 @@ public partial class HostPage : UserControl
     private void RelayStatusText_MouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e) =>
         ShowConnectionStatus();
 
-    private void SetRelayIndicator(string text, string hexColor)
+    private void SetRelayIndicator(string text, string hexColor, bool pulseConnecting = false)
     {
         RelayStatusText.Text = text;
         try
         {
+            if (!pulseConnecting)
+                StopRelayConnectingPulse();
+
             var converted = new System.Windows.Media.BrushConverter().ConvertFromString(hexColor);
             var brush = converted as System.Windows.Media.Brush;
             if (brush == null) return;
             RelayDot.Fill = brush;
+            if (pulseConnecting)
+                StartRelayConnectingPulse();
+        }
+        catch { }
+    }
+
+    private void StopRelayConnectingPulse()
+    {
+        if (_relayConnectingPulseTimer != null)
+        {
+            _relayConnectingPulseTimer.Stop();
+            _relayConnectingPulseTimer.Tick -= RelayConnectingPulse_OnTick;
+            _relayConnectingPulseTimer = null;
+        }
+
+        try { RelayDot.Opacity = 1; } catch { }
+    }
+
+    private void StartRelayConnectingPulse()
+    {
+        StopRelayConnectingPulse();
+        _relayConnectingPulseUp = true;
+        _relayConnectingPulseTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(450) };
+        _relayConnectingPulseTimer.Tick += RelayConnectingPulse_OnTick;
+        _relayConnectingPulseTimer.Start();
+    }
+
+    private void RelayConnectingPulse_OnTick(object? sender, EventArgs e)
+    {
+        try
+        {
+            _relayConnectingPulseUp = !_relayConnectingPulseUp;
+            RelayDot.Opacity = _relayConnectingPulseUp ? 1.0 : 0.35;
         }
         catch { }
     }
@@ -396,8 +479,8 @@ public partial class HostPage : UserControl
                 _relayProcess ??= new RelayProcessManager();
                 var port = await _relayProcess.StartRelayWithPortFallbackAsync(
                     AppContext.BaseDirectory,
-                    8080,
-                    8082,
+                    Constants.RelayPortMin,
+                    Constants.RelayPortMax,
                     _connVm.AddLog,
                     CancellationToken.None);
                 var s = SettingsStore.Load();
@@ -481,12 +564,12 @@ public partial class HostPage : UserControl
         catch (TaskCanceledException)
         {
             StatusText.Text = "Connection attempt cancelled.";
-            SetRelayIndicator("Not connected — click to view connection status", "#C33");
+            SetRelayIndicator("Not connected — click to view connection status", "#FF4444");
         }
         catch (OperationCanceledException)
         {
             StatusText.Text = "Connection attempt cancelled.";
-            SetRelayIndicator("Not connected — click to view connection status", "#C33");
+            SetRelayIndicator("Not connected — click to view connection status", "#FF4444");
         }
         catch (Exception ex)
         {
@@ -557,7 +640,7 @@ public partial class HostPage : UserControl
             _connVm.ShowAdvanced = false;
             _connVm.StatusText = "Connecting…";
             _connVm.AddLog("Connecting to " + _connVm.RelayUrl);
-            Dispatcher.Invoke(() => SetRelayIndicator("Connecting…", "#D9A200")); // amber
+            Dispatcher.Invoke(() => SetRelayIndicator("Connecting…", "#4A9EFF", pulseConnecting: true));
 
             _connDialog?.Show();
             _connDialog?.Activate();
@@ -595,7 +678,7 @@ public partial class HostPage : UserControl
                 _connVm.ShowAdvanced = true;
                 _connVm.StatusText = "Could not reach the relay server.";
                 StatusText.Text = "Can't reach the relay server.";
-                Dispatcher.Invoke(() => SetRelayIndicator("Not connected — click to view connection status", "#C33"));
+                Dispatcher.Invoke(() => SetRelayIndicator("Not connected — click to view connection status", "#FF4444"));
                 return;
             }
 
@@ -627,7 +710,7 @@ public partial class HostPage : UserControl
                     {
                         _connVm.StatusText = "Could not connect after 5 attempts.";
                         StatusText.Text = "Can't reach the relay server.";
-                        Dispatcher.Invoke(() => SetRelayIndicator("Not connected — click to view connection status", "#C33"));
+                        Dispatcher.Invoke(() => SetRelayIndicator("Not connected — click to view connection status", "#FF4444"));
                         return;
                     }
                     _connVm.AddLog("Retrying in 3 seconds…");
@@ -639,13 +722,13 @@ public partial class HostPage : UserControl
         {
             _connVm.StatusText = "Cancelled.";
             StatusText.Text = "Cancelled.";
-            SetRelayIndicator("Not connected — click to view connection status", "#C33");
+            SetRelayIndicator("Not connected — click to view connection status", "#FF4444");
         }
         catch (OperationCanceledException)
         {
             _connVm.StatusText = "Cancelled.";
             StatusText.Text = "Cancelled.";
-            SetRelayIndicator("Not connected — click to view connection status", "#C33");
+            SetRelayIndicator("Not connected — click to view connection status", "#FF4444");
         }
 
         async Task<bool> TryConnectOnceAsync()
@@ -664,15 +747,22 @@ public partial class HostPage : UserControl
             _sessionManager.LocalPlayerId = _relay.MyId;
             _sessionManager.SetActivePlayer(_relay.MyId);
 
-            _overlay = new OverlayWindow();
-            _overlay.PassRequested += () =>
+            if (_showOverlayDuringSessions)
             {
-                // Show pass picker near cursor without stealing foreground from the game.
-                _picker?.SetPlayers(_sessionManager.Players);
-                _picker?.ShowNearCursor();
-            };
-            _overlay.Show();
-            StartOverlayTracking();
+                _overlay = new OverlayWindow();
+                _overlay.PassRequested += () =>
+                {
+                    // Show pass picker near cursor without stealing foreground from the game.
+                    _picker?.SetPlayers(_sessionManager.Players);
+                    _picker?.ShowNearCursor();
+                };
+                _overlay.Show();
+                StartOverlayTracking();
+            }
+            else
+            {
+                _overlayTimer?.Stop();
+            }
 
             _picker = new PassStickPickerWindow(OnPickGuest);
             _picker.SetPlayers(_sessionManager.Players);
@@ -684,13 +774,14 @@ public partial class HostPage : UserControl
             _connVm.IsConnected = true;
             _connVm.StatusText = "Connected!";
             _connVm.AddLog("Connected.");
-            Dispatcher.Invoke(() => SetRelayIndicator("Connected — relay ready", "#2E8B57")); // green
+            Dispatcher.Invoke(() => SetRelayIndicator("Connected — relay ready", "#00C896"));
             _connDialog?.Close();
 
-            // Save last relay url for convenience (room codes are ephemeral; rooms are deleted when host ends session).
+            // Best-effort: keep relay URL + last room code for reconnect after network blips.
             try
             {
                 settings.LastRelayUrl = Constants.RelayWebSocketUrl;
+                settings.LastRoomCode = code;
                 SettingsStore.Save(settings);
             }
             catch { }
@@ -717,6 +808,12 @@ public partial class HostPage : UserControl
     private void UpdateOverlayScope()
     {
         if (_overlay == null) return;
+        if (!_showOverlayDuringSessions)
+        {
+            _overlay.Hide();
+            return;
+        }
+
         if (!_gameTracker.IsPinned || _gameTracker.IsPinnedWindowMinimized())
         {
             _overlay.Hide();
@@ -881,6 +978,8 @@ public partial class HostPage : UserControl
 
     private void ReleaseHeldKeysOnStickChange(string? newActivePlayerId)
     {
+        if (!_releaseHeldOnPass) return;
+
         // Only relevant when a guest had the stick; if host had it, there should be no injected-held keys.
         var previous = _sessionManager.ActivePlayerId;
         var hostId = _sessionManager.LocalPlayerId;
@@ -1079,6 +1178,7 @@ public partial class HostPage : UserControl
     {
         try
         {
+            if (!_autoFocusGame) return;
             if (!_gameTracker.IsPinned) return;
             var hwnd = _gameTracker.GameHwnd;
             if (hwnd == nint.Zero) return;
@@ -1113,6 +1213,7 @@ public partial class HostPage : UserControl
         try
         {
             _vigem.EnsureConnected();
+            TryStartHidHideForControllers();
             _vigem.FeedReport(msg);
         }
         catch
@@ -1123,23 +1224,73 @@ public partial class HostPage : UserControl
         }
     }
 
+    private void TryStartHidHideForControllers()
+    {
+        if (_hidHideSessionActive) return;
+        try
+        {
+            var exe = Process.GetCurrentProcess().MainModule?.FileName;
+            if (string.IsNullOrWhiteSpace(exe))
+                return;
+
+            var ids = HidPhysicalGamepadEnumerator.EnumerateCandidateInstanceIds();
+            if (ids.Count == 0)
+            {
+                AppendInputLog("[controller] HidHide: no HID gamepad devices matched — skipping hide list");
+                return;
+            }
+
+            _hidHideBlockedInstanceIds.Clear();
+            _hidHideBlockedInstanceIds.AddRange(ids);
+            HidHideManager.TryBeginPassthroughSession(exe, _hidHideBlockedInstanceIds, AppendInputLog);
+            _hidHideSessionActive = true;
+        }
+        catch (Exception ex)
+        {
+            AppendInputLog($"[controller] HidHide setup failed: {ex.Message}");
+        }
+    }
+
+    private void StopHidHideSession()
+    {
+        if (!_hidHideSessionActive) return;
+        try
+        {
+            var exe = Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty;
+            HidHideManager.TryEndPassthroughSession(exe, _hidHideBlockedInstanceIds, AppendInputLog);
+        }
+        finally
+        {
+            _hidHideBlockedInstanceIds.Clear();
+            _hidHideSessionActive = false;
+        }
+    }
+
     private void OnDisconnected(string reason)
     {
+        // Stop receives first so key events don't race with synthetic key releases.
+        _relay?.Dispose();
+        _relay = null;
+
         Dispatcher.Invoke(() =>
         {
+            var held = _sessionManager.ReleaseHeldKeys();
+            foreach (var sc in held)
+            {
+                InputInjector.InjectKeyWithResult(sc, false, out _);
+                AppendInputLog($"[disconnect] Released held key sc={sc}");
+            }
+
             StatusText.Text = reason.Contains("heartbeat", StringComparison.OrdinalIgnoreCase)
                 ? "Heartbeat lost — reconnecting…"
                 : "Connection lost — reconnecting…";
             _overlay?.SetTurn("Host", true, Array.Empty<string>());
-            SetRelayIndicator("Not connected — click to view connection status", "#C33");
+            SetRelayIndicator("Reconnecting…", "#4A9EFF", pulseConnecting: true);
             PlayersList.ItemsSource = null;
             PassStickButton.IsEnabled = false;
         });
-        // Make retry work again by allowing session restart.
+
         _sessionStarted = false;
-        _relay?.Dispose();
-        _relay = null;
-        // Keep the UX smooth: reconnect automatically.
         StartReconnectLoop();
     }
 
@@ -1148,7 +1299,10 @@ public partial class HostPage : UserControl
         try
         {
             _relayProcess ??= new RelayProcessManager();
-            var port = _relayProcess.StartRelayWithPortFallback(AppContext.BaseDirectory, 8080, 8082);
+            var port = _relayProcess.StartRelayWithPortFallback(
+                AppContext.BaseDirectory,
+                Constants.RelayPortMin,
+                Constants.RelayPortMax);
             var s = SettingsStore.Load();
             s.RelayUrlOverride = $"ws://localhost:{port}";
             SettingsStore.Save(s);
@@ -1209,12 +1363,59 @@ public partial class HostPage : UserControl
                     _relay.PadStateReceived += OnPadState;
                     _relay.Disconnected += OnDisconnected;
                     await _relay.ConnectAsync();
-                    var code = await _relay.CreateRoomAsync();
+
+                    var settings = SettingsStore.Load();
+                    var lastCode = settings.LastRoomCode;
+                    string code;
+                    try
+                    {
+                        if (!string.IsNullOrWhiteSpace(lastCode))
+                            code = await _relay.RejoinHostAsync(lastCode);
+                        else
+                            code = await _relay.CreateRoomAsync();
+                    }
+                    catch
+                    {
+                        code = await _relay.CreateRoomAsync();
+                    }
+
+                    _sessionManager.LocalPlayerId = _relay.MyId;
+                    _sessionManager.SetActivePlayer(_relay.MyId);
+                    _sessionStarted = true;
+
+                    try
+                    {
+                        settings.LastRoomCode = code;
+                        SettingsStore.Save(settings);
+                    }
+                    catch { }
+
+                    if (_showOverlayDuringSessions && _overlay == null)
+                    {
+                        _overlay = new OverlayWindow();
+                        _overlay.PassRequested += () =>
+                        {
+                            _picker?.SetPlayers(_sessionManager.Players);
+                            _picker?.ShowNearCursor();
+                        };
+                        _overlay.Show();
+                        StartOverlayTracking();
+                    }
+                    else if (_overlay != null && _showOverlayDuringSessions)
+                    {
+                        StartOverlayTracking();
+                    }
+
+                    _picker ??= new PassStickPickerWindow(OnPickGuest);
+                    _picker.SetPlayers(_sessionManager.Players);
+
                     Dispatcher.Invoke(() =>
                     {
                         RoomCodeText.Text = code;
                         StatusText.Text = "Reconnected.";
+                        SetRelayIndicator("Connected — relay ready", "#00C896");
                         _overlay?.SetTurn("Host", true, Array.Empty<string>());
+                        RefreshPlayerRows();
                     });
                     return;
                 }
@@ -1314,14 +1515,61 @@ public partial class HostPage : UserControl
         }
     }
 
-    /// <summary>Call after Settings page saves so host behavior (e.g. sounds) updates without restart.</summary>
+    /// <summary>Call after Settings page saves so host behavior (e.g. sounds/hotkeys) updates without restart.</summary>
     public void RefreshSettingsFromStore()
     {
         try
         {
-            _enableStickSounds = SettingsStore.Load().EnableStickSounds;
+            var s = SettingsStore.Load();
+            _enableStickSounds = s.EnableStickSounds;
+            _autoFocusGame = s.AutoFocusGameOnStickReceive;
+            _releaseHeldOnPass = s.ReleaseHeldKeysOnStickPass;
+            _showOverlayDuringSessions = s.ShowOverlayDuringSessions;
+            ApplyOverlaySettingToActiveSession();
+            ReapplyHotkeysFromSettings();
         }
         catch { }
+    }
+
+    /// <summary>Re-register global hotkeys from <see cref="SettingsStore"/> (pass / take-back).</summary>
+    public void ReapplyHotkeysFromSettings()
+    {
+        try
+        {
+            var shellWindow = Window.GetWindow(this);
+            if (shellWindow == null) return;
+            var helper = new WindowInteropHelper(shellWindow);
+            helper.EnsureHandle();
+            var s = SettingsStore.Load();
+            _hotkey.Register(
+                helper.Handle,
+                s.PassStickHotkeyModifiers,
+                s.PassStickHotkeyVk,
+                s.TakeStickBackHotkeyModifiers,
+                s.TakeStickBackHotkeyVk);
+        }
+        catch
+        {
+            // ignore
+        }
+    }
+
+    private void ApplyOverlaySettingToActiveSession()
+    {
+        try
+        {
+            if (!_showOverlayDuringSessions)
+            {
+                _overlayTimer?.Stop();
+                _overlay?.Hide();
+            }
+            else if (_sessionStarted && _overlay != null && _gameTracker.IsPinned)
+                StartOverlayTracking();
+        }
+        catch
+        {
+            // ignore
+        }
     }
 
     // Port readiness checks are handled inside RelayProcessManager now.

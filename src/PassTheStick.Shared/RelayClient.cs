@@ -75,17 +75,30 @@ public sealed class RelayClient : IDisposable
         IsHost = true;
 
         var tcs = new TaskCompletionSource<string>();
+
         void OnRejoined(string rc)
         {
-            HostRejoined -= OnRejoined;
             tcs.TrySetResult(rc);
         }
+
+        void OnErr(string err)
+        {
+            tcs.TrySetException(new InvalidOperationException(err));
+        }
+
         HostRejoined += OnRejoined;
+        Error += OnErr;
 
-        await SendAsync(new HostRejoinMessage("HOST_REJOIN", roomCode));
-
-        var ok = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        return ok;
+        try
+        {
+            await SendAsync(new HostRejoinMessage("HOST_REJOIN", roomCode));
+            return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally
+        {
+            HostRejoined -= OnRejoined;
+            Error -= OnErr;
+        }
     }
 
     public async Task JoinRoomAsync(string roomCode, string name)

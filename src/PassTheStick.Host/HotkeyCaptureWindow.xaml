@@ -1,0 +1,39 @@
+<Window x:Class="PassTheStick.Host.HotkeyCaptureWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Hotkey"
+        Width="420"
+        Height="200"
+        WindowStyle="ToolWindow"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Topmost="True"
+        Background="{StaticResource PtsBrushBgPrimary}"
+        PreviewKeyDown="Window_PreviewKeyDown"
+        Loaded="HotkeyCaptureWindow_Loaded">
+    <Border Padding="20" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" Margin="12">
+        <StackPanel>
+            <TextBlock Text="PRESS YOUR NEW HOTKEY COMBINATION"
+                       FontWeight="Bold"
+                       FontSize="12"
+                       Foreground="{StaticResource PtsBrushTextPrimary}"
+                       TextWrapping="Wrap"/>
+            <TextBlock Text="Use at least one of Ctrl, Shift, Alt, or Win. Esc cancels."
+                       Margin="0,8,0,0"
+                       FontSize="11"
+                       Foreground="{StaticResource PtsBrushTextSecondary}"
+                       TextWrapping="Wrap"/>
+            <TextBlock x:Name="PreviewText"
+                       Margin="0,14,0,0"
+                       FontSize="14"
+                       FontWeight="SemiBold"
+                       Foreground="{StaticResource PtsBrushGreen}"
+                       TextWrapping="Wrap"/>
+            <Button Content="Cancel"
+                    Margin="0,18,0,0"
+                    HorizontalAlignment="Left"
+                    Padding="12,6"
+                    Click="Cancel_Click"/>
+        </StackPanel>
+    </Border>
+</Window>

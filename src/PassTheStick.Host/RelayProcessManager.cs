@@ -3,6 +3,7 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Net.NetworkInformation;
+using PassTheStick.Shared;
 
 namespace PassTheStick.Host;
 
@@ -76,7 +77,7 @@ public sealed class RelayProcessManager : IDisposable
             return port;
         }
 
-        throw new InvalidOperationException("No free port found for relay (8080-8082).");
+        throw new InvalidOperationException($"No free port found for relay ({Constants.RelayPortMin}-{Constants.RelayPortMax}).");
     }
 
     public int StartRelayWithPortFallback(string appDir, int startPort, int endPort)

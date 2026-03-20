@@ -1,5 +1,6 @@
 const WebSocket = require('ws');
-const wss = new WebSocket.Server({ port: process.env.PORT || 8080 });
+const DEFAULT_RELAY_PORT = 8080;
+const wss = new WebSocket.Server({ port: parseInt(process.env.PORT || '', 10) || DEFAULT_RELAY_PORT });
 
 const rooms = new Map(); // roomCode -> { host, guests, players, activePlayerId, idleTimeout }
 
@@ -84,15 +85,28 @@ wss.on('connection', (ws) => {
     }
 
     else if (msg.type === 'HOST_REJOIN') {
-      const room = rooms.get(msg.roomCode);
-      if (!room) { ws.send(JSON.stringify({ type: 'ERROR', msg: 'Room not found' })); return; }
+      const code = (msg.roomCode || '').toString().toUpperCase().trim();
+      if (!code) { ws.send(JSON.stringify({ type: 'ERROR', msg: 'Invalid room code' })); return; }
+
+      let room = rooms.get(code);
+      if (!room) {
+        // Host disconnected earlier and the room was deleted — recreate with the same code so guests can rejoin.
+        room = { host: ws, guests: new Map(), players: new Map(), activePlayerId: ws.id, idleTimeout: null };
+        rooms.set(code, room);
+        ws.roomCode = code;
+        ws.isHost = true;
+        scheduleRoomExpiry(code);
+        ws.send(JSON.stringify({ type: 'REJOINED', roomCode: code, id: ws.id }));
+        broadcastPlayerList(room);
+        return;
+      }
 
       room.host = ws;
-      ws.roomCode = msg.roomCode;
+      ws.roomCode = code;
       ws.isHost = true;
-      scheduleRoomExpiry(msg.roomCode);
+      scheduleRoomExpiry(code);
 
-      ws.send(JSON.stringify({ type: 'REJOINED', roomCode: msg.roomCode, id: ws.id }));
+      ws.send(JSON.stringify({ type: 'REJOINED', roomCode: code, id: ws.id }));
 
       // If the stick was held by the previous host instance, update it to this host id.
       // Guests still reference their own ids, so only rewrite when the activeId isn't a guest.
