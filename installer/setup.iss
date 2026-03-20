@@ -6,7 +6,7 @@
 #define MyAppName "PassTheStick"
 ; AppVersion is injected by CI via /DAppVersion=...
 #ifndef AppVersion
-  #define AppVersion "0.1.28"
+  #define AppVersion "0.1.29"
 #endif
 #define MyAppPublisher "PassTheStick"
 #define MyAppURL "https://github.com/passthestick/passthestick"

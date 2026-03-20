@@ -57,6 +57,23 @@
     <SolidColorBrush x:Key="PtsBrushBannerHost" Color="{StaticResource PtsBannerHostBg}"/>
     <SolidColorBrush x:Key="PtsBrushBannerGuest" Color="{StaticResource PtsBannerGuestBg}"/>
 
+    <!-- Shell sidebar nav (ShellWindow.xaml / code-behind TryFindResource) -->
+    <SolidColorBrush x:Key="PtsBrushNavInactive" Color="{StaticResource PtsColorNavInactive}"/>
+    <SolidColorBrush x:Key="PtsBrushNavInactiveHover" Color="{StaticResource PtsColorNavInactiveHover}"/>
+    <SolidColorBrush x:Key="PtsBrushNavActive" Color="{StaticResource PtsColorPrimary}"/>
+    <SolidColorBrush x:Key="PtsBrushNavHover" Color="{StaticResource PtsColorNavInactiveHover}"/>
+
+    <!-- Used by button/list/combo styles (were referenced but not defined) -->
+    <SolidColorBrush x:Key="PtsBrushControlHover" Color="{StaticResource PtsColorControlHover}"/>
+    <SolidColorBrush x:Key="PtsBrushHoverForeground" Color="{StaticResource PtsColorHoverForeground}"/>
+    <SolidColorBrush x:Key="PtsBrushListRowHover" Color="{StaticResource PtsColorListRowHover}"/>
+
+    <!-- Optional aliases (same tokens as PtsBrushText*); for legacy keys / tooling -->
+    <SolidColorBrush x:Key="PtsTextHeadline" Color="{StaticResource PtsColorTextHeadline}"/>
+    <SolidColorBrush x:Key="PtsTextBody" Color="{StaticResource PtsColorTextBody}"/>
+    <SolidColorBrush x:Key="PtsTextLabel" Color="{StaticResource PtsColorTextLabel}"/>
+    <SolidColorBrush x:Key="PtsTextMuted" Color="{StaticResource PtsColorTextMuted}"/>
+
     <FontFamily x:Key="PtsFont">Segoe UI</FontFamily>
     <FontFamily x:Key="PtsMonoFont">Consolas</FontFamily>
 

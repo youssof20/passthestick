@@ -39,6 +39,6 @@ public static class Constants
         return "wss://" + url;
     }
 
-    public const string Version = "0.1.28";
+    public const string Version = "0.1.29";
     public const int MaxPlayersPerRoom = 8;
 }
