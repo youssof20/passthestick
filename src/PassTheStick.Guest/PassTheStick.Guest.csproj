@@ -8,9 +8,9 @@
     <UseWPF>true</UseWPF>
     <RootNamespace>PassTheStick.Guest</RootNamespace>
     <AssemblyName>PassTheStick.Guest</AssemblyName>
-    <Version>0.1.22</Version>
-    <AssemblyVersion>0.1.22.0</AssemblyVersion>
-    <FileVersion>0.1.22.0</FileVersion>
+    <Version>0.1.23</Version>
+    <AssemblyVersion>0.1.23.0</AssemblyVersion>
+    <FileVersion>0.1.23.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>

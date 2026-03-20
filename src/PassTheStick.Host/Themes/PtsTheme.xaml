@@ -7,21 +7,28 @@
     <Color x:Key="PtsBorder">#2E2E2E</Color>
     <Color x:Key="PtsTextPrimary">#F0F0F0</Color>
     <Color x:Key="PtsTextSecondary">#888888</Color>
+    <Color x:Key="PtsLabelMuted">#666666</Color>
     <Color x:Key="PtsAccentGreen">#00C896</Color>
     <Color x:Key="PtsAccentOrange">#FF6B35</Color>
     <Color x:Key="PtsAccentRed">#FF4444</Color>
     <Color x:Key="PtsAccentBlue">#4A9EFF</Color>
-
+    <Color x:Key="PtsFooterFg">#444444</Color>
+    <Color x:Key="PtsBannerHostBg">#0D1F1A</Color>
+    <Color x:Key="PtsBannerGuestBg">#1F1208</Color>
     <SolidColorBrush x:Key="PtsBrushBgPrimary" Color="{StaticResource PtsBgPrimary}"/>
     <SolidColorBrush x:Key="PtsBrushBgSecondary" Color="{StaticResource PtsBgSecondary}"/>
     <SolidColorBrush x:Key="PtsBrushBgTertiary" Color="{StaticResource PtsBgTertiary}"/>
     <SolidColorBrush x:Key="PtsBrushBorder" Color="{StaticResource PtsBorder}"/>
     <SolidColorBrush x:Key="PtsBrushTextPrimary" Color="{StaticResource PtsTextPrimary}"/>
     <SolidColorBrush x:Key="PtsBrushTextSecondary" Color="{StaticResource PtsTextSecondary}"/>
+    <SolidColorBrush x:Key="PtsBrushLabelSection" Color="{StaticResource PtsLabelMuted}"/>
     <SolidColorBrush x:Key="PtsBrushGreen" Color="{StaticResource PtsAccentGreen}"/>
     <SolidColorBrush x:Key="PtsBrushOrange" Color="{StaticResource PtsAccentOrange}"/>
     <SolidColorBrush x:Key="PtsBrushRed" Color="{StaticResource PtsAccentRed}"/>
     <SolidColorBrush x:Key="PtsBrushBlue" Color="{StaticResource PtsAccentBlue}"/>
+    <SolidColorBrush x:Key="PtsBrushFooter" Color="{StaticResource PtsFooterFg}"/>
+    <SolidColorBrush x:Key="PtsBrushBannerHost" Color="{StaticResource PtsBannerHostBg}"/>
+    <SolidColorBrush x:Key="PtsBrushBannerGuest" Color="{StaticResource PtsBannerGuestBg}"/>
 
     <!-- Typography -->
     <FontFamily x:Key="PtsFont">Segoe UI</FontFamily>
@@ -40,10 +47,26 @@
         <Setter Property="FontSize" Value="13"/>
     </Style>
 
-    <Style x:Key="PtsLabel" TargetType="{x:Type TextBlock}">
-        <Setter Property="Foreground" Value="{StaticResource PtsBrushTextSecondary}"/>
-        <Setter Property="FontSize" Value="11"/>
+    <!-- Section headers: ROOM CODE, GAME, PLAYERS -->
+    <Style x:Key="PtsSectionLabel" TargetType="{x:Type TextBlock}">
+        <Setter Property="Foreground" Value="{StaticResource PtsBrushLabelSection}"/>
+        <Setter Property="FontSize" Value="10"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Margin" Value="0,0,0,8"/>
+    </Style>
+
+    <Style x:Key="PtsLabel" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource PtsSectionLabel}">
+        <Setter Property="Margin" Value="0,0,0,8"/>
+    </Style>
+
+    <Style x:Key="PtsGhostButton" TargetType="{x:Type Button}">
+        <Setter Property="Padding" Value="10,5"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="{StaticResource PtsBrushBorder}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Foreground" Value="{StaticResource PtsBrushTextSecondary}"/>
+        <Setter Property="FontFamily" Value="{StaticResource PtsFont}"/>
+        <Setter Property="FontSize" Value="11"/>
     </Style>
 
     <Style TargetType="{x:Type Button}">
@@ -115,12 +138,15 @@
                             <Border Background="{StaticResource PtsBrushBgSecondary}"
                                     BorderBrush="{StaticResource PtsBrushBorder}"
                                     BorderThickness="1"
-                                    CornerRadius="6"
+                                    CornerRadius="4"
                                     SnapsToDevicePixels="True">
                                 <ScrollViewer Margin="0"
+                                              Focusable="False"
+                                              HorizontalScrollBarVisibility="Disabled"
+                                              VerticalScrollBarVisibility="Auto"
                                               SnapsToDevicePixels="True">
-                                    <StackPanel IsItemsHost="True"
-                                                KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                    <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"
+                                                    SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
                                 </ScrollViewer>
                             </Border>
                         </Popup>
@@ -141,7 +167,7 @@
     <Style TargetType="{x:Type ComboBoxItem}">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{StaticResource PtsBrushTextPrimary}"/>
-        <Setter Property="Padding" Value="10,6"/>
+        <Setter Property="Padding" Value="10,7"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type ComboBoxItem}">
@@ -154,6 +180,7 @@
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="Bd" Property="Background" Value="{StaticResource PtsBrushBgTertiary}"/>
+                            <Setter Property="Foreground" Value="{StaticResource PtsBrushGreen}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -170,12 +197,13 @@
     <Style TargetType="{x:Type ListBoxItem}">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{StaticResource PtsBrushTextPrimary}"/>
-        <Setter Property="Padding" Value="6,4"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type ListBoxItem}">
                     <Border x:Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
-                        <ContentPresenter/>
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsSelected" Value="True">
@@ -189,5 +217,13 @@
             </Setter.Value>
         </Setter>
     </Style>
-</ResourceDictionary>
 
+    <Style TargetType="{x:Type ScrollBar}">
+        <Setter Property="Background" Value="{StaticResource PtsBrushBgSecondary}"/>
+        <Style.Triggers>
+            <Trigger Property="Orientation" Value="Vertical">
+                <Setter Property="Width" Value="6"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+</ResourceDictionary>

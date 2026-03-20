@@ -941,21 +941,36 @@ public partial class HostPage : UserControl
             _sessionStarted &&
             _gameTracker.IsPinned &&
             PlayersList.SelectedItem is PlayerRowViewModel;
+
+        try
+        {
+            PlayersCountBadge.Text = $"{rows.Count} connected";
+        }
+        catch
+        {
+            // design-time or early init
+        }
     }
 
     private void UpdateActiveBannerUi(bool hostHasStick, string activeName)
     {
         if (hostHasStick)
         {
-            ActiveBannerTitle.Text = "YOU HAVE THE STICK";
-            ActiveBannerSubtitle.Text = "Your keyboard is live in the pinned game.";
+            ActiveBannerTitle.Text = "🎮  Your keyboard is live";
+            ActiveBannerSubtitle.Text = "Input scoped to pinned game window";
+            ActiveBanner.Background = (System.Windows.Media.Brush)FindResource("PtsBrushBannerHost");
             ActiveBanner.BorderBrush = (System.Windows.Media.Brush)FindResource("PtsBrushGreen");
+            ActiveBanner.BorderThickness = new Thickness(3, 0, 0, 0);
+            TakeStickBackButton.Visibility = Visibility.Collapsed;
         }
         else
         {
-            ActiveBannerTitle.Text = $"{activeName} has the stick";
-            ActiveBannerSubtitle.Text = "Your keys are paused while a guest is playing.";
+            ActiveBannerTitle.Text = $"⏸  {activeName} is playing";
+            ActiveBannerSubtitle.Text = "Your keyboard is paused";
+            ActiveBanner.Background = (System.Windows.Media.Brush)FindResource("PtsBrushBannerGuest");
             ActiveBanner.BorderBrush = (System.Windows.Media.Brush)FindResource("PtsBrushOrange");
+            ActiveBanner.BorderThickness = new Thickness(3, 0, 0, 0);
+            TakeStickBackButton.Visibility = Visibility.Visible;
         }
     }
 
