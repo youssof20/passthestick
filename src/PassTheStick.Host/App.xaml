@@ -8,6 +8,13 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Themes/PtsTheme.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+            <!-- Tame default SystemColors so selection/hover never flashes light on dark -->
+            <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#252525"/>
+            <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#F0F0F0"/>
+            <SolidColorBrush x:Key="{x:Static SystemColors.ControlBrushKey}" Color="#181818"/>
+            <SolidColorBrush x:Key="{x:Static SystemColors.ControlTextBrushKey}" Color="#F0F0F0"/>
+            <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#0A0A0A"/>
+            <SolidColorBrush x:Key="{x:Static SystemColors.WindowTextBrushKey}" Color="#F0F0F0"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

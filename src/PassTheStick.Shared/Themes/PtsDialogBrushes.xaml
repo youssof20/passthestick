@@ -4,9 +4,9 @@
     <SolidColorBrush x:Key="PtsDlgTitleBar" Color="#0A0A0A"/>
     <SolidColorBrush x:Key="PtsDlgCard" Color="#1A1A1A"/>
     <SolidColorBrush x:Key="PtsDlgBorder" Color="#2E2E2E"/>
-    <SolidColorBrush x:Key="PtsDlgText" Color="#F0F0F0"/>
-    <SolidColorBrush x:Key="PtsDlgMuted" Color="#888888"/>
-    <SolidColorBrush x:Key="PtsDlgSubtle" Color="#888888"/>
+    <SolidColorBrush x:Key="PtsDlgText" Color="#E0E0E0"/>
+    <SolidColorBrush x:Key="PtsDlgMuted" Color="#666666"/>
+    <SolidColorBrush x:Key="PtsDlgSubtle" Color="#666666"/>
     <SolidColorBrush x:Key="PtsDlgLogBg" Color="#121212"/>
     <SolidColorBrush x:Key="PtsDlgLogFg" Color="#CCCCCC"/>
     <SolidColorBrush x:Key="PtsDlgGreen" Color="#00C896"/>

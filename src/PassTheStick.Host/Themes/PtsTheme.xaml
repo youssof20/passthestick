@@ -2,22 +2,27 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <!-- Design tokens (canonical colors) -->
     <Color x:Key="PtsColorPrimary">#00C896</Color>
-    <Color x:Key="PtsColorPrimaryHover">#00B589</Color>
-    <Color x:Key="PtsColorPrimaryPressed">#009E78</Color>
+    <Color x:Key="PtsColorPrimaryHover">#00A87E</Color>
+    <Color x:Key="PtsColorPrimaryPressed">#008F6A</Color>
     <Color x:Key="PtsColorPrimaryOutlineHoverTint">#1500C896</Color>
     <Color x:Key="PtsColorSecondary">#FF6B35</Color>
     <Color x:Key="PtsColorTertiary">#FF9467</Color>
     <Color x:Key="PtsColorTertiaryPressTint">#20FF9467</Color>
     <Color x:Key="PtsColorComboItemHoverTint">#26FF9467</Color>
-    <Color x:Key="PtsColorBg">#0F0F0F</Color>
-    <Color x:Key="PtsColorCard">#1A1A1A</Color>
-    <Color x:Key="PtsColorCardHover">#252525</Color>
-    <Color x:Key="PtsColorBorder">#2E2E2E</Color>
+    <Color x:Key="PtsColorBg">#0A0A0A</Color>
+    <Color x:Key="PtsColorCard">#181818</Color>
+    <Color x:Key="PtsColorCardHover">#222222</Color>
+    <Color x:Key="PtsColorBorder">#2A2A2A</Color>
     <Color x:Key="PtsColorBorderHover">#444444</Color>
-    <Color x:Key="PtsColorTextHeadline">#F0F0F0</Color>
-    <Color x:Key="PtsColorTextBody">#CCCCCC</Color>
-    <Color x:Key="PtsColorTextLabel">#888888</Color>
-    <Color x:Key="PtsColorTextMuted">#555555</Color>
+    <Color x:Key="PtsColorTextHeadline">#E0E0E0</Color>
+    <Color x:Key="PtsColorTextBody">#AAAAAA</Color>
+    <Color x:Key="PtsColorTextLabel">#666666</Color>
+    <Color x:Key="PtsColorTextMuted">#444444</Color>
+    <Color x:Key="PtsColorNavInactive">#777777</Color>
+    <Color x:Key="PtsColorNavInactiveHover">#999999</Color>
+    <Color x:Key="PtsColorControlHover">#2E2E2E</Color>
+    <Color x:Key="PtsColorListRowHover">#252525</Color>
+    <Color x:Key="PtsColorHoverForeground">#F0F0F0</Color>
     <Color x:Key="PtsColorToggleTrackOff">#333333</Color>
     <Color x:Key="PtsAccentRed">#FF4444</Color>
     <Color x:Key="PtsAccentBlue">#4A9EFF</Color>
@@ -125,8 +130,9 @@
         <Setter Property="FontFamily" Value="{StaticResource PtsFont}"/>
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource PtsBrushControlHover}"/>
                 <Setter Property="BorderBrush" Value="{StaticResource PtsBrushBorderHover}"/>
-                <Setter Property="Foreground" Value="{StaticResource PtsBrushTextPrimary}"/>
+                <Setter Property="Foreground" Value="{StaticResource PtsBrushHoverForeground}"/>
             </Trigger>
         </Style.Triggers>
     </Style>
@@ -197,6 +203,12 @@
         <Setter Property="FontFamily" Value="{StaticResource PtsFont}"/>
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="Cursor" Value="Hand"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource PtsBrushControlHover}"/>
+                <Setter Property="Foreground" Value="{StaticResource PtsBrushHoverForeground}"/>
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <Style TargetType="{x:Type TextBox}">
@@ -277,6 +289,7 @@
                             <Setter Property="Opacity" Value="0.55"/>
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ToggleButton" Property="Background" Value="{StaticResource PtsBrushControlHover}"/>
                             <Setter TargetName="ToggleButton" Property="BorderBrush" Value="{StaticResource PtsBrushPrimary}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
@@ -298,7 +311,8 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsHighlighted" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource PtsBrushComboItemHover}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource PtsBrushListRowHover}"/>
+                            <Setter Property="Foreground" Value="{StaticResource PtsBrushHoverForeground}"/>
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="Bd" Property="Background" Value="{StaticResource PtsBrushBgTertiary}"/>
@@ -331,9 +345,11 @@
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="Bd" Property="Background" Value="{StaticResource PtsBrushBgTertiary}"/>
+                            <Setter Property="Foreground" Value="{StaticResource PtsBrushTextPrimary}"/>
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource PtsBrushBgTertiary}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource PtsBrushListRowHover}"/>
+                            <Setter Property="Foreground" Value="{StaticResource PtsBrushHoverForeground}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

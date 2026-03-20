@@ -1,3 +1,4 @@
+using System.Net.Http;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
@@ -42,6 +43,7 @@ public sealed class RelayClient : IDisposable
     {
         var uri = new Uri(Constants.RelayWebSocketUrl);
         InputDebugLog.Log(InputDebugLog.LogLevel.Info, $"[relay] Connecting to {uri}...");
+        await WakeRelayAsync(Constants.RelayWebSocketUrl).ConfigureAwait(false);
         // Bypass system proxy settings; localhost relay should connect directly.
         _ws.Options.Proxy = null;
         _ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(20);
@@ -50,12 +52,38 @@ public sealed class RelayClient : IDisposable
         _lastPingTs = 0;
         _lastPongTs = 0;
         LastLatencyMs = 0;
-        await _ws.ConnectAsync(uri, _cts.Token);
+        await _ws.ConnectAsync(uri, _cts.Token).ConfigureAwait(false);
         MyId = null;
         InputDebugLog.Log(InputDebugLog.LogLevel.Info, $"[relay] Connected to {uri}");
         Connected?.Invoke();
         _receiveTask = ReceiveLoopAsync();
         StartHeartbeatLoop();
+    }
+
+    /// <summary>
+    /// Best-effort HTTP GET to the relay's origin so cold instances (e.g. Render) wake before WebSocket connect.
+    /// Non-fatal on failure (localhost, firewalls, etc.).
+    /// </summary>
+    private static async Task WakeRelayAsync(string wsUrl)
+    {
+        try
+        {
+            if (wsUrl.Contains("localhost", StringComparison.OrdinalIgnoreCase) ||
+                wsUrl.Contains("127.0.0.1", StringComparison.OrdinalIgnoreCase))
+                return;
+
+            var httpUrl = wsUrl
+                .Replace("wss://", "https://", StringComparison.OrdinalIgnoreCase)
+                .Replace("ws://", "http://", StringComparison.OrdinalIgnoreCase);
+            using var http = new HttpClient();
+            http.Timeout = TimeSpan.FromSeconds(30);
+            await http.GetAsync(new Uri(httpUrl)).ConfigureAwait(false);
+            await Task.Delay(2000).ConfigureAwait(false);
+        }
+        catch
+        {
+            // non-fatal
+        }
     }
 
     public async Task<string> CreateRoomAsync()

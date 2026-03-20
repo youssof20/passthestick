@@ -13,6 +13,7 @@ public partial class ShellWindow : Window
     private readonly GuestPage _guestPage = new();
     private readonly SettingsPage _settingsPage = new();
     private string _nav = "host";
+    private string? _navHoverTag;
     private int _onboardingStep;
     private string? _latestUpdateUrl;
 
@@ -110,6 +111,19 @@ public partial class ShellWindow : Window
         ApplyNavVisuals();
     }
 
+    private void NavButton_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (sender is Button { Tag: string t })
+            _navHoverTag = t;
+        ApplyNavVisuals();
+    }
+
+    private void NavButton_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        _navHoverTag = null;
+        ApplyNavVisuals();
+    }
+
     private void ApplyNavVisuals()
     {
         SetNav(NavHost, HostNavBorder, _nav == "host");
@@ -120,7 +134,8 @@ public partial class ShellWindow : Window
     private void SetNav(Button btn, Border accentBorder, bool active)
     {
         var primary = TryFindResource("PtsBrushPrimary") as SolidColorBrush;
-        var muted = TryFindResource("PtsBrushTextMuted") as SolidColorBrush;
+        var inactive = TryFindResource("PtsBrushNavInactive") as SolidColorBrush;
+        var inactiveHover = TryFindResource("PtsBrushNavInactiveHover") as SolidColorBrush;
         accentBorder.BorderBrush = active ? primary ?? Brushes.Transparent : Brushes.Transparent;
 
         var sp = btn.Content as StackPanel;
@@ -134,8 +149,13 @@ public partial class ShellWindow : Window
         }
         else
         {
-            if (icon != null) icon.Foreground = muted ?? new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55));
-            if (label != null) label.Foreground = muted ?? new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55));
+            var tag = btn.Tag as string;
+            var hovered = tag != null && string.Equals(_navHoverTag, tag, StringComparison.Ordinal);
+            var fg = hovered
+                ? (inactiveHover ?? new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99)))
+                : (inactive ?? new SolidColorBrush(Color.FromRgb(0x77, 0x77, 0x77)));
+            if (icon != null) icon.Foreground = fg;
+            if (label != null) label.Foreground = fg;
         }
 
         btn.Background = active

@@ -105,6 +105,8 @@
                                 <Button x:Name="NavHost"
                                         Tag="host"
                                         Click="NavButton_Click"
+                                        MouseEnter="NavButton_MouseEnter"
+                                        MouseLeave="NavButton_MouseLeave"
                                         Background="Transparent"
                                         BorderThickness="0"
                                         Padding="0,10"
@@ -130,6 +132,8 @@
                                 <Button x:Name="NavGuest"
                                         Tag="guest"
                                         Click="NavButton_Click"
+                                        MouseEnter="NavButton_MouseEnter"
+                                        MouseLeave="NavButton_MouseLeave"
                                         Background="Transparent"
                                         BorderThickness="0"
                                         Padding="0,10"
@@ -138,13 +142,13 @@
                                         <TextBlock Text="&#x1F464;"
                                                    FontSize="18"
                                                    HorizontalAlignment="Center"
-                                                   Foreground="{StaticResource PtsBrushTextMuted}"/>
+                                                   Foreground="{StaticResource PtsBrushNavInactive}"/>
                                         <TextBlock Text="GUEST"
                                                    FontSize="10"
                                                    FontWeight="Normal"
                                                    HorizontalAlignment="Center"
                                                    Margin="0,4,0,0"
-                                                   Foreground="{StaticResource PtsBrushTextMuted}"/>
+                                                   Foreground="{StaticResource PtsBrushNavInactive}"/>
                                     </StackPanel>
                                 </Button>
                             </Border>
@@ -155,6 +159,8 @@
                                 <Button x:Name="NavSettings"
                                         Tag="settings"
                                         Click="NavButton_Click"
+                                        MouseEnter="NavButton_MouseEnter"
+                                        MouseLeave="NavButton_MouseLeave"
                                         Background="Transparent"
                                         BorderThickness="0"
                                         Padding="0,10"
@@ -163,13 +169,13 @@
                                         <TextBlock Text="&#x2699;"
                                                    FontSize="18"
                                                    HorizontalAlignment="Center"
-                                                   Foreground="{StaticResource PtsBrushTextMuted}"/>
+                                                   Foreground="{StaticResource PtsBrushNavInactive}"/>
                                         <TextBlock Text="SETTINGS"
                                                    FontSize="10"
                                                    FontWeight="Normal"
                                                    HorizontalAlignment="Center"
                                                    Margin="0,4,0,0"
-                                                   Foreground="{StaticResource PtsBrushTextMuted}"/>
+                                                   Foreground="{StaticResource PtsBrushNavInactive}"/>
                                     </StackPanel>
                                 </Button>
                             </Border>
