@@ -22,6 +22,9 @@ public sealed class RelayClient : IDisposable
     public string? MyId { get; private set; }
     public bool IsConnected => _ws.State == WebSocketState.Open;
 
+    /// <summary>Last measured round-trip latency from PONG handling (ms), or 0 if unknown.</summary>
+    public int LastLatencyMs { get; private set; }
+
     public event Action? Connected;
     public event Action<string>? Disconnected;
     public event Action<string>? Error;
@@ -46,6 +49,7 @@ public sealed class RelayClient : IDisposable
         _forcedDisconnectReason = null;
         _lastPingTs = 0;
         _lastPongTs = 0;
+        LastLatencyMs = 0;
         await _ws.ConnectAsync(uri, _cts.Token);
         MyId = null;
         InputDebugLog.Log(InputDebugLog.LogLevel.Info, $"[relay] Connected to {uri}");
@@ -228,7 +232,8 @@ public sealed class RelayClient : IDisposable
                     {
                         _lastPongTs = pong.Ts;
                         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                        var latency = (int)(now - pong.Ts);
+                        var latency = (int)Math.Max(0, now - pong.Ts);
+                        LastLatencyMs = latency;
                         LatencyUpdatedMs?.Invoke(latency);
                     }
                     break;

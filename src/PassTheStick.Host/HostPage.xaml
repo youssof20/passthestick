@@ -4,7 +4,6 @@
         xmlns:local="clr-namespace:PassTheStick.Host"
         Background="{StaticResource PtsBrushBgPrimary}">
     <UserControl.Resources>
-        <!-- ControlTemplate.Triggers allows Setter TargetName; Style.Triggers does not. -->
         <DataTemplate DataType="{x:Type local:PlayerRowViewModel}">
             <ContentControl Content="{Binding}">
                 <ContentControl.Template>
@@ -73,21 +72,24 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <DockPanel Grid.Row="0" Margin="0,0,0,12" LastChildFill="False">
+        <!-- Header + relay pill -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,10" LastChildFill="False">
             <StackPanel Orientation="Horizontal">
                 <Image Width="18" Height="18" Source="pack://application:,,,/appicon.png" Margin="0,0,8,0" RenderOptions.BitmapScalingMode="HighQuality"/>
                 <TextBlock Text="PassTheStick" FontSize="14" FontWeight="Light" Foreground="{StaticResource PtsBrushTextPrimary}" VerticalAlignment="Center"/>
             </StackPanel>
 
-            <Border DockPanel.Dock="Right"
-                    MaxWidth="130"
+            <Border x:Name="RelayStatusPill"
+                    DockPanel.Dock="Right"
                     HorizontalAlignment="Right"
+                    MaxWidth="220"
                     CornerRadius="20"
                     BorderBrush="{StaticResource PtsBrushBorder}"
                     BorderThickness="1"
-                    Padding="10,6"
+                    Padding="10,5"
                     Background="{StaticResource PtsBrushBgSecondary}"
                     Cursor="Hand">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -96,43 +98,46 @@
                                Text="Offline"
                                Foreground="{StaticResource PtsBrushTextPrimary}"
                                FontSize="12"
-                               TextTrimming="CharacterEllipsis"
                                Cursor="Hand"
                                MouseLeftButtonUp="RelayStatusText_MouseLeftButtonUp"/>
                 </StackPanel>
             </Border>
         </DockPanel>
 
-        <!-- ROOM CODE -->
+        <!-- ROOM CODE — compact row -->
         <Border Grid.Row="1"
                 Background="{StaticResource PtsBrushBgSecondary}"
                 BorderBrush="{StaticResource PtsBrushBorder}"
                 BorderThickness="1"
                 CornerRadius="8"
-                Padding="12"
+                Padding="14,12"
                 Margin="0,0,0,10">
             <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                <TextBlock Text="ROOM CODE" Style="{StaticResource PtsSectionLabel}" Margin="0,4,0,6"/>
-                <TextBlock x:Name="RoomCodeText"
-                           Grid.Row="1"
-                           Text="—"
-                           FontFamily="{StaticResource PtsMonoFont}"
-                           FontSize="28"
-                           FontWeight="Light"
-                           Foreground="{StaticResource PtsBrushTextPrimary}"
-                           Margin="0,6,0,0"/>
-                <Button Grid.Row="2"
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="ROOM CODE"
+                               FontSize="10"
+                               FontWeight="Normal"
+                               Foreground="{StaticResource PtsBrushTextLabel}"
+                               Margin="0,0,0,4"/>
+                    <TextBlock x:Name="RoomCodeText"
+                               Text="—"
+                               FontFamily="{StaticResource PtsMonoFont}"
+                               FontSize="32"
+                               FontWeight="Light"
+                               Foreground="{StaticResource PtsBrushTextPrimary}"
+                               CharacterSpacing="150"/>
+                </StackPanel>
+                <Button Grid.Column="1"
                         Content="Copy code"
                         Style="{StaticResource PtsSecondaryButton}"
                         FontSize="11"
                         Padding="10,5"
-                        HorizontalAlignment="Left"
-                        Margin="0,6,0,0"
+                        VerticalAlignment="Center"
+                        Margin="12,0,0,0"
                         Click="CopyRoomCode_Click"/>
             </Grid>
         </Border>
@@ -202,15 +207,29 @@
             </Grid>
         </Border>
 
-        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,0,0">
-            <StackPanel>
-                <!-- PLAYERS header + count -->
-                <Grid Margin="0,0,0,8">
+        <!-- PLAYERS card (fills remaining space) -->
+        <Border Grid.Row="3"
+                Background="{StaticResource PtsBrushBgSecondary}"
+                BorderBrush="{StaticResource PtsBrushBorder}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="12"
+                Margin="0,0,0,8">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0" Margin="0,0,0,6">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="PLAYERS" Style="{StaticResource PtsSectionLabel}" Margin="0,0,0,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="PLAYERS" Style="{StaticResource PtsSectionLabel}" Margin="0" VerticalAlignment="Center"/>
                     <Border Grid.Column="1"
                             Background="{StaticResource PtsBrushBgTertiary}"
                             CornerRadius="10"
@@ -223,80 +242,44 @@
                     </Border>
                 </Grid>
 
-                <DockPanel Margin="0,0,0,8" LastChildFill="True">
-                    <Button x:Name="PassStickButton"
-                            DockPanel.Dock="Right"
-                            Content="Pass to selected"
-                            Style="{StaticResource PtsSecondaryButton}"
-                            FontSize="11"
-                            Padding="10,5"
-                            Margin="8,0,0,0"
-                            Click="PassStickButton_Click"
-                            IsEnabled="False"/>
-                    <TextBlock x:Name="StatusText"
-                               TextWrapping="Wrap"
-                               Foreground="{StaticResource PtsBrushTextLabel}"
-                               FontSize="12"
-                               VerticalAlignment="Center"
-                               Text="Select and pin your game window to start a session."/>
-                </DockPanel>
+                <TextBlock x:Name="StatusText"
+                           Grid.Row="1"
+                           TextWrapping="Wrap"
+                           Foreground="{StaticResource PtsBrushTextMuted}"
+                           FontSize="11"
+                           Margin="0,0,0,8"
+                           Text="Select and pin your game window to start a session."/>
 
-                <ListBox x:Name="PlayersList"
-                         Margin="0,0,0,10"
-                         MinHeight="80"
-                         Background="{StaticResource PtsBrushBgSecondary}"
-                         BorderThickness="0"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                         ScrollViewer.VerticalScrollBarVisibility="Auto"
-                         SelectionChanged="PlayersList_SelectionChanged"
-                         MouseDoubleClick="PlayersList_MouseDoubleClick">
-                    <ListBox.Resources>
-                        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#252525"/>
-                        <SolidColorBrush x:Key="{x:Static SystemColors.ControlBrushKey}" Color="#1A1A1A"/>
-                        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#F0F0F0"/>
-                    </ListBox.Resources>
-                </ListBox>
-
-                <!-- ACTIVE BANNER (always visible) -->
-                <Border x:Name="ActiveBanner"
-                        BorderThickness="3,0,0,0"
-                        BorderBrush="{StaticResource PtsBrushGreen}"
-                        Background="{StaticResource PtsBrushBannerHost}"
-                        Padding="10,8"
-                        Margin="0,0,0,10"
-                        CornerRadius="0">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel>
-                            <TextBlock x:Name="ActiveBannerTitle"
-                                       Text="🎮  Your keyboard is live"
-                                       Foreground="{StaticResource PtsBrushTextPrimary}"
-                                       FontSize="13"
-                                       FontWeight="Normal"
-                                       TextWrapping="Wrap"/>
-                            <TextBlock x:Name="ActiveBannerSubtitle"
-                                       Text="Input scoped to pinned game window"
-                                       Foreground="{StaticResource PtsBrushTextLabel}"
-                                       FontSize="11"
-                                       Margin="0,2,0,0"
-                                       TextWrapping="Wrap"/>
-                        </StackPanel>
-                        <Button x:Name="TakeStickBackButton"
-                                Grid.Column="1"
+                <Grid Grid.Row="2" MinHeight="120">
+                    <ListBox x:Name="PlayersList"
+                             Panel.ZIndex="0"
+                             VerticalAlignment="Stretch"
+                             Background="Transparent"
+                             BorderThickness="1"
+                             BorderBrush="{StaticResource PtsBrushBorder}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             MouseDoubleClick="PlayersList_MouseDoubleClick"/>
+                    <StackPanel x:Name="PlayersEmptyState"
+                                Panel.ZIndex="1"
+                                IsHitTestVisible="False"
+                                HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
-                                Margin="12,0,0,0"
-                                Content="Take it back"
-                                Style="{StaticResource PtsOutlinedButton}"
-                                FontSize="12"
-                                Visibility="Collapsed"
-                                Click="TakeStickBackButton_Click"/>
-                    </Grid>
-                </Border>
+                                Margin="16">
+                        <TextBlock Text="No guests connected"
+                                   FontSize="13"
+                                   Foreground="#444444"
+                                   HorizontalAlignment="Center"
+                                   FontWeight="Normal"/>
+                        <TextBlock Text="Share your room code to invite friends"
+                                   FontSize="11"
+                                   Foreground="#333333"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Grid>
 
-                <WrapPanel x:Name="KeyEchoPanel" Margin="0,0,0,10">
+                <WrapPanel x:Name="KeyEchoPanel" Grid.Row="3" Margin="0,10,0,0">
                     <Border x:Name="Echo_W" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="{StaticResource PtsBrushTextLabel}" Text="W"/></Border>
                     <Border x:Name="Echo_A" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="{StaticResource PtsBrushTextLabel}" Text="A"/></Border>
                     <Border x:Name="Echo_S" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="{StaticResource PtsBrushTextLabel}" Text="S"/></Border>
@@ -310,13 +293,13 @@
                     <Border x:Name="Echo_Right" Background="{StaticResource PtsBrushBgTertiary}" BorderBrush="{StaticResource PtsBrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6"><TextBlock Foreground="{StaticResource PtsBrushTextLabel}" Text="→"/></Border>
                 </WrapPanel>
 
-                <Expander x:Name="DebugExpander" Header="Debug" IsExpanded="False" Margin="0,0,0,8"
+                <Expander x:Name="DebugExpander" Grid.Row="4" Header="Debug" IsExpanded="False" Margin="0,8,0,0"
                           Expanded="InputLogExpander_Expanded"
                           Collapsed="InputLogExpander_Collapsed">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="140"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
                         <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,6">
                             <ComboBox x:Name="LogLevelCombo"
@@ -332,44 +315,91 @@
                             <Button Content="Copy logs" Style="{StaticResource PtsSecondaryButton}" FontSize="11" Click="CopyInputLogs_Click" Padding="10,6" Margin="0,0,8,0"/>
                             <Button Content="Clear" Style="{StaticResource PtsSecondaryButton}" FontSize="11" Click="ClearLog_Click" Padding="10,6"/>
                         </StackPanel>
-                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                            <TextBox x:Name="InputLogText"
-                                     Background="{StaticResource PtsBrushBgTertiary}"
-                                     BorderBrush="{StaticResource PtsBrushBorder}"
-                                     BorderThickness="1"
-                                     FontFamily="{StaticResource PtsMonoFont}"
-                                     FontSize="12"
-                                     TextWrapping="Wrap"
-                                     IsReadOnly="True"
-                                     IsReadOnlyCaretVisible="True"
-                                     AcceptsReturn="True"
-                                     VerticalScrollBarVisibility="Disabled"/>
-                        </ScrollViewer>
+                        <TextBox x:Name="InputLogText"
+                                 Grid.Row="1"
+                                 Height="120"
+                                 Background="{StaticResource PtsBrushBgTertiary}"
+                                 BorderBrush="{StaticResource PtsBrushBorder}"
+                                 BorderThickness="1"
+                                 FontFamily="{StaticResource PtsMonoFont}"
+                                 FontSize="12"
+                                 TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto"
+                                 HorizontalScrollBarVisibility="Disabled"
+                                 IsReadOnly="True"
+                                 IsReadOnlyCaretVisible="True"
+                                 AcceptsReturn="True"/>
                     </Grid>
                 </Expander>
-            </StackPanel>
-        </ScrollViewer>
+            </Grid>
+        </Border>
 
-        <!-- Footer stats + debug -->
-        <Border Grid.Row="4"
-                Height="32"
+        <!-- Active banner: left accent + body -->
+        <Grid Grid.Row="4" Margin="0,0,0,6" ClipToBounds="True">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Border x:Name="ActiveBannerPulseStrip"
+                    Grid.Column="0"
+                    VerticalAlignment="Stretch"
+                    Background="{StaticResource PtsBrushGreen}"/>
+            <Border x:Name="ActiveBanner"
+                    Grid.Column="1"
+                    Background="{StaticResource PtsBrushBannerHost}"
+                    Padding="10,8"
+                    ClipToBounds="True"
+                    CornerRadius="0,8,8,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock x:Name="ActiveBannerTitle"
+                                   Text="🎮  Your keyboard is live"
+                                   Foreground="{StaticResource PtsBrushTextPrimary}"
+                                   FontSize="13"
+                                   FontWeight="Normal"
+                                   TextWrapping="Wrap"/>
+                        <TextBlock x:Name="ActiveBannerSubtitle"
+                                   Text="Input scoped to pinned game window"
+                                   Foreground="{StaticResource PtsBrushTextLabel}"
+                                   FontSize="11"
+                                   Margin="0,2,0,0"
+                                   TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <Button x:Name="TakeStickBackButton"
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            Margin="12,0,0,0"
+                            Content="Take it back"
+                            Style="{StaticResource PtsOutlinedButton}"
+                            FontSize="12"
+                            Visibility="Collapsed"
+                            Click="TakeStickBackButton_Click"/>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="5"
+                Height="38"
                 Background="#0A0A0A"
                 BorderBrush="#1E1E1E"
                 BorderThickness="0,1,0,0"
                 Padding="16,0"
-                Margin="0,8,0,0">
+                Margin="0,4,0,0">
             <DockPanel VerticalAlignment="Center">
                 <Button DockPanel.Dock="Right"
                         Content="Debug"
                         Style="{StaticResource PtsSecondaryButton}"
-                        Padding="10,4"
+                        Padding="10,5"
                         FontSize="11"
-                        Height="24"
                         VerticalAlignment="Center"
                         Click="OpenDebugPanel_Click"/>
                 <TextBlock x:Name="InjectionStatsText"
                            Text="Injected: 0 | Failed: 0 | Dropped: 0"
-                           Foreground="{StaticResource PtsBrushFooter}"
+                           Foreground="{StaticResource PtsBrushTextMuted}"
                            FontSize="11"
                            VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis"/>

@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using PassTheStick.Shared;
 
@@ -58,6 +59,7 @@ public partial class HostPage : UserControl
     private bool _showOverlayDuringSessions = true;
     private DispatcherTimer? _relayConnectingPulseTimer;
     private bool _relayConnectingPulseUp = true;
+    private Storyboard? _bannerAccentPulseStoryboard;
 
     /// <summary>Tray, WndProc hook, and hotkey conflict wiring must run only once — Host tab fires Loaded every time it becomes visible.</summary>
     private bool _hostHeavyInitDone;
@@ -238,15 +240,10 @@ public partial class HostPage : UserControl
 
                 RoomCodeText.Text = "—";
                 StatusText.Text = "Select and pin your game window to start a session.";
-                PassStickButton.IsEnabled = false;
             }
             else
             {
                 // Returning to Host tab: don't wipe session UI or spawn another tray icon.
-                if (_sessionStarted && _gameTracker.IsPinned)
-                {
-                    PassStickButton.IsEnabled = PlayersList.SelectedItem is PlayerRowViewModel;
-                }
             }
 
             RefreshWindows();
@@ -323,12 +320,11 @@ public partial class HostPage : UserControl
             ReleaseHeldKeysOnStickChange(_sessionManager.LocalPlayerId);
             _sessionManager.SetActivePlayer(_sessionManager.LocalPlayerId);
             _sessionManager.ClearGuestList();
-            PlayersList.ItemsSource = null;
             RoomCodeText.Text = "—";
             StatusText.Text = "Session ended. Pin the game window to start a new session.";
             _overlay?.SetTurn("Host", true, Array.Empty<string>());
-            PassStickButton.IsEnabled = false;
             _sessionStarted = false;
+            RefreshPlayerRows();
 
             try
             {
@@ -386,11 +382,12 @@ public partial class HostPage : UserControl
     private void RelayStatusText_MouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e) =>
         ShowConnectionStatus();
 
-    private void SetRelayIndicator(string text, string hexColor, bool pulseConnecting = false)
+    private void SetRelayIndicator(string text, string hexColor, bool pulseConnecting = false, string? toolTip = null)
     {
         RelayStatusText.Text = text;
         try
         {
+            RelayStatusPill.ToolTip = string.IsNullOrEmpty(toolTip) ? null : toolTip;
             if (!pulseConnecting)
                 StopRelayConnectingPulse();
 
@@ -400,6 +397,54 @@ public partial class HostPage : UserControl
             RelayDot.Fill = brush;
             if (pulseConnecting)
                 StartRelayConnectingPulse();
+        }
+        catch { }
+    }
+
+    private void RefreshConnectedRelayPill()
+    {
+        if (_relay == null || !_relay.IsConnected) return;
+        var ms = _relay.LastLatencyMs;
+        var suffix = ms > 0 ? $" · {ms}ms" : "";
+        SetRelayIndicator($"Connected{suffix}", "#00C896");
+    }
+
+    private void WireRelayClient(RelayClient relay)
+    {
+        relay.LatencyUpdatedMs += OnRelayLatencyUpdated;
+    }
+
+    private void DetachRelayClient(RelayClient? relay)
+    {
+        if (relay == null) return;
+        relay.LatencyUpdatedMs -= OnRelayLatencyUpdated;
+    }
+
+    private void OnRelayLatencyUpdated(int _)
+    {
+        Dispatcher.BeginInvoke(() => RefreshConnectedRelayPill());
+    }
+
+    private void EnsureBannerAccentPulseStoryboard()
+    {
+        if (_bannerAccentPulseStoryboard != null) return;
+        var anim = new DoubleAnimation(1, 0.45, TimeSpan.FromSeconds(1.2))
+        {
+            AutoReverse = true,
+            RepeatBehavior = RepeatBehavior.Forever
+        };
+        Storyboard.SetTarget(anim, ActiveBannerPulseStrip);
+        Storyboard.SetTargetProperty(anim, new PropertyPath(Border.OpacityProperty));
+        _bannerAccentPulseStoryboard = new Storyboard();
+        _bannerAccentPulseStoryboard.Children.Add(anim);
+    }
+
+    private void StopBannerAccentPulse()
+    {
+        try
+        {
+            _bannerAccentPulseStoryboard?.Stop();
+            ActiveBannerPulseStrip.Opacity = 1;
         }
         catch { }
     }
@@ -564,12 +609,12 @@ public partial class HostPage : UserControl
         catch (TaskCanceledException)
         {
             StatusText.Text = "Connection attempt cancelled.";
-            SetRelayIndicator("Not connected — click to view connection status", "#FF4444");
+            SetRelayIndicator("Offline", "#FF4444", toolTip: "Not connected — click to view connection status");
         }
         catch (OperationCanceledException)
         {
             StatusText.Text = "Connection attempt cancelled.";
-            SetRelayIndicator("Not connected — click to view connection status", "#FF4444");
+            SetRelayIndicator("Offline", "#FF4444", toolTip: "Not connected — click to view connection status");
         }
         catch (Exception ex)
         {
@@ -678,7 +723,7 @@ public partial class HostPage : UserControl
                 _connVm.ShowAdvanced = true;
                 _connVm.StatusText = "Could not reach the relay server.";
                 StatusText.Text = "Can't reach the relay server.";
-                Dispatcher.Invoke(() => SetRelayIndicator("Not connected — click to view connection status", "#FF4444"));
+                Dispatcher.Invoke(() => SetRelayIndicator("Offline", "#FF4444", toolTip: "Not connected — click to view connection status"));
                 return;
             }
 
@@ -710,7 +755,7 @@ public partial class HostPage : UserControl
                     {
                         _connVm.StatusText = "Could not connect after 5 attempts.";
                         StatusText.Text = "Can't reach the relay server.";
-                        Dispatcher.Invoke(() => SetRelayIndicator("Not connected — click to view connection status", "#FF4444"));
+                        Dispatcher.Invoke(() => SetRelayIndicator("Offline", "#FF4444", toolTip: "Not connected — click to view connection status"));
                         return;
                     }
                     _connVm.AddLog("Retrying in 3 seconds…");
@@ -722,18 +767,21 @@ public partial class HostPage : UserControl
         {
             _connVm.StatusText = "Cancelled.";
             StatusText.Text = "Cancelled.";
-            SetRelayIndicator("Not connected — click to view connection status", "#FF4444");
+            SetRelayIndicator("Offline", "#FF4444", toolTip: "Not connected — click to view connection status");
         }
         catch (OperationCanceledException)
         {
             _connVm.StatusText = "Cancelled.";
             StatusText.Text = "Cancelled.";
-            SetRelayIndicator("Not connected — click to view connection status", "#FF4444");
+            SetRelayIndicator("Offline", "#FF4444", toolTip: "Not connected — click to view connection status");
         }
 
         async Task<bool> TryConnectOnceAsync()
         {
+            DetachRelayClient(_relay);
+            _relay?.Dispose();
             _relay = new RelayClient();
+            WireRelayClient(_relay);
             _relay.PlayerListReceived += OnPlayerList;
             _relay.PassStickReceived += OnPassStickBroadcast;
             _relay.KeyEventReceived += OnKeyEvent;
@@ -774,7 +822,7 @@ public partial class HostPage : UserControl
             _connVm.IsConnected = true;
             _connVm.StatusText = "Connected!";
             _connVm.AddLog("Connected.");
-            Dispatcher.Invoke(() => SetRelayIndicator("Connected — relay ready", "#00C896"));
+            Dispatcher.Invoke(RefreshConnectedRelayPill);
             _connDialog?.Close();
 
             // Best-effort: keep relay URL + last room code for reconnect after network blips.
@@ -937,14 +985,11 @@ public partial class HostPage : UserControl
             .Select(p => new PlayerRowViewModel(p, string.Equals(p.Id, activeId, StringComparison.Ordinal)))
             .ToList();
         PlayersList.ItemsSource = rows;
-        PassStickButton.IsEnabled =
-            _sessionStarted &&
-            _gameTracker.IsPinned &&
-            PlayersList.SelectedItem is PlayerRowViewModel;
 
         try
         {
             PlayersCountBadge.Text = $"{rows.Count} connected";
+            PlayersEmptyState.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         }
         catch
         {
@@ -959,17 +1004,20 @@ public partial class HostPage : UserControl
             ActiveBannerTitle.Text = "🎮  Your keyboard is live";
             ActiveBannerSubtitle.Text = "Input scoped to pinned game window";
             ActiveBanner.Background = (System.Windows.Media.Brush)FindResource("PtsBrushBannerHost");
-            ActiveBanner.BorderBrush = (System.Windows.Media.Brush)FindResource("PtsBrushGreen");
-            ActiveBanner.BorderThickness = new Thickness(3, 0, 0, 0);
+            ActiveBannerPulseStrip.Background = (System.Windows.Media.Brush)FindResource("PtsBrushGreen");
+            ActiveBannerPulseStrip.Opacity = 1;
+            EnsureBannerAccentPulseStoryboard();
+            _bannerAccentPulseStoryboard?.Begin();
             TakeStickBackButton.Visibility = Visibility.Collapsed;
         }
         else
         {
+            StopBannerAccentPulse();
             ActiveBannerTitle.Text = $"⏸  {activeName} is playing";
             ActiveBannerSubtitle.Text = "Your keyboard is paused";
             ActiveBanner.Background = (System.Windows.Media.Brush)FindResource("PtsBrushBannerGuest");
-            ActiveBanner.BorderBrush = (System.Windows.Media.Brush)FindResource("PtsBrushOrange");
-            ActiveBanner.BorderThickness = new Thickness(3, 0, 0, 0);
+            ActiveBannerPulseStrip.Background = (System.Windows.Media.Brush)FindResource("PtsBrushOrange");
+            ActiveBannerPulseStrip.Opacity = 1;
             TakeStickBackButton.Visibility = Visibility.Visible;
         }
     }
@@ -1283,6 +1331,7 @@ public partial class HostPage : UserControl
     private void OnDisconnected(string reason)
     {
         // Stop receives first so key events don't race with synthetic key releases.
+        DetachRelayClient(_relay);
         _relay?.Dispose();
         _relay = null;
 
@@ -1300,8 +1349,8 @@ public partial class HostPage : UserControl
                 : "Connection lost — reconnecting…";
             _overlay?.SetTurn("Host", true, Array.Empty<string>());
             SetRelayIndicator("Reconnecting…", "#4A9EFF", pulseConnecting: true);
-            PlayersList.ItemsSource = null;
-            PassStickButton.IsEnabled = false;
+            _sessionManager.ClearGuestList();
+            RefreshPlayerRows();
         });
 
         _sessionStarted = false;
@@ -1369,8 +1418,10 @@ public partial class HostPage : UserControl
                 try
                 {
                     await Task.Delay(TimeSpan.FromSeconds(5), ct);
+                    DetachRelayClient(_relay);
                     _relay?.Dispose();
                     _relay = new RelayClient();
+                    WireRelayClient(_relay);
                     _relay.PlayerListReceived += OnPlayerList;
                     _relay.PassStickReceived += OnPassStickBroadcast;
                     _relay.KeyEventReceived += OnKeyEvent;
@@ -1427,7 +1478,7 @@ public partial class HostPage : UserControl
                     {
                         RoomCodeText.Text = code;
                         StatusText.Text = "Reconnected.";
-                        SetRelayIndicator("Connected — relay ready", "#00C896");
+                        RefreshConnectedRelayPill();
                         _overlay?.SetTurn("Host", true, Array.Empty<string>());
                         RefreshPlayerRows();
                     });
@@ -1446,10 +1497,21 @@ public partial class HostPage : UserControl
         }, ct);
     }
 
-    private void PassStickButton_Click(object sender, RoutedEventArgs e)
+    private void PlayersList_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (PlayersList.SelectedItem is PlayerRowViewModel row)
+            TryPassStickToGuest(row);
+    }
+
+    private void TryPassStickToGuest(PlayerRowViewModel row)
     {
         if (!_sessionStarted || _relay == null)
+        {
+            StatusText.Text = "Not connected — start a session first.";
+            ShowConnectionStatus();
             return;
+        }
+
         if (!_gameTracker.IsPinned)
         {
             System.Windows.MessageBox.Show(
@@ -1459,23 +1521,8 @@ public partial class HostPage : UserControl
                 MessageBoxImage.Information);
             return;
         }
-        if (PlayersList.SelectedItem is not PlayerRowViewModel row) return;
+
         OnPickGuest(row.Player);
-    }
-
-    private void PlayersList_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        // Enable based on selection/pin/session; if not connected, we'll show a friendly message on pass attempt.
-        PassStickButton.IsEnabled =
-            _sessionStarted &&
-            _gameTracker.IsPinned &&
-            PlayersList.SelectedItem is PlayerRowViewModel;
-    }
-
-    private void PlayersList_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
-    {
-        if (PlayersList.SelectedItem is PlayerRowViewModel row && PassStickButton.IsEnabled)
-            OnPickGuest(row.Player);
     }
 
     private void TakeStickBackButton_Click(object sender, RoutedEventArgs e)
@@ -1493,22 +1540,7 @@ public partial class HostPage : UserControl
     {
         if (sender is not Button b || b.DataContext is not PlayerRowViewModel row)
             return;
-        if (!_sessionStarted || _relay == null)
-        {
-            StatusText.Text = "Not connected — start a session first.";
-            ShowConnectionStatus();
-            return;
-        }
-        if (!_gameTracker.IsPinned)
-        {
-            System.Windows.MessageBox.Show(
-                "Please pin a game window first.",
-                "PassTheStick",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-            return;
-        }
-        OnPickGuest(row.Player);
+        TryPassStickToGuest(row);
     }
 
     public void ShowUpdateToast(string latestVersion, string url)
