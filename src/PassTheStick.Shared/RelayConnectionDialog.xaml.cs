@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Input;
 
 namespace PassTheStick.Shared;
 
@@ -48,6 +49,18 @@ public partial class RelayConnectionDialog : Window
     {
         Vm.SaveRelayUrl?.Invoke(Vm.RelayUrl);
         Vm.AddLog("Relay URL saved.");
+    }
+
+    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 1)
+        {
+            try { DragMove(); }
+            catch
+            {
+                // Drag can fail early in the window lifecycle.
+            }
+        }
     }
 
     private void Close_Click(object sender, RoutedEventArgs e)
