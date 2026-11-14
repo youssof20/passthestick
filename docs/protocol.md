@@ -28,14 +28,19 @@ hello      { t:"hello", v:1, role:"host"|"guest", hostToken?, resumeToken?, name
 welcome    { t:"welcome", v:1, you:<id>, resumeToken?, players:[{id,name,slot}], holder:<id|null>, maxPlayers }
 error      { t:"error", code, message }          // codes below
 signal     { t:"signal", to:<id>, sdp?|candidate? }  // host <-> guest only; room adds "from"
-presence   { t:"presence", players:[...], holder }
+presence   { t:"presence", players:[{id,name,slot,away?}], holder, epoch, hostAway }
+holder     { t:"holder", id:<id|null>, epoch }   // host to room only; epoch may not go backwards
+kick       { t:"kick", id }                      // host to room only
+request    { t:"request" }                       // guest to room; room tells the host { t:"request", from }
+ended      { t:"ended", reason:"host_left"|"idle" }
+relay      binary frame, [8-byte player id][payload]; guest frames reach the host only from the current holder
 path       { t:"path", id, kind:"direct"|"turn"|"relay", rttMs }
 ping/pong  { t:"ping", ts } / { t:"pong", ts }
 ```
 
 Error codes: `bad_version` (message says "update your app"), `room_not_found`, `room_full`, `bad_token`, `host_exists`, `rate_limited`, `too_large`, `bad_message`.
 
-Limits (enforced in the Worker, tested): 8 players per room default (cap 16); 5 join attempts per IP per minute; 20 signaling messages per second per socket; relay data frames 64 per second per guest unless the guest holds the stick (then 250); room expires 30 minutes after the last host presence; host grace window 60 s (room, players and holder are kept while the host is away).
+Limits (enforced in the Worker, tested): 8 players per room default (cap 16); 5 join attempts per IP per minute; 20 signaling messages per second per socket; relay data frames 64 per second per guest unless the guest holds the stick (then 250); host grace window 60 s (room, players and holder are kept while the host is away; after that the room ends and everyone gets `ended`); a room with the host connected but silent for 30 minutes ends as `idle`; a guest who drops keeps its id and slot for 60 s and can resume.
 
 ## 4. Peer data channels
 
