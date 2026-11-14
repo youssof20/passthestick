@@ -1,0 +1,1 @@
+{"name":"pts-scripts","private":true,"type":"module","devDependencies":{"sharp":"0.34.5","png-to-ico":"3.0.1"},"allowScripts":{"sharp@0.34.5":true}}

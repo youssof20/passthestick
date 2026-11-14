@@ -27,3 +27,13 @@ Format: decision, alternatives considered, why.
 ## D5. Signaling: Cloudflare Worker + one Durable Object per room, hibernation API
 
 - Works locally. Host tokens, resume tokens and rate limits are still to design in `docs/protocol.md`.
+
+## D6. Visual identity: putty + ink + handoff yellow, not cream + terracotta
+
+- **Alternatives:** warm cream with a terracotta accent (the brief's "living room" direction, but it is the most common generated look); dark with a neon accent (the gamer cliché the brief rules out).
+- **Why:** console-plastic grey with a single lit yellow button keeps the "game night" warmth, is specific to the stick idea, and the lit button doubles as the holder indicator. Yellow fails as text on light, so a separate `accentText` token exists and the validator enforces it.
+- **Fonts:** Familjen Grotesk, Atkinson Hyperlegible Next, JetBrains Mono. Not yet bundled or visually verified in the app.
+
+## D7. Tokens in JSON with a contrast gate
+
+- **Decision:** `design/tokens.json` is the only source; `scripts/gen-design.mjs` generates WPF dictionaries and site CSS and exits non-zero on any WCAG AA miss. First run caught the light border at 2.77:1; fixed.

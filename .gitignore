@@ -33,3 +33,4 @@ spikes/**/node_modules/
 spikes/**/.wrangler/
 spikes/**/*.log
 spikes/**/*.err
+scripts/node_modules/

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="PassTheStick">
+  <rect width="256" height="256" rx="56" fill="#16181A"/>
+  <!-- ghost of the previous position: the stick that was just passed -->
+  <g opacity="0.35">
+    <line x1="64" y1="196" x2="84" y2="118" stroke="#F1EFE8" stroke-width="18" stroke-linecap="round"/>
+    <circle cx="88" cy="96" r="30" fill="#F1EFE8"/>
+  </g>
+  <!-- the stick, now held on the right -->
+  <line x1="122" y1="204" x2="162" y2="124" stroke="#F5C518" stroke-width="22" stroke-linecap="round"/>
+  <circle cx="172" cy="94" r="40" fill="#F5C518"/>
+  <ellipse cx="118" cy="214" rx="60" ry="14" fill="#F1EFE8"/>
+</svg>
