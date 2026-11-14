@@ -47,3 +47,12 @@ Format: decision, alternatives considered, why.
 
 - Key events carry `KeyboardEvent.code`, mapped to set 1 scan codes plus the extended flag in `KeyMap`. Windows keys are not in the table, so a guest cannot open the host's Start menu.
 - Stuck-input release lives in one place (`InputPipeline.ReleaseAll`) and is triggered by holder change, pause, timeout, dispose. Each has a test, plus a concurrency test.
+
+## D10. Epoch authority and relay-only keys
+
+- The host owns epochs. The room no longer bumps the epoch when it purges or kicks a player; it clears the holder, the host sees the player leave presence, and the session's `HolderLeft` change sends the new holder and epoch. Before this, a room-side bump could put the room ahead of the host and make the host's next `holder` message fail and close its socket.
+- State frames carry no epoch. `InputPipeline` checks the sender is the holder and resets sequence tracking on every holder change. Key messages on the reliable channel carry the epoch and are checked.
+
+## D11. Net layer shape
+
+- `IMessageSocket` serializes sends and reassembles fragments (audit S11, S12). `RoomClient`, `PeerHub` and `HostSessionController` sit behind `IRoomLink` and `IPeerLink`, so session logic is tested with fakes and the real path is covered by one end-to-end test.

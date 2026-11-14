@@ -179,10 +179,8 @@ export class Room extends DurableObject {
     for (const [id, p] of Object.entries(meta.players)) {
       if (p.awaySince !== null && now - p.awaySince >= LIMITS.hostGraceMs) {
         delete meta.players[id];
-        if (meta.holder === id) {
-          meta.holder = null;
-          meta.epoch++;
-        }
+        // The host is the authority on epochs. It sees the player vanish from presence and sends a new holder.
+        if (meta.holder === id) meta.holder = null;
         changed = true;
       }
     }
@@ -275,10 +273,7 @@ export class Room extends DurableObject {
         const id = typeof msg.id === "string" ? msg.id : "";
         if (meta.players[id]) {
           delete meta.players[id];
-          if (meta.holder === id) {
-            meta.holder = null;
-            meta.epoch++;
-          }
+          if (meta.holder === id) meta.holder = null;
           this.socketFor(id)?.close(1000, "kicked");
           await this.ctx.storage.put("meta", meta);
           this.broadcastPresence(meta);

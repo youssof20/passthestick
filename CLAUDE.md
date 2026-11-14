@@ -25,6 +25,10 @@ dotnet build PassTheStick.sln -c Release          # legacy solution still builds
 cd host; dotnet test                              # 78 tests, analyzers as errors
 cd server/worker; npm ci; npx wrangler dev        # signaling server locally (port 8787)
 cd server/worker; npm test                        # Worker tests
+cd web/guest; npm test; node build.mjs            # web guest tests; bundle into site/join
+# End-to-end (host + Worker + libdatachannel guest): run `npx wrangler dev --port 8787` in server/worker, then
+#   $env:PTS_WORKER_URL='http://127.0.0.1:8787'; cd host; dotnet test --filter Category=Integration
+# Without PTS_WORKER_URL that test returns immediately, so a green run alone proves nothing about it.
 ```
 
 Not yet created: web guest dev server, installer build, site build. Add them here when they exist. NuGet source `nuget.org` must be configured (`dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org`). npm 11 blocks postinstall scripts: approve `workerd` and `esbuild` with `npm install-scripts approve`.
