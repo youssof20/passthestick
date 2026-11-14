@@ -78,6 +78,25 @@ internal static partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool GetWindowRect(nint window, out Rect rect);
 
+    [LibraryImport("user32.dll")]
+    public static unsafe partial int EnumWindows(delegate* unmanaged<nint, nint, int> callback, nint state);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool IsWindowVisible(nint window);
+
+    [LibraryImport("user32.dll", EntryPoint = "GetWindowTextLengthW")]
+    public static partial int GetWindowTextLength(nint window);
+
+    [LibraryImport("user32.dll", EntryPoint = "GetWindowTextW", StringMarshalling = StringMarshalling.Utf16)]
+    public static partial int GetWindowText(nint window, [Out] char[] text, int max);
+
+    [LibraryImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
+    public static partial nint GetWindowLongPtr(nint window, int index);
+
+    [LibraryImport("user32.dll")]
+    public static partial nint GetWindow(nint window, uint command);
+
     [LibraryImport("winmm.dll")]
     public static partial uint timeBeginPeriod(uint milliseconds);
 

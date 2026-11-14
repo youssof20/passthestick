@@ -1,0 +1,47 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>PassTheStick</AssemblyName>
+    <RootNamespace>PassTheStick.App</RootNamespace>
+    <ApplicationIcon>..\..\design\generated\icons\passthestick.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Version>0.2.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PassTheStick.Core\PassTheStick.Core.csproj" />
+    <ProjectReference Include="..\PassTheStick.Protocol\PassTheStick.Protocol.csproj" />
+    <ProjectReference Include="..\PassTheStick.Platform\PassTheStick.Platform.csproj" />
+    <ProjectReference Include="..\PassTheStick.Net\PassTheStick.Net.csproj" />
+    <ProjectReference Include="..\PassTheStick.Windows\PassTheStick.Windows.csproj" />
+    <ProjectReference Include="..\PassTheStick.Dsu\PassTheStick.Dsu.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.8" />
+  </ItemGroup>
+
+  <!-- Design tokens are generated from design/tokens.json by scripts/gen-design.mjs. Never edit them here. -->
+  <ItemGroup>
+    <Page Include="..\..\design\generated\Tokens.Light.xaml" Link="Themes\Tokens.Light.xaml" />
+    <Page Include="..\..\design\generated\Tokens.Dark.xaml" Link="Themes\Tokens.Dark.xaml" />
+    <Page Include="..\..\design\generated\Tokens.Metrics.xaml" Link="Themes\Tokens.Metrics.xaml" />
+    <Resource Include="..\..\design\generated\icons\passthestick.ico" Link="passthestick.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="PassTheStick.App.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="System.IO" />
+    <Using Include="System.Net.Http" />
+  </ItemGroup>
+
+</Project>

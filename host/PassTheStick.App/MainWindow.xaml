@@ -1,0 +1,140 @@
+<Window x:Class="PassTheStick.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:PassTheStick.App.ViewModels"
+        xmlns:wn="clr-namespace:PassTheStick.Windows;assembly=PassTheStick.Windows"
+        Style="{StaticResource PtsWindow}" Title="PassTheStick" Width="920" Height="680" MinWidth="720" MinHeight="560"
+        WindowStartupLocation="CenterScreen">
+  <Grid Margin="{StaticResource PtsSpace5Thickness}">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="*" MinWidth="320"/>
+      <ColumnDefinition Width="24"/>
+      <ColumnDefinition Width="*" MinWidth="320"/>
+    </Grid.ColumnDefinitions>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <!-- Notice bar: one place for anything the person needs to read or do. -->
+    <Border Grid.ColumnSpan="3" Margin="{StaticResource PtsSpace4Bottom}" Padding="{StaticResource PtsSpace3Thickness}" CornerRadius="{StaticResource PtsRadiusPanel}"
+            Background="{DynamicResource PtsSurfaceRaisedBrush}" BorderBrush="{DynamicResource PtsBorderBrush}" BorderThickness="2">
+      <Border.Style>
+        <Style TargetType="Border">
+          <Setter Property="Visibility" Value="Collapsed"/>
+          <Style.Triggers>
+            <DataTrigger Binding="{Binding HasNotice}" Value="True">
+              <Setter Property="Visibility" Value="Visible"/>
+            </DataTrigger>
+          </Style.Triggers>
+        </Style>
+      </Border.Style>
+      <TextBlock Text="{Binding Notice}" AutomationProperties.LiveSetting="Polite"/>
+    </Border>
+
+    <!-- Left: the session. -->
+    <StackPanel Grid.Row="1" Grid.Column="0">
+      <TextBlock Style="{StaticResource PtsHeading}" Text="Session"/>
+      <TextBlock Style="{StaticResource PtsMuted}" Text="{Binding PhaseText}" Margin="{StaticResource PtsSpace4Bottom}"/>
+
+      <StackPanel>
+        <StackPanel.Style>
+          <Style TargetType="StackPanel">
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding IsIdle}" Value="True">
+                <Setter Property="Visibility" Value="Visible"/>
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </StackPanel.Style>
+        <TextBlock Text="Server address" FontWeight="SemiBold"/>
+        <TextBox Text="{Binding ServerUrl, UpdateSourceTrigger=PropertyChanged}" Margin="{StaticResource PtsSpace4Bottom}" AutomationProperties.Name="Server address"/>
+        <Button Style="{StaticResource PtsPrimaryButton}" Content="Start a session" Command="{Binding StartCommand}"/>
+      </StackPanel>
+
+      <StackPanel>
+        <StackPanel.Style>
+          <Style TargetType="StackPanel">
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding IsLive}" Value="True">
+                <Setter Property="Visibility" Value="Visible"/>
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </StackPanel.Style>
+        <TextBlock Style="{StaticResource PtsMuted}" Text="Room code"/>
+        <TextBlock Style="{StaticResource PtsRoomCode}" Text="{Binding RoomCode}" AutomationProperties.Name="Room code"/>
+        <TextBlock Style="{StaticResource PtsMuted}" Text="{Binding InviteLink}" Margin="{StaticResource PtsSpace3Bottom}" TextTrimming="CharacterEllipsis"/>
+        <StackPanel Orientation="Horizontal">
+          <Button Style="{StaticResource PtsPrimaryButton}" Content="Copy invite link" Command="{Binding CopyInviteCommand}" Margin="{StaticResource PtsSpace3Right}"/>
+          <Button Content="End session" Command="{Binding EndCommand}"/>
+        </StackPanel>
+      </StackPanel>
+    </StackPanel>
+
+    <!-- Right: the game, then the players. -->
+    <Grid Grid.Row="1" Grid.Column="2">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+      </Grid.RowDefinitions>
+
+      <StackPanel Grid.Row="0">
+        <TextBlock Style="{StaticResource PtsHeading}" Text="Game window"/>
+        <TextBlock Style="{StaticResource PtsMuted}" Text="{Binding GameText}" Margin="{StaticResource PtsSpace2Bottom}"/>
+      </StackPanel>
+      <ListBox Grid.Row="1" ItemsSource="{Binding Windows}" SelectedItem="{Binding SelectedWindow}" MinHeight="96"
+               AutomationProperties.Name="Open windows">
+        <ListBox.ItemTemplate>
+          <DataTemplate DataType="{x:Type wn:WindowInfo}">
+            <StackPanel>
+              <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold"/>
+              <TextBlock Text="{Binding ProcessName}" Style="{StaticResource PtsMuted}"/>
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+      <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="{StaticResource PtsSpace4Bottom}">
+        <Button Content="Use this window" Command="{Binding PinCommand}" Margin="{StaticResource PtsSpace3Right}"/>
+        <Button Content="Refresh list" Command="{Binding RefreshWindowsCommand}"/>
+      </StackPanel>
+
+      <Grid Grid.Row="3">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <StackPanel>
+          <TextBlock Style="{StaticResource PtsHeading}" Text="Players"/>
+          <TextBlock Style="{StaticResource PtsMuted}" Text="{Binding HolderText}" Margin="{StaticResource PtsSpace2Bottom}"/>
+        </StackPanel>
+        <ItemsControl Grid.Row="1" ItemsSource="{Binding Players}" AutomationProperties.Name="Players">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="{x:Type vm:PlayerViewModel}">
+              <Border Margin="{StaticResource PtsSpace2Bottom}" Padding="{StaticResource PtsSpace3Thickness}" CornerRadius="{StaticResource PtsRadiusPanel}" BorderThickness="2"
+                      BorderBrush="{DynamicResource PtsBorderSubtleBrush}" Background="{DynamicResource PtsSurfaceBrush}">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <StackPanel>
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding Status}" Style="{StaticResource PtsMuted}"/>
+                  </StackPanel>
+                  <Button Grid.Column="1" Content="Pass the stick" Command="{Binding PassCommand}"/>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <Button Grid.Row="2" Content="Take the stick back" Command="{Binding TakeBackCommand}" HorizontalAlignment="Left" Margin="{StaticResource PtsSpace2Top}"/>
+      </Grid>
+    </Grid>
+  </Grid>
+</Window>

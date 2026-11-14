@@ -35,6 +35,12 @@ const brushes = (theme) => Object.entries(t.color[theme])
 
 const metrics = [
   ...Object.entries(t.space).map(([k, v]) => `  <sys:Double x:Key="PtsSpace${k}">${v}</sys:Double>`),
+  ...Object.entries(t.space).flatMap(([k, v]) => [
+    `  <Thickness x:Key="PtsSpace${k}Thickness">${v}</Thickness>`,
+    `  <Thickness x:Key="PtsSpace${k}Top">0,${v},0,0</Thickness>`,
+    `  <Thickness x:Key="PtsSpace${k}Bottom">0,0,0,${v}</Thickness>`,
+    `  <Thickness x:Key="PtsSpace${k}Right">0,0,${v},0</Thickness>`,
+  ]),
   ...Object.entries(t.radius).map(([k, v]) => `  <CornerRadius x:Key="PtsRadius${pascal(k)}">${v}</CornerRadius>`),
   ...num(t.motion).map(([k, v]) => `  <Duration x:Key="PtsMotion${pascal(k)}">0:0:0.${String(v).padStart(3, "0")}</Duration>`),
   ...Object.entries(t.font).map(([k, f]) => `  <FontFamily x:Key="PtsFont${pascal(k)}">${f.family}, ${f.fallback.split(",")[0]}</FontFamily>`),

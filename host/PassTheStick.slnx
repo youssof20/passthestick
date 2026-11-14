@@ -1,4 +1,6 @@
 <Solution>
+  <Project Path="PassTheStick.App.Tests/PassTheStick.App.Tests.csproj" />
+  <Project Path="PassTheStick.App/PassTheStick.App.csproj" />
   <Project Path="PassTheStick.Core.Tests/PassTheStick.Core.Tests.csproj" />
   <Project Path="PassTheStick.Core/PassTheStick.Core.csproj" />
   <Project Path="PassTheStick.Dsu.Tests/PassTheStick.Dsu.Tests.csproj" />

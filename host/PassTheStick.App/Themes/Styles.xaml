@@ -1,0 +1,139 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Every color, radius, size and font below comes from the generated token dictionaries. -->
+
+  <Style x:Key="PtsFocusVisual">
+    <Setter Property="Control.Template">
+      <Setter.Value>
+        <ControlTemplate>
+          <Rectangle Margin="-3" StrokeThickness="3" Stroke="{DynamicResource PtsFocusBrush}" RadiusX="6" RadiusY="6"/>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- Implicit styles do not reach classes derived from Window, so windows opt in with Style="{StaticResource PtsWindow}". -->
+  <Style x:Key="PtsWindow" TargetType="Window">
+    <Setter Property="Background" Value="{DynamicResource PtsBgBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource PtsTextBrush}"/>
+    <Setter Property="FontFamily" Value="{StaticResource PtsFontUi}"/>
+    <Setter Property="FontSize" Value="{StaticResource PtsTypeBodySize}"/>
+    <Setter Property="UseLayoutRounding" Value="True"/>
+  </Style>
+
+  <Style TargetType="TextBlock">
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+
+  <Style x:Key="PtsMuted" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+    <Setter Property="Foreground" Value="{DynamicResource PtsTextMutedBrush}"/>
+    <Setter Property="FontSize" Value="{StaticResource PtsTypeCaptionSize}"/>
+  </Style>
+
+  <Style x:Key="PtsHeading" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+    <Setter Property="FontFamily" Value="{StaticResource PtsFontDisplay}"/>
+    <Setter Property="FontSize" Value="{StaticResource PtsTypeTitleSize}"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+
+  <Style x:Key="PtsRoomCode" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+    <Setter Property="FontFamily" Value="{StaticResource PtsFontCode}"/>
+    <Setter Property="FontSize" Value="{StaticResource PtsTypeRoomCodeSize}"/>
+    <Setter Property="FontWeight" Value="Bold"/>
+    <Setter Property="TextWrapping" Value="NoWrap"/>
+  </Style>
+
+  <Style TargetType="Button">
+    <Setter Property="FocusVisualStyle" Value="{StaticResource PtsFocusVisual}"/>
+    <Setter Property="Foreground" Value="{DynamicResource PtsTextBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource PtsSurfaceRaisedBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource PtsBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="2"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Padding" Value="{StaticResource PtsSpace3Thickness}"/>
+    <Setter Property="MinHeight" Value="40"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{StaticResource PtsRadiusControl}" Padding="{TemplateBinding Padding}">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsPressed" Value="True">
+              <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource PtsBorderSubtleBrush}"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter TargetName="Chrome" Property="Opacity" Value="0.45"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style x:Key="PtsPrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+    <Setter Property="Background" Value="{DynamicResource PtsAccentBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource PtsOnAccentBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource PtsOnAccentBrush}"/>
+  </Style>
+
+  <Style TargetType="TextBox">
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Foreground" Value="{DynamicResource PtsTextBrush}"/>
+    <Setter Property="CaretBrush" Value="{DynamicResource PtsTextBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource PtsSurfaceRaisedBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource PtsBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="2"/>
+    <Setter Property="Padding" Value="{StaticResource PtsSpace3Thickness}"/>
+    <Setter Property="MinHeight" Value="40"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="TextBox">
+          <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{StaticResource PtsRadiusControl}">
+            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+              <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource PtsFocusBrush}"/>
+              <Setter TargetName="Chrome" Property="BorderThickness" Value="3"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style TargetType="ListBox">
+    <Setter Property="Background" Value="{DynamicResource PtsSurfaceBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource PtsBorderSubtleBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Foreground" Value="{DynamicResource PtsTextBrush}"/>
+    <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+  </Style>
+
+  <Style TargetType="ListBoxItem">
+    <Setter Property="FocusVisualStyle" Value="{StaticResource PtsFocusVisual}"/>
+    <Setter Property="Padding" Value="{StaticResource PtsSpace3Thickness}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ListBoxItem">
+          <Border x:Name="Row" Background="Transparent" Padding="{TemplateBinding Padding}">
+            <ContentPresenter/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsSelected" Value="True">
+              <Setter TargetName="Row" Property="Background" Value="{DynamicResource PtsAccentBrush}"/>
+              <Setter Property="TextElement.Foreground" Value="{DynamicResource PtsOnAccentBrush}"/>
+            </Trigger>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Row" Property="Background" Value="{DynamicResource PtsBorderSubtleBrush}"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+</ResourceDictionary>

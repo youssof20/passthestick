@@ -59,3 +59,6 @@ Plain, specific, short. Banned: seamless, effortless, elevate, unleash, supercha
 ## Definition of done
 
 Tests pass for the host, the web client and the Worker in CI; no warnings; every screen uses tokens and passes AA; text humanized; installer size, idle CPU, memory and input latency measured and in the README; `docs/MANUAL_TEST.md` run as far as this machine allows; `CLAUDE.md`, `README.md`, `docs/` and `HANDOFF.md` current; everything committed on `revamp` with a PR summary.
+
+Run the app: `dotnet run --project host/PassTheStick.App` (needs a Worker; see the server address field, default http://127.0.0.1:8787).
+Regenerate tokens after editing design/tokens.json: `node scripts/gen-design.mjs`. Windows do not pick up implicit styles: give each window Style="{StaticResource PtsWindow}".
