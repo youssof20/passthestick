@@ -1,10 +1,10 @@
-# Handoff
+﻿# Handoff
 
 Running list of things only you can do or that could not be verified on this machine.
 
-## Blocking
+## Resolved
 
-1. **.NET SDK is not installed** on this machine (`dotnet --list-sdks` is empty). The host cannot be built or tested here. Install the .NET 10 SDK (`winget install Microsoft.DotNet.SDK.10`) and the rebuild can continue from phase 2.
+- .NET 10 SDK 10.0.404 installed via winget on this machine.
 
 ## Skills and plugins
 
@@ -15,3 +15,4 @@ Running list of things only you can do or that could not be verified on this mac
 - Cloudflare login (Workers + Durable Objects deploy).
 - Code signing (SignPath or Azure Trusted Signing).
 - Domain, if you want one beyond `github.io`.
+
