@@ -4,11 +4,11 @@ PassTheStick lets one person run a game and friends send keyboard, controller, m
 
 User stories: (1) Wii Bowling on Dolphin with a phone as the remote; (2) pass the stick on death in a Souls relay; (3) real co-op with one virtual pad per guest; (4) party with a queue and turn timer; (5) a friend joins from a link in under 30 seconds with nothing installed.
 
-Status: rebuild in progress on branch `revamp`. Phases 0-1 done (`docs/AUDIT.md`), phase 2 spikes done (`docs/SPIKES.md`), architecture written. The legacy code under `src/PassTheStick.*` is tagged `legacy-v0.1.29` and is being replaced. Read `REVITALIZE.md` for the full brief and `HANDOFF.md` for what needs the owner.
+Status: rebuild in progress on branch `revamp`. Phases 0-1 done (`docs/AUDIT.md`), phase 2 spikes done (`docs/SPIKES.md`), architecture written. The legacy code under `src/` is tagged `legacy-v0.1.29` and is being replaced. Read `REVITALIZE.md` for the full brief and `HANDOFF.md` for what needs the owner.
 
 ## Repo map (target)
 
-- `src/PassTheStick.{Protocol,Core,Platform,Windows,Net,Dsu,App}` host solution, see `docs/ARCHITECTURE.md`
+- `host/PassTheStick.{Protocol,Platform,Core,Windows,Net,Dsu,App}` host solution, see `docs/ARCHITECTURE.md`
 - `server/worker` Cloudflare Worker + Durable Object; `server/selfhost` same protocol for self-hosting
 - `web/guest` browser guest client; `site` landing page and docs
 - `design/tokens.json` single source for colors, type, spacing; generated into WPF resources and site CSS
@@ -22,7 +22,7 @@ Windows, PowerShell. If `dotnet` is not found in a fresh shell, refresh PATH fir
 
 ```
 dotnet build PassTheStick.sln -c Release          # legacy solution still builds (0 errors)
-dotnet test                                       # once test projects exist
+cd host; dotnet test                              # 78 tests, analyzers as errors
 cd server/worker; npm ci; npx wrangler dev        # signaling server locally (port 8787)
 cd server/worker; npm test                        # Worker tests
 ```
@@ -31,7 +31,7 @@ Not yet created: web guest dev server, installer build, site build. Add them her
 
 ## Architecture rules
 
-- Layering: Protocol <- Core <- Platform <- Windows/Net <- App. `Core` has no Win32 or WPF types.
+- Layering: Protocol <- Platform <- Core <- Windows/Net <- App. `Core` has no Win32 or WPF types.
 - No logic in code-behind. View models via CommunityToolkit.Mvvm, DI and logging via `Microsoft.Extensions.Hosting`.
 - Platform code sits behind `IInputInjector`, `IVirtualPadBackend`, `IDeviceHider`, `IWindowTracker`, `IOverlay`.
 - Protocol: versioned in `hello`/`welcome`; mismatch gets a clear "update your app" error. Change `protocol/schema.json`, regenerate, never hand-edit generated types.

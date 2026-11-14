@@ -21,8 +21,8 @@ PassTheStick lets one person run a game and friends send input to it over the in
 | Project | Owns | Depends on |
 |---|---|---|
 | `PassTheStick.Protocol` | Message types, binary encode/decode, version constant. No I/O. | nothing |
-| `PassTheStick.Core` | Session state machine (stick holder, epochs, turn modes, slots), input pipeline (validate, map, release-all), settings schema. Pure logic, fully unit tested. | Protocol |
-| `PassTheStick.Platform` | Interfaces: `IInputInjector`, `IVirtualPadBackend`, `IDeviceHider`, `IWindowTracker`, `IOverlay`, `ITransport`. | Core |
+| `PassTheStick.Core` | Session state machine (stick holder, epochs, turn modes, slots), input pipeline (validate, map, release-all), settings schema. Pure logic, fully unit tested. | Protocol, Platform |
+| `PassTheStick.Platform` | Interfaces: `IInputInjector`, `IVirtualPadBackend`, `IDeviceHider`, `IWindowTracker`, `IOverlay`, `ITransport`. | Protocol |
 | `PassTheStick.Windows` | Win32 implementations: SendInput injector, ViGEm backend (VIIPER later), HidHide, window tracker, hotkeys. | Platform |
 | `PassTheStick.Net` | libdatachannel peer manager, signaling client, relay fallback, LAN endpoint. | Core, Platform |
 | `PassTheStick.Dsu` | cemuhook UDP server. | Protocol |

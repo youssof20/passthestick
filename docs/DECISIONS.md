@@ -37,3 +37,13 @@ Format: decision, alternatives considered, why.
 ## D7. Tokens in JSON with a contrast gate
 
 - **Decision:** `design/tokens.json` is the only source; `scripts/gen-design.mjs` generates WPF dictionaries and site CSS and exits non-zero on any WCAG AA miss. First run caught the light border at 2.77:1; fixed.
+
+## D8. New host code lives in `host/`, legacy stays in `src/` until phase 5
+
+- **Why:** the legacy projects target net8 with relaxed rules and still build; the new code targets net10 with warnings as errors and `AnalysisMode=Recommended`. Separate roots keep both honest until the app is rebuilt, then `src/` is deleted.
+- **Dependency order changed:** Platform (interfaces) sits below Core, because the input pipeline in Core needs the injector and pad interfaces. Docs updated.
+
+## D9. Input identity and keys
+
+- Key events carry `KeyboardEvent.code`, mapped to set 1 scan codes plus the extended flag in `KeyMap`. Windows keys are not in the table, so a guest cannot open the host's Start menu.
+- Stuck-input release lives in one place (`InputPipeline.ReleaseAll`) and is triggered by holder change, pause, timeout, dispose. Each has a test, plus a concurrency test.

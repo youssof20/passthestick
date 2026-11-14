@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="PassTheStick.Core.Tests/PassTheStick.Core.Tests.csproj" />
+  <Project Path="PassTheStick.Core/PassTheStick.Core.csproj" />
+  <Project Path="PassTheStick.Platform/PassTheStick.Platform.csproj" />
+  <Project Path="PassTheStick.Protocol.Tests/PassTheStick.Protocol.Tests.csproj" />
+  <Project Path="PassTheStick.Protocol/PassTheStick.Protocol.csproj" />
+</Solution>
