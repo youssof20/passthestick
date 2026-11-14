@@ -21,3 +21,12 @@ public interface IVirtualPadBackend
     /// <summary>Centers sticks and triggers and releases every button for the slot.</summary>
     void Neutralize(int slot);
 }
+
+/// <summary>Knows which window the game is and whether it currently has the keyboard focus.</summary>
+public interface IWindowTracker
+{
+    bool IsPinned { get; }
+
+    /// <summary>True when the pinned window, or a window it owns, is the foreground window.</summary>
+    bool IsGameForeground { get; }
+}

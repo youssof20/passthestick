@@ -1,9 +1,13 @@
 <Solution>
   <Project Path="PassTheStick.Core.Tests/PassTheStick.Core.Tests.csproj" />
   <Project Path="PassTheStick.Core/PassTheStick.Core.csproj" />
+  <Project Path="PassTheStick.Dsu.Tests/PassTheStick.Dsu.Tests.csproj" />
+  <Project Path="PassTheStick.Dsu/PassTheStick.Dsu.csproj" />
   <Project Path="PassTheStick.Net.Tests/PassTheStick.Net.Tests.csproj" />
   <Project Path="PassTheStick.Net/PassTheStick.Net.csproj" />
   <Project Path="PassTheStick.Platform/PassTheStick.Platform.csproj" />
   <Project Path="PassTheStick.Protocol.Tests/PassTheStick.Protocol.Tests.csproj" />
   <Project Path="PassTheStick.Protocol/PassTheStick.Protocol.csproj" />
+  <Project Path="PassTheStick.Windows.Tests/PassTheStick.Windows.Tests.csproj" />
+  <Project Path="PassTheStick.Windows/PassTheStick.Windows.csproj" />
 </Solution>

@@ -470,3 +470,44 @@ public sealed class InputPipelineTests : IDisposable
         Assert.All(_pad.State.Values, s => Assert.Equal(PadState.Neutral, s));
     }
 }
+
+internal sealed class FakeTracker : IWindowTracker
+{
+    public bool IsPinned { get; set; } = true;
+
+    public bool IsGameForeground { get; set; } = true;
+}
+
+public sealed class InputPumpTests
+{
+    [Fact]
+    public void Unpinned_or_background_game_pauses_and_releases_and_foreground_resumes()
+    {
+        var session = new StickSession("host");
+        session.AddPlayer("a", "A");
+        var inj = new FakeInjector();
+        var pad = new FakePad();
+        var tracker = new FakeTracker();
+        using var pipe = new InputPipeline(session, inj, pad);
+        var pump = new InputPump(tracker, pipe);
+        session.PassTo("a");
+
+        pump.Step();
+        Assert.Equal(InputResult.Accepted, pipe.HandleKey("a", session.Epoch, "KeyW", true));
+        Assert.Single(inj.Down);
+
+        tracker.IsGameForeground = false;
+        pump.Step();
+        Assert.Empty(inj.Down);
+        Assert.Equal(InputResult.Paused, pipe.HandleKey("a", session.Epoch, "KeyW", true));
+
+        tracker.IsGameForeground = true;
+        tracker.IsPinned = false;
+        pump.Step();
+        Assert.Equal(InputResult.Paused, pipe.HandleKey("a", session.Epoch, "KeyW", true));
+
+        tracker.IsPinned = true;
+        pump.Step();
+        Assert.Equal(InputResult.Accepted, pipe.HandleKey("a", session.Epoch, "KeyW", true));
+    }
+}
