@@ -50,7 +50,7 @@
     <Setter Property="BorderBrush" Value="{DynamicResource PtsBorderBrush}"/>
     <Setter Property="BorderThickness" Value="2"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
-    <Setter Property="Padding" Value="{StaticResource PtsSpace3Thickness}"/>
+    <Setter Property="Padding" Value="{StaticResource PtsInsetControl}"/>
     <Setter Property="MinHeight" Value="40"/>
     <Setter Property="Cursor" Value="Hand"/>
     <Setter Property="Template">
@@ -120,16 +120,21 @@
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="ListBoxItem">
-          <Border x:Name="Row" Background="Transparent" Padding="{TemplateBinding Padding}">
-            <ContentPresenter/>
-          </Border>
+          <Grid x:Name="Row" Background="Transparent">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="4"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Rectangle x:Name="Bar" Fill="{DynamicResource PtsAccentBrush}" Visibility="Hidden"/>
+            <ContentPresenter Grid.Column="1" Margin="{TemplateBinding Padding}"/>
+          </Grid>
           <ControlTemplate.Triggers>
-            <Trigger Property="IsSelected" Value="True">
-              <Setter TargetName="Row" Property="Background" Value="{DynamicResource PtsAccentBrush}"/>
-              <Setter Property="TextElement.Foreground" Value="{DynamicResource PtsOnAccentBrush}"/>
-            </Trigger>
             <Trigger Property="IsMouseOver" Value="True">
               <Setter TargetName="Row" Property="Background" Value="{DynamicResource PtsBorderSubtleBrush}"/>
+            </Trigger>
+            <Trigger Property="IsSelected" Value="True">
+              <Setter TargetName="Row" Property="Background" Value="{DynamicResource PtsSurfaceRaisedBrush}"/>
+              <Setter TargetName="Bar" Property="Visibility" Value="Visible"/>
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
@@ -183,6 +188,225 @@
               <Setter TargetName="Dot" Property="Visibility" Value="Visible"/>
             </Trigger>
           </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- Layout building blocks. Everything draws from tokens: no gradients, no glow, accent only for the stick and the main action. -->
+  <Style x:Key="PtsDisplay" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+    <Setter Property="FontFamily" Value="{StaticResource PtsFontDisplay}"/>
+    <Setter Property="FontSize" Value="{StaticResource PtsTypeHeadingSize}"/>
+    <Setter Property="FontWeight" Value="Bold"/>
+  </Style>
+
+  <Style x:Key="PtsLead" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+    <Setter Property="Foreground" Value="{DynamicResource PtsTextMutedBrush}"/>
+    <Setter Property="FontSize" Value="{StaticResource PtsTypeBodySize}"/>
+  </Style>
+
+  <Style x:Key="PtsCardTitle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+    <Setter Property="FontFamily" Value="{StaticResource PtsFontDisplay}"/>
+    <Setter Property="FontSize" Value="{StaticResource PtsTypeTitleSize}"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+
+  <Style x:Key="PtsIcon" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+    <Setter Property="FontFamily" Value="{StaticResource PtsFontIcons}"/>
+    <Setter Property="TextWrapping" Value="NoWrap"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+
+  <Style x:Key="PtsCard" TargetType="Border">
+    <Setter Property="Background" Value="{DynamicResource PtsSurfaceBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource PtsBorderSubtleBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="{StaticResource PtsRadiusPanel}"/>
+    <Setter Property="Padding" Value="{StaticResource PtsSpace5Thickness}"/>
+  </Style>
+
+  <Style x:Key="PtsStep" TargetType="Border">
+    <Setter Property="Width" Value="32"/>
+    <Setter Property="Height" Value="32"/>
+    <Setter Property="CornerRadius" Value="{StaticResource PtsRadiusChip}"/>
+    <Setter Property="Background" Value="{DynamicResource PtsAccentBrush}"/>
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource PtsOnAccentBrush}"/>
+    <Setter Property="Margin" Value="{StaticResource PtsSpace3Right}"/>
+  </Style>
+
+  <Style x:Key="PtsStatusPill" TargetType="Border">
+    <Setter Property="MinHeight" Value="32"/>
+    <Setter Property="CornerRadius" Value="{StaticResource PtsRadiusChip}"/>
+    <Setter Property="Padding" Value="{StaticResource PtsInsetPill}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource PtsBorderBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource PtsSurfaceRaisedBrush}"/>
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource PtsTextMutedBrush}"/>
+    <Style.Triggers>
+      <DataTrigger Binding="{Binding Phase}" Value="Live">
+        <Setter Property="Background" Value="{DynamicResource PtsLiveBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PtsLiveBrush}"/>
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource PtsOnLiveBrush}"/>
+      </DataTrigger>
+      <DataTrigger Binding="{Binding Phase}" Value="Reconnecting">
+        <Setter Property="Background" Value="{DynamicResource PtsAccentBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PtsAccentBrush}"/>
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource PtsOnAccentBrush}"/>
+      </DataTrigger>
+      <DataTrigger Binding="{Binding Phase}" Value="Failed">
+        <Setter Property="Background" Value="{DynamicResource PtsDangerBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PtsDangerBrush}"/>
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource PtsOnDangerBrush}"/>
+      </DataTrigger>
+    </Style.Triggers>
+  </Style>
+
+  <Style x:Key="PtsNotice" TargetType="Border">
+    <Setter Property="Visibility" Value="Collapsed"/>
+    <Setter Property="Background" Value="{DynamicResource PtsSurfaceRaisedBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource PtsBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="{StaticResource PtsRadiusPanel}"/>
+    <Style.Triggers>
+      <DataTrigger Binding="{Binding HasNotice}" Value="True">
+        <Setter Property="Visibility" Value="Visible"/>
+      </DataTrigger>
+      <MultiDataTrigger>
+        <MultiDataTrigger.Conditions>
+          <Condition Binding="{Binding HasNotice}" Value="True"/>
+          <Condition Binding="{Binding NoticeIsProblem}" Value="True"/>
+        </MultiDataTrigger.Conditions>
+        <Setter Property="BorderBrush" Value="{DynamicResource PtsDangerBrush}"/>
+        <Setter Property="BorderThickness" Value="2"/>
+      </MultiDataTrigger>
+    </Style.Triggers>
+  </Style>
+
+  <Style x:Key="PtsWarning" TargetType="Border">
+    <Setter Property="Visibility" Value="Collapsed"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource PtsDangerBrush}"/>
+    <Setter Property="BorderThickness" Value="2"/>
+    <Setter Property="CornerRadius" Value="{StaticResource PtsRadiusPanel}"/>
+    <Style.Triggers>
+      <DataTrigger Binding="{Binding GameWarningVisible}" Value="True">
+        <Setter Property="Visibility" Value="Visible"/>
+      </DataTrigger>
+    </Style.Triggers>
+  </Style>
+
+  <Style x:Key="PtsRow" TargetType="Border">
+    <Setter Property="Background" Value="{DynamicResource PtsBgBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource PtsBorderSubtleBrush}"/>
+    <Setter Property="BorderThickness" Value="2"/>
+    <Setter Property="CornerRadius" Value="{StaticResource PtsRadiusPanel}"/>
+  </Style>
+
+  <Style x:Key="PtsAvatar" TargetType="Border">
+    <Setter Property="Width" Value="40"/>
+    <Setter Property="Height" Value="40"/>
+    <Setter Property="CornerRadius" Value="{StaticResource PtsRadiusRound}"/>
+    <Setter Property="Background" Value="{DynamicResource PtsSurfaceRaisedBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource PtsBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="2"/>
+  </Style>
+
+  <Style x:Key="PtsHolderTag" TargetType="Border">
+    <Setter Property="MinHeight" Value="32"/>
+    <Setter Property="CornerRadius" Value="{StaticResource PtsRadiusChip}"/>
+    <Setter Property="Padding" Value="{StaticResource PtsInsetPill}"/>
+    <Setter Property="Background" Value="{DynamicResource PtsAccentBrush}"/>
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource PtsOnAccentBrush}"/>
+  </Style>
+
+  <Style x:Key="PtsKeycap" TargetType="Border">
+    <Setter Property="Background" Value="{DynamicResource PtsSurfaceRaisedBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource PtsBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1,1,1,3"/>
+    <Setter Property="CornerRadius" Value="{StaticResource PtsRadiusControl}"/>
+    <Setter Property="Padding" Value="{StaticResource PtsInsetKeycap}"/>
+    <Setter Property="Margin" Value="{StaticResource PtsSpace1Thickness}"/>
+    <Setter Property="TextElement.FontFamily" Value="{StaticResource PtsFontCode}"/>
+    <Setter Property="TextElement.FontSize" Value="{StaticResource PtsTypeCaptionSize}"/>
+  </Style>
+
+  <Style x:Key="PtsIconButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+    <Setter Property="FontFamily" Value="{StaticResource PtsFontIcons}"/>
+    <Setter Property="MinWidth" Value="40"/>
+    <Setter Property="Padding" Value="{StaticResource PtsSpace2Thickness}"/>
+  </Style>
+
+  <Style x:Key="PtsDangerButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+    <Setter Property="BorderBrush" Value="{DynamicResource PtsDangerBrush}"/>
+  </Style>
+
+  <Style x:Key="PtsBareTextBox" TargetType="TextBox">
+    <Setter Property="Foreground" Value="{DynamicResource PtsTextBrush}"/>
+    <Setter Property="CaretBrush" Value="{DynamicResource PtsTextBrush}"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+
+  <Style x:Key="PtsExpander" TargetType="Expander">
+    <Setter Property="Foreground" Value="{DynamicResource PtsTextBrush}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Expander">
+          <StackPanel>
+            <ToggleButton x:Name="Header" IsChecked="{Binding IsExpanded, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" Cursor="Hand" FocusVisualStyle="{StaticResource PtsFocusVisual}">
+              <ToggleButton.Template>
+                <ControlTemplate TargetType="ToggleButton">
+                  <StackPanel Orientation="Horizontal" Background="Transparent">
+                    <TextBlock x:Name="Chevron" Style="{StaticResource PtsIcon}" Text="&#xE76C;" Margin="{StaticResource PtsSpace2Right}" Foreground="{DynamicResource PtsTextMutedBrush}"/>
+                    <ContentPresenter VerticalAlignment="Center" TextElement.Foreground="{DynamicResource PtsTextMutedBrush}"/>
+                  </StackPanel>
+                  <ControlTemplate.Triggers>
+                    <Trigger Property="IsChecked" Value="True">
+                      <Setter TargetName="Chevron" Property="Text" Value="&#xE70D;"/>
+                    </Trigger>
+                  </ControlTemplate.Triggers>
+                </ControlTemplate>
+              </ToggleButton.Template>
+              <ContentPresenter ContentSource="Header"/>
+            </ToggleButton>
+            <ContentPresenter x:Name="Body" Visibility="Collapsed"/>
+          </StackPanel>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsExpanded" Value="True">
+              <Setter TargetName="Body" Property="Visibility" Value="Visible"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- Thin tokenized scrollbars instead of the white system ones. -->
+  <Style TargetType="ScrollBar">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Width" Value="12"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ScrollBar">
+          <Grid Background="Transparent">
+            <Track x:Name="PART_Track" IsDirectionReversed="True">
+              <Track.DecreaseRepeatButton>
+                <RepeatButton Command="ScrollBar.PageUpCommand" Opacity="0" Focusable="False"/>
+              </Track.DecreaseRepeatButton>
+              <Track.IncreaseRepeatButton>
+                <RepeatButton Command="ScrollBar.PageDownCommand" Opacity="0" Focusable="False"/>
+              </Track.IncreaseRepeatButton>
+              <Track.Thumb>
+                <Thumb>
+                  <Thumb.Template>
+                    <ControlTemplate TargetType="Thumb">
+                      <Border Background="{DynamicResource PtsBorderBrush}" CornerRadius="{StaticResource PtsRadiusControl}" Margin="2,0"/>
+                    </ControlTemplate>
+                  </Thumb.Template>
+                </Thumb>
+              </Track.Thumb>
+            </Track>
+          </Grid>
         </ControlTemplate>
       </Setter.Value>
     </Setter>

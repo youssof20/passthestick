@@ -239,7 +239,7 @@ public sealed class MainViewModelTests : IDisposable
         _session.RaisePlayers();
 
         Assert.Equal("Ann has the stick", vm.HolderText);
-        Assert.Equal(["Has the stick", "Waiting", "Reconnecting"], vm.Players.Select(p => p.Status));
+        Assert.Equal(["Has the stick", "Waiting for a turn", "Reconnecting"], vm.Players.Select(p => p.Status));
         Assert.Equal([false, true, false], vm.Players.Select(p => p.PassCommand.CanExecute(null)));
 
         vm.Players[1].PassCommand.Execute(null);
@@ -293,12 +293,13 @@ public sealed class MainViewModelTests : IDisposable
 
         _session.Game = new GameStatus(true, "Dolphin", true, false);
         vm.RefreshGame();
-        Assert.Equal("Sending input to Dolphin", vm.GameText);
+        Assert.Equal("Input is going to this window.", vm.GameText);
+        Assert.Equal("Dolphin", vm.GameTitle);
         Assert.False(vm.GameWarningVisible);
 
         _session.Game = new GameStatus(true, "Dolphin", false, true);
         vm.RefreshGame();
-        Assert.Contains("not in front", vm.GameText);
+        Assert.Contains("Not in front", vm.GameText);
         Assert.True(vm.GameWarningVisible);
         Assert.Contains("administrator", vm.GameWarning);
     }
@@ -697,5 +698,135 @@ public sealed class WizardTests : IDisposable
         _session.RaiseProbe(new ProbeInfo("Bo", true, new PadState(PadButtons.B, 0, 0, 0, 0, 0, 0), []));
         Assert.True(vm.Probe.IsActive);
         Assert.Contains("Bo", vm.Probe.Title);
+    }
+}
+
+public sealed class LayoutStateTests : IDisposable
+{
+    private readonly string _dir = Path.Combine(Path.GetTempPath(), "pts-lay-" + Guid.NewGuid().ToString("N"));
+    private readonly FakeSession _session = new();
+    private readonly FakeClipboard _clipboard = new();
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_dir))
+        {
+            Directory.Delete(_dir, true);
+        }
+    }
+
+    private MainViewModel Make() =>
+        new(_session, new InlineUi(), _clipboard, new FakeNotifier(), new SettingsStore(Path.Combine(_dir, "s.json")), new AppSettings { OnboardingCompleted = true }, null);
+
+    [Fact]
+    public void Searching_filters_the_window_list_by_title_or_program_and_keeps_the_selection_when_it_still_matches()
+    {
+        var vm = Make();
+        vm.SelectedWindow = vm.Windows.Single(w => w.Title == "Dolphin");
+        vm.SearchText = "dol";
+        Assert.Equal(["Dolphin"], vm.Windows.Select(w => w.Title));
+        Assert.NotNull(vm.SelectedWindow);
+
+        vm.SearchText = "NOTEPAD";
+        Assert.Equal(["Notes"], vm.Windows.Select(w => w.Title));
+        Assert.Null(vm.SelectedWindow);
+
+        vm.SearchText = string.Empty;
+        Assert.Equal(2, vm.Windows.Count);
+    }
+
+    [Fact]
+    public async Task The_window_picker_is_open_until_a_game_is_chosen_then_opens_only_on_demand_during_a_session()
+    {
+        var vm = Make();
+        Assert.True(vm.ShowPicker);
+
+        await vm.StartCommand.ExecuteAsync(null);
+        Assert.True(vm.ShowPicker); // live but no game yet
+
+        _session.Game = new GameStatus(true, "Dolphin", true, false);
+        vm.RefreshGame();
+        Assert.False(vm.ShowPicker);
+        Assert.True(vm.HasGame);
+
+        vm.ChangeGameCommand.Execute(null);
+        Assert.True(vm.ShowPicker);
+
+        vm.SelectedWindow = vm.Windows[0];
+        vm.PinCommand.Execute(null);
+        Assert.False(vm.ShowPicker);
+    }
+
+    [Fact]
+    public void The_start_hint_tells_the_person_what_will_happen()
+    {
+        var vm = Make();
+        Assert.Contains("pick the game window later", vm.StartHint);
+        _session.Game = new GameStatus(true, "Dolphin", true, false);
+        vm.RefreshGame();
+        Assert.Equal("Ready. Guests will send input to Dolphin.", vm.StartHint);
+    }
+
+    [Fact]
+    public async Task Notices_are_marked_as_problems_only_when_something_went_wrong()
+    {
+        var vm = Make();
+        _clipboard.Works = false;
+        vm.RoomCode = "K7M2QX";
+        await vm.StartCommand.ExecuteAsync(null);
+        vm.CopyInviteCommand.Execute(null);
+        Assert.True(vm.NoticeIsProblem);
+
+        _clipboard.Works = true;
+        vm.CopyInviteCommand.Execute(null);
+        Assert.False(vm.NoticeIsProblem);
+
+        _session.Raise(SessionPhase.Failed, "Could not reach the server.");
+        Assert.True(vm.NoticeIsProblem);
+
+        vm.DismissNoticeCommand.Execute(null);
+        Assert.False(vm.HasNotice);
+        Assert.False(vm.NoticeIsProblem);
+    }
+
+    [Fact]
+    public async Task Players_summary_and_empty_state_follow_who_has_joined()
+    {
+        var vm = Make();
+        await vm.StartCommand.ExecuteAsync(null);
+        Assert.True(vm.NoPlayers);
+        Assert.Equal("Nobody has joined yet", vm.PlayersSummary);
+
+        _session.Players = [new PlayerSnapshot("a", "maya", 0, false, false)];
+        _session.RaisePlayers();
+        Assert.Equal("1 player", vm.PlayersSummary);
+        Assert.True(vm.HasPlayers);
+        Assert.Equal("M", vm.Players[0].Initial);
+        Assert.Equal("Player 1", vm.Players[0].SlotText);
+
+        _session.Players = [.. _session.Players, new PlayerSnapshot("b", "Jonas", 1, false, false)];
+        _session.RaisePlayers();
+        Assert.Equal("2 players", vm.PlayersSummary);
+    }
+
+    [Fact]
+    public void Hotkeys_are_split_into_keycaps()
+    {
+        var vm = Make();
+        Assert.Equal(["Ctrl", "Shift", "Right"], vm.PassKeys);
+        Assert.Equal(["Ctrl", "Shift", "Left"], vm.TakeBackKeys);
+    }
+
+    [Fact]
+    public void Copying_the_code_alone_works_and_reports_clipboard_trouble()
+    {
+        var vm = Make();
+        vm.RoomCode = "K7M2QX";
+        vm.CopyCodeCommand.Execute(null);
+        Assert.Equal("K7M2QX", _clipboard.Text);
+        Assert.Equal("Room code copied.", vm.Notice);
+        _clipboard.Works = false;
+        vm.CopyCodeCommand.Execute(null);
+        Assert.True(vm.NoticeIsProblem);
     }
 }

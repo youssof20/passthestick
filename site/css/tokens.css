@@ -26,6 +26,8 @@
   --space-8: 4.5rem;
   --radius-control: 4px;
   --radius-panel: 12px;
+  --radius-chip: 16px;
+  --radius-round: 20px;
   --radius-pill: 999px;
   --motion-instant: 90ms;
   --motion-quick: 160ms;

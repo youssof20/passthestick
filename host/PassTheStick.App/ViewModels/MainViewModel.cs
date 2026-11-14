@@ -32,6 +32,7 @@ public sealed partial class PlayerViewModel : ObservableObject
     {
         Id = snapshot.Id;
         Name = snapshot.Name;
+        SlotText = $"Player {snapshot.Slot + 1}";
         HasStick = snapshot.HasStick;
         Away = snapshot.Away;
         _pass = pass;
@@ -41,11 +42,16 @@ public sealed partial class PlayerViewModel : ObservableObject
 
     public string Name { get; }
 
+    /// <summary>First letter of the name, shown in the avatar circle.</summary>
+    public string Initial => Name.Length > 0 ? char.ToUpperInvariant(Name[0]).ToString() : "?";
+
+    public string SlotText { get; }
+
     public bool HasStick { get; }
 
     public bool Away { get; }
 
-    public string Status => HasStick ? "Has the stick" : Away ? "Reconnecting" : "Waiting";
+    public string Status => HasStick ? "Has the stick" : Away ? "Reconnecting" : "Waiting for a turn";
 
     public bool CanPass => !HasStick && !Away;
 
@@ -73,6 +79,8 @@ public sealed partial class MainViewModel : ObservableObject
         ServerUrl = settings.ServerUrl;
         PassHotkeyText = HotkeyBinding.TryParse(settings.PassHotkey, out var pass) ? pass.ToString() : HotkeyBinding.DefaultPass.ToString();
         TakeBackHotkeyText = HotkeyBinding.TryParse(settings.TakeBackHotkey, out var back) ? back.ToString() : HotkeyBinding.DefaultTakeBack.ToString();
+        PassKeys = [.. PassHotkeyText.Split('+')];
+        TakeBackKeys = [.. TakeBackHotkeyText.Split('+')];
         Notice = startupNotice;
         if (!settings.OnboardingCompleted)
         {
@@ -111,15 +119,52 @@ public sealed partial class MainViewModel : ObservableObject
 
     public string TakeBackHotkeyText { get; }
 
+    /// <summary>The pass hotkey split into key names, for drawing keycaps.</summary>
+    public IReadOnlyList<string> PassKeys { get; }
+
+    public IReadOnlyList<string> TakeBackKeys { get; }
+
     /// <summary>Closing the window while hosting hides it to the tray instead of ending the session.</summary>
     public bool ShouldHideOnClose => IsLive;
 
     public ObservableCollection<PlayerViewModel> Players { get; } = [];
 
+    /// <summary>The open windows that match the search box.</summary>
     public ObservableCollection<WindowInfo> Windows { get; } = [];
 
+    private List<WindowInfo> _allWindows = [];
+
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsIdle), nameof(IsLive), nameof(CanStart), nameof(PhaseText), nameof(HasRoom), nameof(InviteLink), nameof(ShouldHideOnClose))]
+    private string _searchText = string.Empty;
+
+    partial void OnSearchTextChanged(string value) => ApplyWindowFilter();
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowPicker))]
+    private bool _isPickingGame;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowPicker), nameof(NoGame), nameof(StartHint))]
+    private bool _hasGame;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StartHint))]
+    private string _gameTitle = string.Empty;
+
+    public bool NoGame => !HasGame;
+
+    public string StartHint => HasGame
+        ? $"Ready. Guests will send input to {GameTitle}."
+        : "You can start now and pick the game window later.";
+
+    /// <summary>The window list is always open before a session, and opens on demand once a game is chosen.</summary>
+    public bool ShowPicker => IsIdle || IsPickingGame || !HasGame;
+
+    [ObservableProperty]
+    private bool _noticeIsProblem;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsIdle), nameof(IsLive), nameof(CanStart), nameof(PhaseText), nameof(HasRoom), nameof(InviteLink), nameof(ShouldHideOnClose), nameof(ShowPicker))]
     [NotifyCanExecuteChangedFor(nameof(StartCommand), nameof(EndCommand))]
     private SessionPhase _phase = SessionPhase.Idle;
 
@@ -160,6 +205,17 @@ public sealed partial class MainViewModel : ObservableObject
 
     public bool HasNotice => !string.IsNullOrEmpty(Notice);
 
+    public bool HasPlayers => Players.Count > 0;
+
+    public bool NoPlayers => Players.Count == 0;
+
+    public string PlayersSummary => Players.Count switch
+    {
+        0 => "Nobody has joined yet",
+        1 => "1 player",
+        _ => $"{Players.Count} players",
+    };
+
     public string InviteLink => HasRoom ? $"{InviteBase}/join#{RoomCode}" : string.Empty;
 
     /// <summary>The page that hosts the web guest. Defaults to the server address; the release build points it at the site.</summary>
@@ -174,16 +230,47 @@ public sealed partial class MainViewModel : ObservableObject
         _ => "Stopped",
     };
 
+    private void Say(string? text)
+    {
+        Notice = text;
+        NoticeIsProblem = false;
+    }
+
+    private void Warn(string text)
+    {
+        Notice = text;
+        NoticeIsProblem = true;
+    }
+
+    [RelayCommand]
+    private void DismissNotice() => Say(null);
+
+    [RelayCommand]
+    private void ChangeGame() => IsPickingGame = !IsPickingGame;
+
+    [RelayCommand]
+    private void CopyCode()
+    {
+        if (_clipboard.TrySetText(RoomCode))
+        {
+            Say("Room code copied.");
+        }
+        else
+        {
+            Warn("Could not reach the clipboard. Select the code and copy it by hand.");
+        }
+    }
+
     [RelayCommand(CanExecute = nameof(CanStart))]
     private async Task StartAsync()
     {
         if (!Uri.TryCreate(ServerUrl.Trim(), UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
         {
-            Notice = "The server address needs to start with http:// or https://.";
+            Warn("The server address needs to start with http:// or https://.");
             return;
         }
 
-        Notice = null;
+        Say(null);
         _settings = _settings with { ServerUrl = uri.ToString().TrimEnd('/') };
         TrySave();
         await _session.StartAsync(uri, CancellationToken.None);
@@ -195,9 +282,14 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void CopyInvite()
     {
-        Notice = _clipboard.TrySetText(InviteLink)
-            ? "Invite link copied. Paste it into Discord."
-            : "Could not reach the clipboard. Select the link and copy it by hand.";
+        if (_clipboard.TrySetText(InviteLink))
+        {
+            Say("Invite link copied. Paste it into Discord.");
+        }
+        else
+        {
+            Warn("Could not reach the clipboard. Select the link and copy it by hand.");
+        }
     }
 
     [RelayCommand]
@@ -206,10 +298,10 @@ public sealed partial class MainViewModel : ObservableObject
         switch (_session.PassNext())
         {
             case PassOutcome.ApprovedRequest:
-                Notice = "Passed the stick to the guest who asked.";
+                Say("Passed the stick to the guest who asked.");
                 break;
             case PassOutcome.NoOneToPass:
-                Notice = "Nobody else is in the session yet. Send them the invite link.";
+                Say("Nobody else is in the session yet. Send them the invite link.");
                 break;
             default:
                 break;
@@ -221,14 +313,14 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (problems.Count > 0)
         {
-            Notice = string.Join(" ", problems);
+            Warn(string.Join(" ", problems));
         }
     }
 
     private void OnStickRequested(string name)
     {
-        Notice = $"{name} wants the stick. Press {PassHotkeyText} to give it to them.";
-        _notifier.Show("PassTheStick", Notice);
+        Say($"{name} wants the stick. Press {PassHotkeyText} to give it to them.");
+        _notifier.Show("PassTheStick", Notice!);
     }
 
     [RelayCommand]
@@ -236,7 +328,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (!_session.TakeBack())
         {
-            Notice = "You already have the stick.";
+            Say("You already have the stick.");
         }
     }
 
@@ -244,8 +336,19 @@ public sealed partial class MainViewModel : ObservableObject
     private void RefreshWindows()
     {
         var keep = SelectedWindow?.Handle;
+        _allWindows = [.. _session.ListWindows()];
+        ApplyWindowFilter();
+        SelectedWindow = Windows.FirstOrDefault(w => w.Handle == keep);
+    }
+
+    private void ApplyWindowFilter()
+    {
+        var keep = SelectedWindow?.Handle;
+        var query = SearchText.Trim();
         Windows.Clear();
-        foreach (var w in _session.ListWindows())
+        foreach (var w in _allWindows.Where(w => query.Length == 0
+            || w.Title.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || w.ProcessName.Contains(query, StringComparison.OrdinalIgnoreCase)))
         {
             Windows.Add(w);
         }
@@ -259,11 +362,12 @@ public sealed partial class MainViewModel : ObservableObject
         try
         {
             _session.PinWindow(SelectedWindow!.Handle);
-            Notice = null;
+            Say(null);
+            IsPickingGame = false;
         }
         catch (InvalidOperationException ex)
         {
-            Notice = ex.Message;
+            Warn(ex.Message);
             RefreshWindows();
         }
 
@@ -276,6 +380,8 @@ public sealed partial class MainViewModel : ObservableObject
     public void RefreshGame()
     {
         var game = _session.Game;
+        HasGame = game.IsPinned;
+        GameTitle = game.IsPinned ? game.Title : string.Empty;
         if (!game.IsPinned)
         {
             GameText = "No game window picked yet. Pick one so guests can send input to it.";
@@ -284,7 +390,7 @@ public sealed partial class MainViewModel : ObservableObject
             return;
         }
 
-        GameText = game.IsForeground ? $"Sending input to {game.Title}" : $"{game.Title} is not in front. Input is paused until you click it.";
+        GameText = game.IsForeground ? "Input is going to this window." : "Not in front. Input is paused until you click it.";
         GameWarningVisible = game.NeedsElevation;
         GameWarning = game.NeedsElevation
             ? "This game runs as administrator, so Windows blocks input from PassTheStick. Restart PassTheStick as administrator."
@@ -297,6 +403,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (message is not null)
         {
             Notice = message;
+            NoticeIsProblem = phase is SessionPhase.Failed;
         }
 
         if (phase is SessionPhase.Idle or SessionPhase.Failed)
@@ -307,7 +414,7 @@ public sealed partial class MainViewModel : ObservableObject
 
         if (phase is SessionPhase.Live && _session.PadProblem is { } problem)
         {
-            Notice = problem;
+            Warn(problem);
         }
     }
 
@@ -319,6 +426,9 @@ public sealed partial class MainViewModel : ObservableObject
             Players.Add(new PlayerViewModel(p, id => _session.PassTo(id)));
         }
 
+        OnPropertyChanged(nameof(HasPlayers));
+        OnPropertyChanged(nameof(NoPlayers));
+        OnPropertyChanged(nameof(PlayersSummary));
         HolderText = _session.HostHoldsStick ? "You have the stick" : $"{_session.Players.FirstOrDefault(p => p.HasStick)?.Name ?? "A guest"} has the stick";
     }
 
@@ -330,7 +440,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
         catch (IOException)
         {
-            Notice = "Could not save your settings. The session still works.";
+            Warn("Could not save your settings. The session still works.");
         }
     }
 }

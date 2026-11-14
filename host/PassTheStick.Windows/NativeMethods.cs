@@ -112,6 +112,9 @@ internal static partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool UnregisterHotKey(nint window, int id);
 
+    [LibraryImport("dwmapi.dll")]
+    public static partial int DwmSetWindowAttribute(nint window, int attribute, ref int value, int size);
+
     [LibraryImport("winmm.dll")]
     public static partial uint timeBeginPeriod(uint milliseconds);
 

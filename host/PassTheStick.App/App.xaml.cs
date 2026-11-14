@@ -22,6 +22,9 @@ public partial class App : Application
     private HotkeyHost? _hotkeys;
     private bool _exiting;
 
+    /// <summary>True when Windows is set to the light app theme.</summary>
+    public static bool IsLightTheme { get; private set; }
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -152,7 +155,16 @@ public partial class App : Application
 
     private void ApplySystemTheme()
     {
-        var light = Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize", "AppsUseLightTheme", 1) is int v && v != 0;
+        var forced = Environment.GetEnvironmentVariable("PTS_THEME");
+        var light = forced is not null
+            ? string.Equals(forced, "light", StringComparison.OrdinalIgnoreCase)
+            : Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize", "AppsUseLightTheme", 1) is int v && v != 0;
+        IsLightTheme = light;
+        if (MainWindow is { } open)
+        {
+            TitleBar.UseDark(new System.Windows.Interop.WindowInteropHelper(open).Handle, !light);
+        }
+
         var merged = Resources.MergedDictionaries;
         var existing = merged.FirstOrDefault(d => d.Source?.OriginalString.Contains("Tokens.Light", StringComparison.Ordinal) == true
             || d.Source?.OriginalString.Contains("Tokens.Dark", StringComparison.Ordinal) == true);
