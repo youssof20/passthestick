@@ -47,7 +47,7 @@ public partial class App : Application
                 s.AddSingleton<IClipboardService, WpfClipboard>();
                 s.AddSingleton<DeferredNotifier>();
                 s.AddSingleton<INotifier>(sp => sp.GetRequiredService<DeferredNotifier>());
-                s.AddSingleton<IHostSession, HostSession>();
+                s.AddSingleton<IHostSession>(sp => new HostSession(store, sp.GetRequiredService<ILoggerFactory>()));
                 s.AddSingleton(sp => new MainViewModel(
                     sp.GetRequiredService<IHostSession>(),
                     sp.GetRequiredService<IUiThread>(),

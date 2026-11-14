@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { KeyCapture, PanicKey, mergePads, motionFromEvent } from "../src/keys";
+import { KeyCapture, PanicKey, describeProbe, keyLabel, mergePads, motionFromEvent } from "../src/keys";
 import { parseRoomCode, signalingBase } from "../src/link";
 import { FATAL_ERRORS, SignalingClient, backoffMs, friendlyError } from "../src/signaling";
 import {
@@ -203,5 +203,30 @@ describe("signaling client", () => {
     expect(fatals).toEqual(["room_not_found"]);
     first.fire("close", {});
     expect(sockets.length).toBe(1);
+  });
+});
+
+describe("test mode echo", () => {
+  const idle = { buttons: 0, lx: 0, ly: 0, rx: 0, ry: 0, lt: 0, rt: 0, keys: [] as string[] };
+
+  it("says nothing when nothing is pressed", () => {
+    expect(describeProbe(idle)).toBeNull();
+  });
+
+  it("names buttons, sticks past the dead zone, triggers and keys in plain words", () => {
+    expect(describeProbe({ ...idle, buttons: PadButton.A | PadButton.DpadLeft })).toBe("A, D-pad left");
+    expect(describeProbe({ ...idle, lx: -30000, ly: 32767 })).toBe("Left stick left, Left stick up");
+    expect(describeProbe({ ...idle, rx: 9000 })).toBeNull();
+    expect(describeProbe({ ...idle, lt: 255, rt: 10 })).toBe("Left trigger");
+    expect(describeProbe({ ...idle, keys: ["KeyW", "ArrowLeft"] })).toBe("Key W, Key Left arrow");
+  });
+
+  it("turns key codes into what is printed on the key", () => {
+    expect(keyLabel("KeyA")).toBe("A");
+    expect(keyLabel("Digit5")).toBe("5");
+    expect(keyLabel("ArrowUp")).toBe("Up arrow");
+    expect(keyLabel("Numpad4")).toBe("Numpad 4");
+    expect(keyLabel("ShiftLeft")).toBe("Shift Left");
+    expect(keyLabel("Space")).toBe("Space");
   });
 });

@@ -50,6 +50,17 @@ internal sealed class FakeRoom : IRoomLink
     public void Raise(RoomEvent e) => Received?.Invoke(e);
 }
 
+internal sealed class StepClock : TimeProvider
+{
+    private long _ms;
+
+    public override long TimestampFrequency => 1000;
+
+    public override long GetTimestamp() => _ms;
+
+    public void Advance(int ms) => _ms += ms;
+}
+
 internal sealed class FakePeers : IPeerLink
 {
     public event Action<string, byte[]>? StateReceived;
@@ -74,7 +85,13 @@ internal sealed class FakePeers : IPeerLink
 
     public void HandleSignal(string guestId, JsonObject payload) => Signals.Add((guestId, payload));
 
-    public bool SendControl(string guestId, JsonObject message) => false;
+    public List<(string Id, JsonObject Message)> Sent { get; } = [];
+
+    public bool SendControl(string guestId, JsonObject message)
+    {
+        Sent.Add((guestId, message));
+        return true;
+    }
 
     public void BroadcastControl(JsonObject message) => Broadcasts.Add(message);
 
@@ -91,12 +108,13 @@ public sealed class HostSessionControllerTests : IDisposable
     private readonly FakeRoom _room = new();
     private readonly FakePeers _peers = new();
     private readonly InputPipeline _pipe;
+    private readonly StepClock _clock = new();
     private readonly HostSessionController _ctl;
 
     public HostSessionControllerTests()
     {
         _pipe = new InputPipeline(_session, _inj, _pad);
-        _ctl = new HostSessionController(_session, _pipe, _room, _peers, NullLogger.Instance);
+        _ctl = new HostSessionController(_session, _pipe, _room, _peers, NullLogger.Instance, _clock);
     }
 
     public void Dispose()
@@ -271,5 +289,157 @@ public sealed class HostSessionControllerTests : IDisposable
         _peers.RaiseControl("a", Key("KeyW", true, _session.Epoch));
         _room.Raise(new EndedEvent("host_left"));
         Assert.Empty(_inj.Down);
+    }
+
+    private static JsonObject Test(bool on) => (JsonObject)JsonNode.Parse(on ? "{\"t\":\"test\",\"on\":true}" : "{\"t\":\"test\",\"on\":false}")!;
+
+    private static byte[] Pad(PadButtons b, short lx = 0) => StateFrameCodec.EncodePad(1, new PadState(b, lx, 0, 0, 0, 0, 0));
+
+    [Fact]
+    public void A_guest_in_test_mode_is_shown_to_the_host_even_though_they_do_not_hold_the_stick()
+    {
+        Join("a");
+        var probes = new List<ProbeSnapshot>();
+        _ctl.ProbeChanged += probes.Add;
+        _peers.RaiseControl("a", Test(true));
+        _peers.RaiseState("a", Pad(PadButtons.A | PadButtons.DpadUp, 1000));
+        Assert.Equal("a", probes.Single().GuestId);
+        Assert.Equal(PadButtons.A | PadButtons.DpadUp, probes.Single().Pad.Buttons);
+        Assert.Empty(_pad.State); // shown, never injected
+        Assert.Empty(_inj.Down);
+    }
+
+    [Fact]
+    public void Without_test_mode_a_non_holder_is_ignored_entirely()
+    {
+        Join("a");
+        var probes = new List<ProbeSnapshot>();
+        _ctl.ProbeChanged += probes.Add;
+        _peers.RaiseState("a", Pad(PadButtons.A));
+        _peers.RaiseControl("a", Key("KeyW", true, 0));
+        Assert.Empty(probes);
+    }
+
+    [Fact]
+    public void Test_keys_are_tracked_and_shown_but_not_pressed_on_the_host()
+    {
+        Join("a");
+        ProbeSnapshot? last = null;
+        _ctl.ProbeChanged += p => last = p;
+        _peers.RaiseControl("a", Test(true));
+        _peers.RaiseControl("a", Key("KeyW", true, 0));
+        _peers.RaiseControl("a", Key("Space", true, 0));
+        Assert.Equal(["KeyW", "Space"], last!.Keys.Order());
+        _peers.RaiseControl("a", Key("KeyW", false, 0));
+        Assert.Equal(["Space"], last.Keys);
+        Assert.Empty(_inj.Down);
+    }
+
+    [Fact]
+    public void What_arrived_is_echoed_to_the_guest_at_most_ten_times_a_second()
+    {
+        Join("a");
+        _peers.RaiseControl("a", Test(true));
+        _peers.RaiseState("a", Pad(PadButtons.A));
+        _peers.RaiseState("a", Pad(PadButtons.A | PadButtons.B));
+        Assert.Single(_peers.Sent);
+        Assert.Equal("probe", (string?)_peers.Sent[0].Message["t"]);
+        Assert.Equal((int)PadButtons.A, (int)_peers.Sent[0].Message["buttons"]!);
+
+        _clock.Advance(100);
+        _peers.RaiseState("a", Pad(PadButtons.A | PadButtons.B));
+        Assert.Equal(2, _peers.Sent.Count);
+        Assert.Equal((int)(PadButtons.A | PadButtons.B), (int)_peers.Sent[1].Message["buttons"]!);
+    }
+
+    [Fact]
+    public void A_release_is_always_echoed_so_nothing_stays_lit_on_the_guests_screen()
+    {
+        Join("a");
+        _peers.RaiseControl("a", Test(true));
+        _peers.RaiseState("a", Pad(PadButtons.A));
+        _peers.RaiseState("a", Pad(PadButtons.None));
+        Assert.Equal(2, _peers.Sent.Count);
+        Assert.Equal(0, (int)_peers.Sent[1].Message["buttons"]!);
+    }
+
+    [Fact]
+    public void Turning_test_mode_off_or_leaving_the_room_stops_probing()
+    {
+        Join("a");
+        var probes = new List<ProbeSnapshot>();
+        var toggles = new List<(string, bool)>();
+        _ctl.ProbeChanged += probes.Add;
+        _ctl.TestModeChanged += (id, on) => toggles.Add((id, on));
+        _peers.RaiseControl("a", Test(true));
+        _peers.RaiseControl("a", Test(false));
+        _peers.RaiseState("a", Pad(PadButtons.A));
+        Assert.Empty(probes);
+
+        _peers.RaiseControl("a", Test(true));
+        _room.Raise(Presence());
+        _peers.RaiseState("a", Pad(PadButtons.A));
+        Assert.Empty(probes);
+        Assert.Equal([("a", true), ("a", false), ("a", true), ("a", false)], toggles);
+    }
+
+    [Fact]
+    public void A_stranger_cannot_start_test_mode_and_test_mode_does_not_widen_what_the_holder_may_do()
+    {
+        var toggles = new List<(string, bool)>();
+        _ctl.TestModeChanged += (id, on) => toggles.Add((id, on));
+        _peers.RaiseControl("nobody", Test(true));
+        Assert.Empty(toggles);
+
+        Join("a");
+        _room.Raise(Presence(("a", "A", false), ("b", "B", false)));
+        _peers.RaiseControl("b", Test(true));
+        _session.PassTo("a");
+        _peers.RaiseControl("b", Key("KeyW", true, _session.Epoch));
+        Assert.Empty(_inj.Down); // b is testing, not holding: still not injected
+    }
+
+    [Fact]
+    public void A_change_held_back_by_the_rate_limit_is_sent_later_so_the_guest_sees_the_final_state()
+    {
+        Join("a");
+        _peers.RaiseControl("a", Test(true));
+        _peers.RaiseControl("a", Key("KeyW", true, 0));
+        _peers.RaiseControl("a", Key("Space", true, 0));
+        Assert.Single(_peers.Sent);
+
+        _ctl.FlushEchoes();
+        Assert.Single(_peers.Sent);
+
+        _clock.Advance(100);
+        _ctl.FlushEchoes();
+        Assert.Equal(2, _peers.Sent.Count);
+        Assert.Equal(["KeyW", "Space"], _peers.Sent[1].Message["keys"]!.AsArray().Select(k => (string)k!).Order());
+
+        _clock.Advance(500);
+        _ctl.FlushEchoes();
+        Assert.Equal(2, _peers.Sent.Count);
+    }
+
+    [Fact]
+    public async Task Test_mode_survives_frames_and_toggles_arriving_from_several_threads()
+    {
+        Join("a");
+        _peers.RaiseControl("a", Test(true));
+        var frame = Pad(PadButtons.A);
+        var work = Enumerable.Range(0, 4).Select(i => Task.Run(() =>
+        {
+            for (var n = 0; n < 500; n++)
+            {
+                _peers.RaiseState("a", frame);
+                _peers.RaiseControl("a", Key("KeyW", n % 2 == 0, 0));
+                _ctl.FlushEchoes();
+                if (i == 0 && n % 50 == 0)
+                {
+                    _peers.RaiseControl("a", Test(n % 100 == 0));
+                }
+            }
+        }));
+        await Task.WhenAll(work);
     }
 }

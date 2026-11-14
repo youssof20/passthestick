@@ -1,6 +1,7 @@
 using PassTheStick.App.Services;
 using PassTheStick.App.ViewModels;
 using PassTheStick.Core;
+using PassTheStick.Protocol;
 using PassTheStick.Windows;
 
 namespace PassTheStick.App.Tests;
@@ -39,6 +40,14 @@ internal sealed class FakeSession : IHostSession
     public event Action? PlayersChanged;
 
     public event Action<string>? StickRequested;
+
+    public event Action<ProbeInfo>? ProbeChanged;
+
+    public string? PadDriverProblem { get; set; }
+
+    public string? CheckPadDriver() => PadDriverProblem;
+
+    public void RaiseProbe(ProbeInfo info) => ProbeChanged?.Invoke(info);
 
     public string? PadProblem { get; set; }
 
@@ -488,5 +497,205 @@ public class OverlayPlacementTests
         var (x, y) = OverlayPlacement.Compute((50, 50, 200, 40), 300, 60, 16);
         Assert.Equal(50.0, x);
         Assert.Equal(50.0, y);
+    }
+}
+
+
+public sealed class ProbeViewModelTests
+{
+    private static ProbeInfo Info(PadButtons b, short lx = 0, bool active = true, params string[] keys) =>
+        new("Ann", active, new PadState(b, lx, 0, 0, 0, 0, 0), keys);
+
+    [Fact]
+    public void Starts_hidden_with_centered_meters()
+    {
+        var p = new ProbeViewModel();
+        Assert.False(p.IsActive);
+        Assert.Equal(0.5, p.LeftX);
+        Assert.Equal(14, p.Buttons.Count);
+    }
+
+    [Fact]
+    public void Lights_the_pressed_buttons_names_the_guest_and_lists_keys_in_order()
+    {
+        var p = new ProbeViewModel();
+        p.Apply(Info(PadButtons.A | PadButtons.DpadLeft, 0, true, "Space", "KeyW"));
+        Assert.True(p.IsActive);
+        Assert.Equal("Testing Ann's controls", p.Title);
+        Assert.Equal(["A", "Left"], p.Buttons.Where(b => b.IsDown).Select(b => b.Name));
+        Assert.Equal("Keys down: KeyW, Space", p.KeysText);
+    }
+
+    [Fact]
+    public void Axes_map_to_zero_through_one_with_centre_at_half()
+    {
+        var p = new ProbeViewModel();
+        p.Apply(Info(PadButtons.None, short.MinValue));
+        Assert.Equal(0.0, p.LeftX, 4);
+        p.Apply(Info(PadButtons.None, short.MaxValue));
+        Assert.Equal(1.0, p.LeftX, 4);
+        p.Apply(Info(PadButtons.None, 0));
+        Assert.Equal(0.5, p.LeftX, 2);
+    }
+
+    [Fact]
+    public void Leaving_test_mode_clears_everything()
+    {
+        var p = new ProbeViewModel();
+        p.Apply(Info(PadButtons.A, 20000, true, "KeyW"));
+        p.Apply(Info(PadButtons.None, 0, false));
+        Assert.False(p.IsActive);
+        Assert.All(p.Buttons, b => Assert.False(b.IsDown));
+        Assert.Equal("No keys down", p.KeysText);
+        Assert.Equal(string.Empty, p.Title);
+    }
+}
+
+public sealed class WizardTests : IDisposable
+{
+    private readonly string _dir = Path.Combine(Path.GetTempPath(), "pts-wiz-" + Guid.NewGuid().ToString("N"));
+    private readonly FakeSession _session = new();
+    private readonly SettingsStore _store;
+    private readonly List<nint> _pinned = [];
+
+    public WizardTests() => _store = new SettingsStore(Path.Combine(_dir, "settings.json"));
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_dir))
+        {
+            Directory.Delete(_dir, true);
+        }
+    }
+
+    private WizardViewModel Make() => new(_session, _store, new AppSettings(), _pinned.Add);
+
+    [Fact]
+    public void Walks_through_four_screens_and_back_is_only_available_after_the_first()
+    {
+        var w = Make();
+        Assert.True(w.IsWelcome);
+        Assert.False(w.BackCommand.CanExecute(null));
+        w.NextCommand.Execute(null);
+        Assert.True(w.IsGame);
+        Assert.True(w.BackCommand.CanExecute(null));
+        w.NextCommand.Execute(null);
+        Assert.True(w.IsControls);
+        w.NextCommand.Execute(null);
+        Assert.True(w.IsDone);
+        Assert.Equal("Done", w.NextText);
+        w.BackCommand.Execute(null);
+        Assert.True(w.IsControls);
+    }
+
+    [Fact]
+    public void Finishing_with_the_defaults_saves_keyboard_only_and_marks_setup_complete()
+    {
+        var w = Make();
+        AppSettings? chosen = null;
+        w.Completed += c => chosen = c;
+        for (var i = 0; i < 4; i++)
+        {
+            w.NextCommand.Execute(null);
+        }
+
+        Assert.True(chosen!.OnboardingCompleted);
+        Assert.False(chosen.UseVirtualPads);
+        var saved = _store.Load().Settings;
+        Assert.True(saved.OnboardingCompleted);
+        Assert.False(saved.UseVirtualPads);
+    }
+
+    [Fact]
+    public void Skipping_saves_the_same_so_the_wizard_does_not_come_back()
+    {
+        var w = Make();
+        w.SkipCommand.Execute(null);
+        Assert.True(_store.Load().Settings.OnboardingCompleted);
+    }
+
+    [Fact]
+    public void Picking_a_window_pins_it_and_remembers_the_title()
+    {
+        var w = Make();
+        Assert.False(w.PickCommand.CanExecute(null));
+        w.SelectedWindow = w.Windows[0];
+        w.PickCommand.Execute(null);
+        Assert.Equal([(nint)1], _pinned);
+        Assert.Equal("Dolphin", w.PickedTitle);
+    }
+
+    [Fact]
+    public void A_window_that_closed_gives_a_plain_message_and_refreshes_the_list()
+    {
+        var failing = new WizardViewModel(_session, _store, new AppSettings(), _ => throw new InvalidOperationException("That window is gone. Pick the game window again."));
+        failing.SelectedWindow = failing.Windows[0];
+        failing.PickCommand.Execute(null);
+        Assert.Contains("Pick the game window again", failing.Error);
+        Assert.Null(failing.PickedTitle);
+    }
+
+    [Fact]
+    public void Keyboard_only_needs_no_driver_and_never_asks_the_session_about_one()
+    {
+        _session.PadDriverProblem = "ViGEmBus is not installed.";
+        var w = Make();
+        Assert.Equal("Keyboard only. Nothing to install.", w.DriverMessage);
+        Assert.False(w.ShowDriverHelp);
+    }
+
+    [Fact]
+    public void Controllers_without_the_driver_explain_what_to_get_where_and_that_a_restart_is_needed()
+    {
+        _session.PadDriverProblem = "ViGEmBus is not installed.";
+        var w = Make();
+        w.WantsControllers = true;
+        Assert.True(w.ShowDriverHelp);
+        Assert.Contains(WizardViewModel.DriverUrl, w.DriverMessage);
+        Assert.Contains("restart your PC", w.DriverMessage);
+        Assert.Contains("finish setup now", w.DriverMessage);
+    }
+
+    [Fact]
+    public void Check_again_notices_a_driver_that_was_installed_while_the_wizard_was_open()
+    {
+        _session.PadDriverProblem = "ViGEmBus is not installed.";
+        var w = Make();
+        w.WantsControllers = true;
+        _session.PadDriverProblem = null;
+        w.CheckDriverCommand.Execute(null);
+        Assert.False(w.ShowDriverHelp);
+        Assert.Contains("installed", w.DriverMessage);
+    }
+
+    [Fact]
+    public void Controllers_chosen_are_saved_even_when_the_driver_is_missing_so_it_can_be_added_later()
+    {
+        _session.PadDriverProblem = "ViGEmBus is not installed.";
+        var w = Make();
+        w.WantsControllers = true;
+        w.SkipCommand.Execute(null);
+        Assert.True(_store.Load().Settings.UseVirtualPads);
+    }
+
+    [Fact]
+    public void The_main_window_shows_the_wizard_until_it_finishes_and_never_for_a_returning_user()
+    {
+        var first = new MainViewModel(_session, new InlineUi(), new FakeClipboard(), new FakeNotifier(), _store, new AppSettings(), null);
+        Assert.True(first.ShowWizard);
+        first.Wizard!.SkipCommand.Execute(null);
+        Assert.False(first.ShowWizard);
+
+        var returning = new MainViewModel(_session, new InlineUi(), new FakeClipboard(), new FakeNotifier(), _store, new AppSettings { OnboardingCompleted = true }, null);
+        Assert.False(returning.ShowWizard);
+    }
+
+    [Fact]
+    public void Probe_events_from_the_session_reach_the_main_view_model()
+    {
+        var vm = new MainViewModel(_session, new InlineUi(), new FakeClipboard(), new FakeNotifier(), _store, new AppSettings { OnboardingCompleted = true }, null);
+        _session.RaiseProbe(new ProbeInfo("Bo", true, new PadState(PadButtons.B, 0, 0, 0, 0, 0, 0), []));
+        Assert.True(vm.Probe.IsActive);
+        Assert.Contains("Bo", vm.Probe.Title);
     }
 }

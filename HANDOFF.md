@@ -16,3 +16,7 @@ Running list of things only you can do or that could not be verified on this mac
 - Code signing (SignPath or Azure Trusted Signing).
 - Domain, if you want one beyond `github.io`.
 
+
+## Driver installation
+
+- The first-run wizard checks for ViGEmBus and tells the person where to get it (github.com/nefarius/ViGEmBus/releases) and that a restart is needed. It does not download or install anything. The brief asks for a silent, pinned-version, checksum-verified install; that needs your decision on bundling or downloading the installer and is not built.

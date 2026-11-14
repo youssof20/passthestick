@@ -136,4 +136,55 @@
       </Setter.Value>
     </Setter>
   </Style>
+
+  <Style x:Key="PtsMeter" TargetType="ProgressBar">
+    <Setter Property="Minimum" Value="0"/>
+    <Setter Property="Maximum" Value="1"/>
+    <Setter Property="Height" Value="12"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ProgressBar">
+          <Grid>
+            <Border Background="{DynamicResource PtsBorderSubtleBrush}" CornerRadius="{StaticResource PtsRadiusControl}"/>
+            <Border x:Name="PART_Track">
+              <Border x:Name="PART_Indicator" HorizontalAlignment="Left" Background="{DynamicResource PtsAccentBrush}" CornerRadius="{StaticResource PtsRadiusControl}"/>
+            </Border>
+          </Grid>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style x:Key="PtsChip" TargetType="Border">
+    <Setter Property="Padding" Value="{StaticResource PtsSpace2Thickness}"/>
+    <Setter Property="Margin" Value="{StaticResource PtsSpace1Thickness}"/>
+    <Setter Property="MinWidth" Value="44"/>
+    <Setter Property="CornerRadius" Value="{StaticResource PtsRadiusControl}"/>
+    <Setter Property="BorderThickness" Value="2"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource PtsBorderBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource PtsSurfaceBrush}"/>
+  </Style>
+
+  <Style TargetType="RadioButton">
+    <Setter Property="Foreground" Value="{DynamicResource PtsTextBrush}"/>
+    <Setter Property="FocusVisualStyle" Value="{StaticResource PtsFocusVisual}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="RadioButton">
+          <StackPanel Orientation="Horizontal" Background="Transparent">
+            <Grid Width="22" Height="22" Margin="{StaticResource PtsSpace3Right}">
+              <Ellipse Stroke="{DynamicResource PtsBorderBrush}" StrokeThickness="2" Fill="{DynamicResource PtsSurfaceRaisedBrush}"/>
+              <Ellipse x:Name="Dot" Width="10" Height="10" Fill="{DynamicResource PtsAccentBrush}" Visibility="Collapsed"/>
+            </Grid>
+            <ContentPresenter VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}"/>
+          </StackPanel>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsChecked" Value="True">
+              <Setter TargetName="Dot" Property="Visibility" Value="Visible"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
 </ResourceDictionary>

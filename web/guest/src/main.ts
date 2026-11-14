@@ -1,6 +1,6 @@
 import { HostLink, type PathKind } from "./peer";
 import { SignalingClient, type ConnectionState, type PlayerInfo, type ServerMessage } from "./signaling";
-import { KeyCapture, PanicKey, mergePads, motionFromEvent } from "./keys";
+import { KeyCapture, PanicKey, describeProbe, mergePads, motionFromEvent, type Probe } from "./keys";
 import { parseRoomCode, signalingBase } from "./link";
 import {
   NEUTRAL_PAD, PadButton, encodeKeepalive, encodeMotion, encodePad, padEquals, padFromGamepad, type PadState,
@@ -16,7 +16,7 @@ const view = {
   join: $("join"), session: $("session"), form: $<HTMLFormElement>("join-form"), code: $<HTMLInputElement>("code"),
   name: $<HTMLInputElement>("name"), error: $("join-error"), status: $("status"), path: $("path"), holder: $("holder"),
   surface: $("surface"), surfaceHint: $("surface-hint"), request: $<HTMLButtonElement>("request"), touch: $("touch"),
-  motion: $<HTMLButtonElement>("motion"), leave: $<HTMLButtonElement>("leave"), badge: $("badge"), players: $("players"),
+  motion: $<HTMLButtonElement>("motion"), test: $<HTMLButtonElement>("test"), testbox: $("testbox"), echo: $("echo"), echoWarning: $("echo-warning"), leave: $<HTMLButtonElement>("leave"), badge: $("badge"), players: $("players"),
 };
 
 let me = "";
@@ -30,11 +30,16 @@ let signaling: SignalingClient | null = null;
 let link: HostLink | null = null;
 let wakeLock: WakeLockSentinel | null = null;
 let motionOn = false;
+let testing = false;
+let lastEchoAt = 0;
+let lastInputAt = 0;
 
 const keys = new KeyCapture();
 const panic = new PanicKey(1000);
 const virtualPad: PadState = { ...NEUTRAL_PAD };
 const iHaveStick = (): boolean => me !== "" && holder === me;
+/** Input is sent while holding the stick, or in test mode (the host shows it but never injects it for a non-holder). */
+const sending = (): boolean => iHaveStick() || testing;
 const nextSeq = (): number => (seq = (seq + 1) & 0xffff);
 
 function say(el: HTMLElement, text: string): void {
@@ -54,11 +59,13 @@ function renderHolder(): void {
   const mine = iHaveStick();
   say(view.holder, mine ? "You have the stick" : `${nameOf(holder)} has the stick`);
   view.session.classList.toggle("is-holder", mine);
-  view.surface.hidden = !mine;
-  view.touch.hidden = !mine;
+  if (mine && testing) setTesting(false);
+  view.surface.hidden = !sending();
+  view.touch.hidden = !sending();
   view.request.hidden = mine;
-  view.surfaceHint.hidden = !mine;
-  if (!mine) releaseEverything();
+  view.test.hidden = mine;
+  view.surfaceHint.hidden = !sending();
+  if (!sending()) releaseEverything();
   say(view.players, players.map((p) => p.name + (p.id === holder ? " (stick)" : "")).join(", "));
 }
 
@@ -81,10 +88,13 @@ view.surface.addEventListener("blur", () => {
   releaseEverything();
 });
 view.surface.addEventListener("keydown", (e) => {
-  if (!iHaveStick()) return;
+  if (!sending()) return;
   if (e.code === "Escape") panic.down(performance.now());
   e.preventDefault();
-  if (!e.repeat && keys.down(e.code)) link?.sendControl({ t: "key", code: e.code, down: true, epoch });
+  if (!e.repeat && keys.down(e.code)) {
+    lastInputAt = performance.now();
+    link?.sendControl({ t: "key", code: e.code, down: true, epoch });
+  }
 });
 view.surface.addEventListener("keyup", (e) => {
   if (e.code === "Escape") panic.up();
@@ -117,7 +127,8 @@ view.touch.querySelectorAll<HTMLButtonElement>("button[data-btn]").forEach((b) =
 
 function frame(now: number): void {
   requestAnimationFrame(frame);
-  if (!link || !iHaveStick()) return;
+  if (!link || !sending()) return;
+  if (testing && lastInputAt > 0 && lastEchoAt < lastInputAt && now - lastInputAt > 3000) view.echoWarning.hidden = false;
   if (panic.fired(now)) {
     panic.up();
     view.surface.blur();
@@ -130,6 +141,7 @@ function frame(now: number): void {
   if (!padEquals(merged, lastPad)) {
     lastPad = merged;
     lastSentAt = now;
+    if (!padEquals(merged, NEUTRAL_PAD)) lastInputAt = now;
     link.sendState(encodePad(nextSeq(), merged));
   } else if (now - lastSentAt >= 250) {
     lastSentAt = now;
@@ -183,7 +195,11 @@ function connect(code: string, name: string): void {
   link = new HostLink(signaling, __ICE_SERVERS__, {
     path: (kind, rtt) => say(view.path, rtt === null ? pathText[kind] : `${pathText[kind]}, ${rtt} ms`),
     control: (m) => {
-      if (m.t === "holder" && typeof m.id === "string") {
+      if (m.t === "probe") {
+        lastEchoAt = performance.now();
+        view.echoWarning.hidden = true;
+        say(view.echo, describeProbe(m as unknown as Probe) ?? "Nothing pressed.");
+      } else if (m.t === "holder" && typeof m.id === "string") {
         holder = m.id;
         epoch = Number(m.epoch) || epoch;
         renderHolder();
@@ -232,6 +248,30 @@ async function onMessage(m: ServerMessage): Promise<void> {
       break;
   }
 }
+
+function setTesting(on: boolean): void {
+  if (testing === on) return;
+  testing = on;
+  view.test.setAttribute("aria-pressed", String(on));
+  view.testbox.hidden = !on;
+  view.echoWarning.hidden = true;
+  lastInputAt = 0;
+  lastEchoAt = 0;
+  say(view.echo, "Press a button or a key.");
+  link?.sendControl({ t: "test", on });
+  view.surface.hidden = !sending();
+  view.touch.hidden = !sending();
+  view.surfaceHint.hidden = !sending();
+  if (!on) releaseEverything();
+}
+
+view.test.addEventListener("click", () => {
+  if (!testing && link?.usingRelay) {
+    say(view.path, "Testing needs a direct connection. You are using the room server, which only passes the stick holder's input.");
+    return;
+  }
+  setTesting(!testing);
+});
 
 view.request.addEventListener("click", () => {
   link?.sendControl({ t: "request" });

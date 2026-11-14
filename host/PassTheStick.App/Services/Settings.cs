@@ -19,6 +19,12 @@ public sealed record AppSettings
 
     public string? LastGameProcess { get; init; }
 
+    /// <summary>False until the first-run wizard has been finished or skipped.</summary>
+    public bool OnboardingCompleted { get; init; }
+
+    /// <summary>Whether guests may get virtual controllers. Keyboard-only sessions need no driver at all.</summary>
+    public bool UseVirtualPads { get; init; } = true;
+
     public string PassHotkey { get; init; } = "Ctrl+Shift+Right";
 
     public string TakeBackHotkey { get; init; } = "Ctrl+Shift+Left";

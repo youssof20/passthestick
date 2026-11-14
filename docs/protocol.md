@@ -66,6 +66,8 @@ request    { t:"request" }                                         // guest asks
 holder     { t:"holder", id, epoch }                               // host authority; epoch increments every change
 slot       { t:"slot", id, slot }
 rumble     { t:"rumble", strong:0-255, weak:0-255, ms }
+test       { t:"test", on:bool }                                   // guest to host: start or stop the input test
+probe      { t:"probe", buttons, lx, ly, rx, ry, lt, rt, keys:[] } // host to guest: what just arrived, at most 10 per second
 emote/chat { t:"chat", text<=140 }
 ```
 
@@ -81,3 +83,7 @@ Key events carry the physical key (`KeyboardEvent.code`, e.g. `KeyW`). The host 
 ## 6. Versioning
 
 `v` is an integer in `hello`/`welcome`. Any mismatch gets `bad_version` and the connection closes. Changes that add optional fields keep `v`; anything else bumps it.
+
+## 7. Input test
+
+A guest who does not hold the stick can turn on test mode (`test`). While it is on, the guest sends the usual `state` frames and `key` messages. The host shows them in its test panel and echoes what arrived back as `probe`, but never injects them: injection still requires being the holder under the current epoch, and test mode does not change that. A held-back echo is sent when the rate limit allows, and a release is always echoed at once so nothing stays lit. Test mode works on the peer paths only; the room relay passes only the holder's frames, so the guest page says so instead of failing silently. The host ends test mode when the guest leaves the room.

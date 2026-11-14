@@ -74,12 +74,38 @@ public sealed partial class MainViewModel : ObservableObject
         PassHotkeyText = HotkeyBinding.TryParse(settings.PassHotkey, out var pass) ? pass.ToString() : HotkeyBinding.DefaultPass.ToString();
         TakeBackHotkeyText = HotkeyBinding.TryParse(settings.TakeBackHotkey, out var back) ? back.ToString() : HotkeyBinding.DefaultTakeBack.ToString();
         Notice = startupNotice;
+        if (!settings.OnboardingCompleted)
+        {
+            Wizard = new WizardViewModel(session, store, settings, handle =>
+            {
+                _session.PinWindow(handle);
+                RefreshGame();
+            });
+            Wizard.Completed += chosen =>
+            {
+                _settings = chosen;
+                Wizard = null;
+                RefreshWindows();
+                RefreshGame();
+            };
+        }
+
         _session.PhaseChanged += (phase, message) => _ui.Post(() => OnPhase(phase, message));
         _session.RoomCreated += code => _ui.Post(() => RoomCode = code);
         _session.PlayersChanged += () => _ui.Post(RefreshPlayers);
         _session.StickRequested += name => _ui.Post(() => OnStickRequested(name));
+        _session.ProbeChanged += info => _ui.Post(() => Probe.Apply(info));
         RefreshWindows();
     }
+
+    public ProbeViewModel Probe { get; } = new();
+
+    /// <summary>Non-null until the first-run wizard is finished or skipped.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowWizard))]
+    private WizardViewModel? _wizard;
+
+    public bool ShowWizard => Wizard is not null;
 
     public string PassHotkeyText { get; }
 

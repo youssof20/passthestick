@@ -56,8 +56,15 @@
         </div>
       </div>
 
+      <section id="testbox" class="testbox" hidden aria-label="Control test">
+        <p class="muted">Testing your controls. Nothing you press here reaches the game. The host sends back what arrived.</p>
+        <p id="echo" class="echo" role="status" aria-live="off">Press a button or a key.</p>
+        <p id="echo-warning" class="error" hidden>Nothing has come back from the host yet. Check that you are on a direct connection, then press a button again.</p>
+      </section>
+
       <div class="actions">
         <button id="request" type="button">Ask for the stick</button>
+        <button id="test" type="button" aria-pressed="false">Test my controls</button>
         <button id="motion" type="button">Use phone motion</button>
         <button id="leave" type="button">Leave</button>
       </div>

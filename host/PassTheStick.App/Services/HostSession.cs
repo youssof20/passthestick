@@ -15,7 +15,7 @@ namespace PassTheStick.App.Services;
 /// </summary>
 public sealed partial class HostSession : IHostSession
 {
-    private readonly AppSettings _settings;
+    private readonly SettingsStore _store;
     private readonly ILoggerFactory _logs;
     private readonly ILogger _log;
     private readonly WindowTracker _tracker = new();
@@ -23,9 +23,9 @@ public sealed partial class HostSession : IHostSession
     private string _gameTitle = string.Empty;
     private Running? _running;
 
-    public HostSession(AppSettings settings, ILoggerFactory logs)
+    public HostSession(SettingsStore store, ILoggerFactory logs)
     {
-        _settings = settings;
+        _store = store;
         _logs = logs;
         _log = logs.CreateLogger<HostSession>();
     }
@@ -37,6 +37,8 @@ public sealed partial class HostSession : IHostSession
     public event Action? PlayersChanged;
 
     public event Action<string>? StickRequested;
+
+    public event Action<ProbeInfo>? ProbeChanged;
 
     public string? PadProblem { get; private set; }
 
@@ -67,6 +69,7 @@ public sealed partial class HostSession : IHostSession
             return;
         }
 
+        var settings = _store.Load().Settings;
         PhaseChanged?.Invoke(SessionPhase.Starting, null);
         CreatedRoom room;
         try
@@ -81,7 +84,8 @@ public sealed partial class HostSession : IHostSession
             return;
         }
 
-        var pad = ViGemPadBackend.TryCreate(out var problem);
+        string? problem = null;
+        var pad = settings.UseVirtualPads ? ViGemPadBackend.TryCreate(out problem) : null;
         PadProblem = problem;
         IVirtualPadBackend padBackend = pad is null ? new NoPadBackend() : pad;
 
@@ -89,7 +93,7 @@ public sealed partial class HostSession : IHostSession
         var pipeline = new InputPipeline(session, new SendInputInjector(_logs.CreateLogger<SendInputInjector>()), padBackend);
         var wsBase = new UriBuilder(server) { Scheme = server.Scheme == Uri.UriSchemeHttps ? "wss" : "ws" }.Uri;
         var client = new RoomClient(new WebSocketFactory(), wsBase, room.Code, room.HostToken);
-        var hub = new PeerHub(client, _settings.IceServers, _logs.CreateLogger<PeerHub>());
+        var hub = new PeerHub(client, settings.IceServers, _logs.CreateLogger<PeerHub>());
         var controller = new HostSessionController(session, pipeline, client, hub, _logs.CreateLogger<HostSessionController>());
         var dsu = TryStartDsu();
         var run = new Running(session, pipeline, padBackend, client, hub, controller, dsu, new TimerResolution());
@@ -114,6 +118,8 @@ public sealed partial class HostSession : IHostSession
             };
         }
 
+        controller.ProbeChanged += p => ProbeChanged?.Invoke(new ProbeInfo(NameOf(run, p.GuestId), true, p.Pad, p.Keys));
+        controller.TestModeChanged += (id, on) => ProbeChanged?.Invoke(new ProbeInfo(NameOf(run, id), on, PassTheStick.Protocol.PadState.Neutral, []));
         session.HolderChanged += _ => PlayersChanged?.Invoke();
         session.StickRequested += player => StickRequested?.Invoke(player.Name);
         client.Received += e => OnRoomEvent(run, e);
@@ -161,6 +167,12 @@ public sealed partial class HostSession : IHostSession
     public bool TryGetGameRect(out (int Left, int Top, int Width, int Height) rect) =>
         _tracker.TryGetRect(out rect) && !_tracker.IsMinimized;
 
+    public string? CheckPadDriver()
+    {
+        using var probe = ViGemPadBackend.TryCreate(out var problem);
+        return problem;
+    }
+
     public IReadOnlyList<WindowInfo> ListWindows() => WindowCatalog.List();
 
     public void PinWindow(nint handle)
@@ -196,6 +208,8 @@ public sealed partial class HostSession : IHostSession
         }
     }
 
+    private static string NameOf(Running run, string id) => run.Session.Players.FirstOrDefault(p => p.Id == id)?.Name ?? "A guest";
+
     private static string ErrorText(string code) => code switch
     {
         "bad_version" => "This app and the server speak different versions. Update PassTheStick, then start again.",
@@ -212,6 +226,7 @@ public sealed partial class HostSession : IHostSession
             while (await timer.WaitForNextTickAsync(token).ConfigureAwait(false))
             {
                 pump.Step();
+                run.Controller.FlushEchoes();
             }
         }
         catch (OperationCanceledException)
