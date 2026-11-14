@@ -24,3 +24,12 @@ Desktop.ini
 
 # Local icon drop (source is stored in assets/)
 logo (1).png
+
+# spikes
+spikes/**/bin/
+spikes/**/obj/
+spikes/out/
+spikes/**/node_modules/
+spikes/**/.wrangler/
+spikes/**/*.log
+spikes/**/*.err

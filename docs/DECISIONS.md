@@ -13,3 +13,17 @@ Format: decision, alternatives considered, why.
 ## D2. Branch and tag
 
 - **Decision:** work on `revamp`; tag `legacy-v0.1.29` points at the last release commit on `main` before any deletion.
+
+## D3. Host UI: WPF on .NET 10
+
+- **Alternatives:** Avalonia 12, WinUI 3.
+- **Why:** measured startup about 2x faster than Avalonia and a very small framework-dependent build (see `docs/SPIKES.md`). Linux host stays possible through the platform interfaces.
+
+## D4. Host WebRTC: libdatachannel via DataChannelDotnet, not SIPSorcery
+
+- **Alternatives:** SIPSorcery 10.0.17.
+- **Why:** loopback RTT p50 0.45 ms against 32 ms (see `docs/SPIKES.md`). Risk: a one-maintainer wrapper; the raw C bindings are included as a fallback. Teardown crash to be checked.
+
+## D5. Signaling: Cloudflare Worker + one Durable Object per room, hibernation API
+
+- Works locally. Host tokens, resume tokens and rate limits are still to design in `docs/protocol.md`.
