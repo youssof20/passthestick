@@ -54,6 +54,7 @@ Two channels per guest, opened by the host.
 | 2 | motion | `f32 accel[3]` (g), `f32 gyro[3]` (deg/s), `u32 tsMicros` |
 | 3 | pointer | `i16 x, y` (0..32767 absolute within the game window) or relative with flag bit, `u8 buttons` |
 | 4 | keepalive | empty |
+| 5 | key (relay only) | `u8 down`, `u8 len`, `len` ASCII bytes of `KeyboardEvent.code`. Used only on the room-relay path, where there is no `control` channel |
 
 Sent on change plus a keepalive every 250 ms. The host treats 750 ms without any state frame from the holder as "released" and neutralizes everything.
 
@@ -73,7 +74,7 @@ Key events carry the physical key (`KeyboardEvent.code`, e.g. `KeyW`). The host 
 ## 5. Stick rules (invariants)
 
 1. Input is accepted only from the current holder (or the guest's assigned slot in co-op). The host drops everything else, and the relay drops it too. Both checks exist; neither trusts the other.
-2. Every `holder` frame carries an `epoch`. State and key frames carry the epoch they were sent under; frames with an old epoch are dropped.
+2. Every `holder` frame carries an `epoch`. `key` messages on the reliable channel carry the epoch they were sent under and stale ones are dropped. State frames do not carry an epoch: they rely on sender identity plus the host resetting its sequence tracking at every holder change, so frames from a previous tenure cannot be applied.
 3. On any holder change, disconnect, focus loss, pause, resume timeout or exit, the host releases every held key and button and centers sticks and triggers. A test asserts this for each trigger.
 4. Only the host can change the holder. Guests can `request`.
 

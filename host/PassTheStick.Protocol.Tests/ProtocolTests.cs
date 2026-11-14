@@ -14,6 +14,13 @@ public class StateFrameCodecTests
     }
 
     [Fact]
+    public void Pad_frame_matches_the_golden_bytes_asserted_in_the_web_guest_tests()
+    {
+        var pad = new PadState(PadButtons.A | PadButtons.DpadLeft, -32768, 32767, -1, 1, 255, 7);
+        Assert.Equal("010102041000" + "80ff7fffff0100ff07", Convert.ToHexStringLower(StateFrameCodec.EncodePad(513, pad)));
+    }
+
+    [Fact]
     public void Motion_round_trips()
     {
         var m = new MotionState(0.1f, -1f, 0.98f, 90f, -45.5f, 0f, 123456);

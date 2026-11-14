@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Join a game | PassTheStick</title>
+  <meta name="description" content="Join a friend's game from your browser. Enter the room code, take the stick, and play with your keyboard, controller or phone.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="join.css">
+</head>
+<body>
+  <main>
+    <section id="join" aria-labelledby="join-title">
+      <h1 id="join-title">Join a game</h1>
+      <form id="join-form" novalidate>
+        <label for="code">Room code</label>
+        <input id="code" class="code" inputmode="text" autocapitalize="characters" autocomplete="off" spellcheck="false" maxlength="40" aria-describedby="join-error" required>
+        <label for="name">Your name</label>
+        <input id="name" autocomplete="nickname" maxlength="24" placeholder="Guest">
+        <p id="join-error" class="error" role="alert" hidden></p>
+        <button type="submit" class="primary">Join</button>
+        <p id="no-gamepad" class="muted" hidden>This browser cannot read controllers. The on-screen buttons and keyboard still work.</p>
+      </form>
+    </section>
+
+    <section id="session" hidden aria-label="Session">
+      <header>
+        <p id="holder" class="holder" aria-live="polite">Connecting</p>
+        <p class="muted"><span id="status">Connecting</span> &middot; <span id="path">Connecting</span></p>
+        <p id="players" class="muted"></p>
+      </header>
+
+      <div id="surface" class="surface" tabindex="0" role="application" aria-label="Keyboard capture. Click here, then type to send keys to the host." hidden>
+        <p id="surface-hint">Click here to send your keyboard. Hold Escape for one second to stop.</p>
+      </div>
+      <p id="badge" class="badge" role="status" hidden>Sending your keys to the host. Hold Escape for 1 second to stop.</p>
+
+      <div id="touch" class="touch" hidden>
+        <div class="dpad" role="group" aria-label="Direction pad">
+          <button data-btn="up" aria-label="Up">&#9650;</button>
+          <button data-btn="left" aria-label="Left">&#9664;</button>
+          <button data-btn="right" aria-label="Right">&#9654;</button>
+          <button data-btn="down" aria-label="Down">&#9660;</button>
+        </div>
+        <div class="middle" role="group" aria-label="Menu buttons">
+          <button data-btn="back">Back</button>
+          <button data-btn="start">Start</button>
+        </div>
+        <div class="face" role="group" aria-label="Action buttons">
+          <button data-btn="y">Y</button>
+          <button data-btn="x">X</button>
+          <button data-btn="b">B</button>
+          <button data-btn="a">A</button>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="request" type="button">Ask for the stick</button>
+        <button id="motion" type="button">Use phone motion</button>
+        <button id="leave" type="button">Leave</button>
+      </div>
+    </section>
+  </main>
+  <script src="app.js" defer></script>
+</body>
+</html>

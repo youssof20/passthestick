@@ -10,6 +10,15 @@ export interface Env {
 const json = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 
+/** Browsers cannot read the body of a failed WebSocket upgrade, so refusals are delivered over an accepted socket. */
+export function refuse(code: string): Response {
+  const pair = new WebSocketPair();
+  pair[1].accept();
+  pair[1].send(JSON.stringify({ t: "error", code, message: code.replace(/_/g, " ") }));
+  pair[1].close(1008, code);
+  return new Response(null, { status: 101, webSocket: pair[0] });
+}
+
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
@@ -30,8 +39,8 @@ export default {
     const m = url.pathname.match(/^\/v1\/room\/([A-Za-z0-9]+)$/);
     if (m) {
       const code = (m[1] as string).toUpperCase();
-      if (!isValidRoomCode(code)) return json({ error: "room_not_found" }, 404);
       if (req.headers.get("Upgrade") !== "websocket") return json({ error: "expected_websocket" }, 426);
+      if (!isValidRoomCode(code)) return refuse("room_not_found");
       const stub = env.ROOM.get(env.ROOM.idFromName(code));
       const headers = new Headers(req.headers);
       headers.set("x-pts-client", req.headers.get("cf-connecting-ip") ?? "unknown");

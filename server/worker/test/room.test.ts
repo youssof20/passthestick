@@ -97,11 +97,13 @@ describe("room creation", () => {
     expect(a.hostToken).not.toBe(b.hostToken);
   });
 
-  it("answers 404 for malformed and unknown codes", async () => {
-    const bad = await SELF.fetch("https://example.com/v1/room/ABC0O1", { headers: { Upgrade: "websocket" } });
-    expect(bad.status).toBe(404);
-    const unknown = await SELF.fetch("https://example.com/v1/room/ZZZZZZ", { headers: { Upgrade: "websocket" } });
-    expect(unknown.status).toBe(404);
+  it("tells the client over the socket when a code is malformed or unknown", async () => {
+    for (const code of ["ABC0O1", "ZZZZZZ"]) {
+      const res = await SELF.fetch(`https://example.com/v1/room/${code}`, { headers: { Upgrade: "websocket" } });
+      expect(res.status).toBe(101);
+      const c = new Client(res.webSocket as WebSocket);
+      expect((await c.next()).code).toBe("room_not_found");
+    }
   });
 });
 

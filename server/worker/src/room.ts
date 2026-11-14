@@ -80,7 +80,13 @@ export class Room extends DurableObject {
     }
 
     if (url.pathname === "/ws") {
-      if (!(await this.ctx.storage.get("meta"))) return new Response("room_not_found", { status: 404 });
+      if (!(await this.ctx.storage.get("meta"))) {
+        const gone = new WebSocketPair();
+        gone[1].accept();
+        gone[1].send(JSON.stringify({ t: "error", code: "room_not_found", message: "room not found" }));
+        gone[1].close(1008, "room_not_found");
+        return new Response(null, { status: 101, webSocket: gone[0] });
+      }
       const pair = new WebSocketPair();
       this.ctx.acceptWebSocket(pair[1]);
       const att: Attachment = {
