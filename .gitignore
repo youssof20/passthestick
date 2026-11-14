@@ -36,3 +36,4 @@ spikes/**/*.err
 scripts/node_modules/
 server/**/node_modules/
 server/**/.wrangler/
+web/**/node_modules/
