@@ -36,6 +36,8 @@ public sealed partial class HostSession : IHostSession
 
     public event Action? PlayersChanged;
 
+    public event Action<string>? StickRequested;
+
     public string? PadProblem { get; private set; }
 
     public bool HostHoldsStick => _running?.Session.HostHoldsStick ?? true;
@@ -91,6 +93,7 @@ public sealed partial class HostSession : IHostSession
         var controller = new HostSessionController(session, pipeline, client, hub, _logs.CreateLogger<HostSessionController>());
         var dsu = TryStartDsu();
         var run = new Running(session, pipeline, padBackend, client, hub, controller, dsu, new TimerResolution());
+        run.Pass = new PassCoordinator(session, id => run.Away.Contains(id));
         _running = run;
 
         controller.MotionReceived += (id, motion) =>
@@ -112,6 +115,7 @@ public sealed partial class HostSession : IHostSession
         }
 
         session.HolderChanged += _ => PlayersChanged?.Invoke();
+        session.StickRequested += player => StickRequested?.Invoke(player.Name);
         client.Received += e => OnRoomEvent(run, e);
 
         run.Pump = Task.Run(() => PumpAsync(run, run.Stop.Token), CancellationToken.None);
@@ -136,6 +140,7 @@ public sealed partial class HostSession : IHostSession
         await run.Stop.CancelAsync().ConfigureAwait(false);
         await Task.WhenAll(run.Room ?? Task.CompletedTask, run.Pump ?? Task.CompletedTask).ConfigureAwait(false);
         run.Pipeline.ReleaseAll(); // nothing may stay held, whatever state the session was in
+        run.Pass?.Dispose();
         run.Controller.Dispose();
         run.Hub.Dispose();
         run.Pipeline.Dispose();
@@ -150,6 +155,11 @@ public sealed partial class HostSession : IHostSession
     public bool PassTo(string playerId) => _running?.Session.PassTo(playerId) ?? false;
 
     public bool TakeBack() => _running?.Session.TakeBack() ?? false;
+
+    public PassOutcome PassNext() => _running?.Pass?.Pass() ?? PassOutcome.NoOneToPass;
+
+    public bool TryGetGameRect(out (int Left, int Top, int Width, int Height) rect) =>
+        _tracker.TryGetRect(out rect) && !_tracker.IsMinimized;
 
     public IReadOnlyList<WindowInfo> ListWindows() => WindowCatalog.List();
 
@@ -260,6 +270,8 @@ public sealed partial class HostSession : IHostSession
         public CancellationTokenSource Stop { get; } = new();
 
         public HashSet<string> Away { get; set; } = [];
+
+        public PassCoordinator? Pass { get; set; }
 
         public Task? Pump { get; set; }
 

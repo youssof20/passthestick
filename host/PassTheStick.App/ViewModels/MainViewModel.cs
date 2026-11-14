@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PassTheStick.App.Services;
+using PassTheStick.Core;
 using PassTheStick.Windows;
 
 namespace PassTheStick.App.ViewModels;
@@ -10,6 +11,12 @@ namespace PassTheStick.App.ViewModels;
 public interface IUiThread
 {
     void Post(Action action);
+}
+
+/// <summary>Shows a short message outside the window, as a tray balloon.</summary>
+public interface INotifier
+{
+    void Show(string title, string text);
 }
 
 public interface IClipboardService
@@ -51,30 +58,42 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly IHostSession _session;
     private readonly IUiThread _ui;
     private readonly IClipboardService _clipboard;
+    private readonly INotifier _notifier;
     private readonly SettingsStore _store;
     private AppSettings _settings;
 
-    public MainViewModel(IHostSession session, IUiThread ui, IClipboardService clipboard, SettingsStore store, AppSettings settings, string? startupNotice)
+    public MainViewModel(IHostSession session, IUiThread ui, IClipboardService clipboard, INotifier notifier, SettingsStore store, AppSettings settings, string? startupNotice)
     {
         _session = session;
         _ui = ui;
         _clipboard = clipboard;
+        _notifier = notifier;
         _store = store;
         _settings = settings;
         ServerUrl = settings.ServerUrl;
+        PassHotkeyText = HotkeyBinding.TryParse(settings.PassHotkey, out var pass) ? pass.ToString() : HotkeyBinding.DefaultPass.ToString();
+        TakeBackHotkeyText = HotkeyBinding.TryParse(settings.TakeBackHotkey, out var back) ? back.ToString() : HotkeyBinding.DefaultTakeBack.ToString();
         Notice = startupNotice;
         _session.PhaseChanged += (phase, message) => _ui.Post(() => OnPhase(phase, message));
         _session.RoomCreated += code => _ui.Post(() => RoomCode = code);
         _session.PlayersChanged += () => _ui.Post(RefreshPlayers);
+        _session.StickRequested += name => _ui.Post(() => OnStickRequested(name));
         RefreshWindows();
     }
+
+    public string PassHotkeyText { get; }
+
+    public string TakeBackHotkeyText { get; }
+
+    /// <summary>Closing the window while hosting hides it to the tray instead of ending the session.</summary>
+    public bool ShouldHideOnClose => IsLive;
 
     public ObservableCollection<PlayerViewModel> Players { get; } = [];
 
     public ObservableCollection<WindowInfo> Windows { get; } = [];
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsIdle), nameof(IsLive), nameof(CanStart), nameof(PhaseText))]
+    [NotifyPropertyChangedFor(nameof(IsIdle), nameof(IsLive), nameof(CanStart), nameof(PhaseText), nameof(HasRoom), nameof(InviteLink), nameof(ShouldHideOnClose))]
     [NotifyCanExecuteChangedFor(nameof(StartCommand), nameof(EndCommand))]
     private SessionPhase _phase = SessionPhase.Idle;
 
@@ -153,6 +172,37 @@ public sealed partial class MainViewModel : ObservableObject
         Notice = _clipboard.TrySetText(InviteLink)
             ? "Invite link copied. Paste it into Discord."
             : "Could not reach the clipboard. Select the link and copy it by hand.";
+    }
+
+    [RelayCommand]
+    private void PassNext()
+    {
+        switch (_session.PassNext())
+        {
+            case PassOutcome.ApprovedRequest:
+                Notice = "Passed the stick to the guest who asked.";
+                break;
+            case PassOutcome.NoOneToPass:
+                Notice = "Nobody else is in the session yet. Send them the invite link.";
+                break;
+            default:
+                break;
+        }
+    }
+
+    /// <summary>Called once at startup with one line per hotkey that could not be registered.</summary>
+    public void ReportHotkeyProblems(IReadOnlyList<string> problems)
+    {
+        if (problems.Count > 0)
+        {
+            Notice = string.Join(" ", problems);
+        }
+    }
+
+    private void OnStickRequested(string name)
+    {
+        Notice = $"{name} wants the stick. Press {PassHotkeyText} to give it to them.";
+        _notifier.Show("PassTheStick", Notice);
     }
 
     [RelayCommand]

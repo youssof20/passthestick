@@ -511,3 +511,83 @@ public sealed class InputPumpTests
         Assert.Equal(InputResult.Accepted, pipe.HandleKey("a", session.Epoch, "KeyW", true));
     }
 }
+
+public sealed class PassCoordinatorTests : IDisposable
+{
+    private readonly StickSession _session = new("host");
+    private readonly HashSet<string> _away = [];
+    private readonly PassCoordinator _pass;
+
+    public PassCoordinatorTests()
+    {
+        _session.AddPlayer("a", "Ann");
+        _session.AddPlayer("b", "Bo");
+        _pass = new PassCoordinator(_session, _away.Contains);
+    }
+
+    public void Dispose() => _pass.Dispose();
+
+    [Fact]
+    public void Rotation_goes_host_then_guests_in_slot_order_then_back_to_the_host()
+    {
+        var seen = new List<string>();
+        for (var i = 0; i < 6; i++)
+        {
+            Assert.Equal(PassOutcome.PassedToNext, _pass.Pass());
+            seen.Add(_session.Holder);
+        }
+
+        Assert.Equal(["a", "b", "host", "a", "b", "host"], seen);
+    }
+
+    [Fact]
+    public void Away_guests_are_skipped()
+    {
+        _away.Add("a");
+        _pass.Pass();
+        Assert.Equal("b", _session.Holder);
+    }
+
+    [Fact]
+    public void With_nobody_else_there_nothing_happens()
+    {
+        var alone = new StickSession("host");
+        using var coordinator = new PassCoordinator(alone);
+        Assert.Equal(PassOutcome.NoOneToPass, coordinator.Pass());
+        Assert.Equal(0u, alone.Epoch);
+    }
+
+    [Fact]
+    public void A_request_is_approved_by_the_next_pass_and_jumps_the_queue()
+    {
+        _session.RequestStick("b");
+        Assert.Equal("b", _pass.PendingRequest?.Id);
+        Assert.Equal(PassOutcome.ApprovedRequest, _pass.Pass());
+        Assert.Equal("b", _session.Holder);
+        Assert.Null(_pass.PendingRequest);
+    }
+
+    [Fact]
+    public void A_request_is_dropped_once_that_guest_gets_the_stick_another_way_or_leaves()
+    {
+        _session.RequestStick("a");
+        _session.PassTo("a");
+        Assert.Null(_pass.PendingRequest);
+
+        _session.TakeBack();
+        _session.RequestStick("b");
+        _session.RemovePlayer("b");
+        Assert.Null(_pass.PendingRequest);
+        Assert.Equal(PassOutcome.PassedToNext, _pass.Pass());
+        Assert.Equal("a", _session.Holder);
+    }
+
+    [Fact]
+    public void A_request_from_a_guest_who_went_away_is_skipped_not_approved()
+    {
+        _session.RequestStick("a");
+        _away.Add("a");
+        Assert.Equal(PassOutcome.PassedToNext, _pass.Pass());
+        Assert.Equal("b", _session.Holder);
+    }
+}

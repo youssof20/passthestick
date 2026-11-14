@@ -1,5 +1,6 @@
 using PassTheStick.App.Services;
 using PassTheStick.App.ViewModels;
+using PassTheStick.Core;
 using PassTheStick.Windows;
 
 namespace PassTheStick.App.Tests;
@@ -22,6 +23,13 @@ internal sealed class FakeClipboard : IClipboardService
     }
 }
 
+internal sealed class FakeNotifier : INotifier
+{
+    public List<string> Shown { get; } = [];
+
+    public void Show(string title, string text) => Shown.Add(text);
+}
+
 internal sealed class FakeSession : IHostSession
 {
     public event Action<SessionPhase, string?>? PhaseChanged;
@@ -29,6 +37,8 @@ internal sealed class FakeSession : IHostSession
     public event Action<string>? RoomCreated;
 
     public event Action? PlayersChanged;
+
+    public event Action<string>? StickRequested;
 
     public string? PadProblem { get; set; }
 
@@ -74,6 +84,18 @@ internal sealed class FakeSession : IHostSession
 
     public bool TakeBack() => !HostHoldsStick;
 
+    public PassOutcome Outcome { get; set; } = PassOutcome.PassedToNext;
+
+    public PassOutcome PassNext() => Outcome;
+
+    public bool TryGetGameRect(out (int Left, int Top, int Width, int Height) rect)
+    {
+        rect = (0, 0, 100, 100);
+        return true;
+    }
+
+    public void RaiseRequest(string name) => StickRequested?.Invoke(name);
+
     public IReadOnlyList<WindowInfo> ListWindows() => Windows;
 
     public void PinWindow(nint handle)
@@ -98,6 +120,7 @@ public sealed class MainViewModelTests : IDisposable
     private readonly string _dir = Path.Combine(Path.GetTempPath(), "pts-app-" + Guid.NewGuid().ToString("N"));
     private readonly FakeSession _session = new();
     private readonly FakeClipboard _clipboard = new();
+    private readonly FakeNotifier _notifier = new();
     private readonly SettingsStore _store;
 
     public MainViewModelTests() => _store = new SettingsStore(Path.Combine(_dir, "settings.json"));
@@ -111,7 +134,7 @@ public sealed class MainViewModelTests : IDisposable
     }
 
     private MainViewModel Make(AppSettings? settings = null, string? notice = null) =>
-        new(_session, new InlineUi(), _clipboard, _store, settings ?? new AppSettings(), notice);
+        new(_session, new InlineUi(), _clipboard, _notifier, _store, settings ?? new AppSettings(), notice);
 
     [Fact]
     public void Starts_idle_with_the_open_windows_listed_and_nothing_selected()
@@ -135,6 +158,17 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Equal("https://pts.example.com/join#K7M2QX", vm.InviteLink);
         Assert.Equal(new Uri("https://pts.example.com/"), _session.StartedWith);
         Assert.Equal("https://pts.example.com", _store.Load().Settings.ServerUrl);
+    }
+
+    [Fact]
+    public async Task The_invite_link_change_is_announced_when_the_session_goes_live_not_only_when_the_code_arrives()
+    {
+        var vm = Make();
+        var changed = new List<string?>();
+        vm.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+        await vm.StartCommand.ExecuteAsync(null);
+        Assert.True(changed.LastIndexOf(nameof(MainViewModel.InviteLink)) > changed.IndexOf(nameof(MainViewModel.RoomCode)));
+        Assert.Contains(nameof(MainViewModel.HasRoom), changed);
     }
 
     [Theory]
@@ -270,6 +304,60 @@ public sealed class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public void A_guest_request_tells_the_host_how_to_approve_it_in_the_window_and_the_tray()
+    {
+        var vm = Make();
+        _session.RaiseRequest("Ann");
+        Assert.Equal("Ann wants the stick. Press Ctrl+Shift+Right to give it to them.", vm.Notice);
+        Assert.Equal([vm.Notice!], _notifier.Shown);
+    }
+
+    [Theory]
+    [InlineData(PassOutcome.ApprovedRequest, "Passed the stick to the guest who asked.")]
+    [InlineData(PassOutcome.NoOneToPass, "Nobody else is in the session yet. Send them the invite link.")]
+    public void Passing_next_explains_what_happened_when_it_is_not_obvious(PassOutcome outcome, string expected)
+    {
+        var vm = Make();
+        _session.Outcome = outcome;
+        vm.PassNextCommand.Execute(null);
+        Assert.Equal(expected, vm.Notice);
+    }
+
+    [Fact]
+    public void A_plain_pass_to_the_next_player_adds_no_message()
+    {
+        var vm = Make();
+        vm.PassNextCommand.Execute(null);
+        Assert.Null(vm.Notice);
+    }
+
+    [Fact]
+    public async Task Closing_the_window_hides_to_the_tray_only_while_hosting()
+    {
+        var vm = Make();
+        Assert.False(vm.ShouldHideOnClose);
+        await vm.StartCommand.ExecuteAsync(null);
+        Assert.True(vm.ShouldHideOnClose);
+    }
+
+    [Fact]
+    public void Hotkey_text_comes_from_settings_and_falls_back_to_the_defaults_when_it_is_invalid()
+    {
+        Assert.Equal("Ctrl+Alt+P", Make(new AppSettings { PassHotkey = "alt+ctrl+p" }).PassHotkeyText);
+        Assert.Equal("Ctrl+Shift+Left", Make(new AppSettings { TakeBackHotkey = "P" }).TakeBackHotkeyText);
+    }
+
+    [Fact]
+    public void Hotkey_problems_are_shown_in_the_notice_bar()
+    {
+        var vm = Make();
+        vm.ReportHotkeyProblems(["Ctrl+Shift+Right is already used by another program."]);
+        Assert.Contains("already used", vm.Notice);
+        vm.ReportHotkeyProblems([]);
+        Assert.Contains("already used", vm.Notice);
+    }
+
+    [Fact]
     public void A_startup_notice_from_the_settings_loader_is_shown()
     {
         Assert.Equal("Settings were reset.", Make(notice: "Settings were reset.").Notice);
@@ -341,5 +429,64 @@ public sealed class SettingsStoreTests : IDisposable
         Directory.CreateDirectory(_dir);
         File.WriteAllText(Path_, "null");
         Assert.NotNull(new SettingsStore(Path_).Load().Notice);
+    }
+}
+
+
+public class HotkeyBindingTests
+{
+    [Theory]
+    [InlineData("Ctrl+Shift+Right", "Ctrl+Shift+Right")]
+    [InlineData("shift+control+left", "Ctrl+Shift+Left")]
+    [InlineData("Alt+F9", "Alt+F9")]
+    [InlineData(" Ctrl + Shift + P ", "Ctrl+Shift+P")]
+    [InlineData("Win+Ctrl+D5", "Ctrl+Win+D5")]
+    public void Valid_combinations_parse_and_print_in_a_standard_order(string input, string expected)
+    {
+        Assert.True(HotkeyBinding.TryParse(input, out var binding));
+        Assert.Equal(expected, binding.ToString());
+        Assert.NotEqual(0u, binding.VirtualKey);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("Right")]
+    [InlineData("Ctrl+Shift")]
+    [InlineData("Ctrl+A+B")]
+    [InlineData("Ctrl+Nonsense")]
+    [InlineData("Ctrl+None")]
+    public void A_bare_key_missing_key_or_unknown_name_is_rejected(string? input) =>
+        Assert.False(HotkeyBinding.TryParse(input, out _));
+
+    [Fact]
+    public void The_default_pass_and_take_back_keys_do_not_collide()
+    {
+        Assert.NotEqual(HotkeyBinding.DefaultPass, HotkeyBinding.DefaultTakeBack);
+        Assert.Equal(0x27u, HotkeyBinding.DefaultPass.VirtualKey);
+        Assert.Equal(0x25u, HotkeyBinding.DefaultTakeBack.VirtualKey);
+    }
+}
+
+public class OverlayPlacementTests
+{
+    [Fact]
+    public void Sits_inside_the_top_left_of_the_game_window_with_a_margin()
+    {
+        Assert.Equal((116.0, 216.0), OverlayPlacement.Compute((100, 200, 1920, 1080), 300, 60, 16));
+    }
+
+    [Fact]
+    public void Works_on_a_second_monitor_with_negative_coordinates()
+    {
+        Assert.Equal((-1904.0, 16.0), OverlayPlacement.Compute((-1920, 0, 1920, 1080), 300, 60, 16));
+    }
+
+    [Fact]
+    public void Never_leaves_a_game_window_smaller_than_the_overlay()
+    {
+        var (x, y) = OverlayPlacement.Compute((50, 50, 200, 40), 300, 60, 16);
+        Assert.Equal(50.0, x);
+        Assert.Equal(50.0, y);
     }
 }

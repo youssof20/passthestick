@@ -1,3 +1,4 @@
+using PassTheStick.Core;
 using PassTheStick.Windows;
 
 namespace PassTheStick.App.Services;
@@ -24,6 +25,9 @@ public interface IHostSession : IAsyncDisposable
 
     event Action? PlayersChanged;
 
+    /// <summary>A guest asked for the stick; the argument is their name.</summary>
+    event Action<string>? StickRequested;
+
     /// <summary>Why guests cannot have virtual controllers, or null when they can.</summary>
     string? PadProblem { get; }
 
@@ -40,6 +44,12 @@ public interface IHostSession : IAsyncDisposable
     bool PassTo(string playerId);
 
     bool TakeBack();
+
+    /// <summary>Approves a waiting request, or passes to the next player in the rotation.</summary>
+    PassOutcome PassNext();
+
+    /// <summary>Position and size of the pinned game window in screen pixels, when it is visible.</summary>
+    bool TryGetGameRect(out (int Left, int Top, int Width, int Height) rect);
 
     IReadOnlyList<WindowInfo> ListWindows();
 

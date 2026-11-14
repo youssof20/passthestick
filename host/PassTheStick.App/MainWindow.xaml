@@ -111,7 +111,10 @@
         </Grid.RowDefinitions>
         <StackPanel>
           <TextBlock Style="{StaticResource PtsHeading}" Text="Players"/>
-          <TextBlock Style="{StaticResource PtsMuted}" Text="{Binding HolderText}" Margin="{StaticResource PtsSpace2Bottom}"/>
+          <TextBlock Style="{StaticResource PtsMuted}" Text="{Binding HolderText}"/>
+          <TextBlock Style="{StaticResource PtsMuted}" Margin="{StaticResource PtsSpace2Bottom}">
+            <Run Text="Hotkeys: "/><Run Text="{Binding PassHotkeyText, Mode=OneWay}"/><Run Text=" passes. "/><Run Text="{Binding TakeBackHotkeyText, Mode=OneWay}"/><Run Text=" takes it back."/>
+          </TextBlock>
         </StackPanel>
         <ItemsControl Grid.Row="1" ItemsSource="{Binding Players}" AutomationProperties.Name="Players">
           <ItemsControl.ItemTemplate>
@@ -133,7 +136,10 @@
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
-        <Button Grid.Row="2" Content="Take the stick back" Command="{Binding TakeBackCommand}" HorizontalAlignment="Left" Margin="{StaticResource PtsSpace2Top}"/>
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="{StaticResource PtsSpace2Top}">
+          <Button Style="{StaticResource PtsPrimaryButton}" Content="Pass to next" Command="{Binding PassNextCommand}" Margin="{StaticResource PtsSpace3Right}"/>
+          <Button Content="Take the stick back" Command="{Binding TakeBackCommand}"/>
+        </StackPanel>
       </Grid>
     </Grid>
   </Grid>

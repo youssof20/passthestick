@@ -17,6 +17,10 @@ public partial class App : Application
     private Mutex? _singleInstance;
     private IHost? _host;
     private DispatcherTimer? _gameTimer;
+    private TrayService? _tray;
+    private OverlayController? _overlay;
+    private HotkeyHost? _hotkeys;
+    private bool _exiting;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -41,11 +45,14 @@ public partial class App : Application
                 s.AddSingleton(loaded.Settings);
                 s.AddSingleton<IUiThread>(new DispatcherUiThread(Dispatcher));
                 s.AddSingleton<IClipboardService, WpfClipboard>();
+                s.AddSingleton<DeferredNotifier>();
+                s.AddSingleton<INotifier>(sp => sp.GetRequiredService<DeferredNotifier>());
                 s.AddSingleton<IHostSession, HostSession>();
                 s.AddSingleton(sp => new MainViewModel(
                     sp.GetRequiredService<IHostSession>(),
                     sp.GetRequiredService<IUiThread>(),
                     sp.GetRequiredService<IClipboardService>(),
+                    sp.GetRequiredService<INotifier>(),
                     store,
                     loaded.Settings,
                     loaded.Notice));
@@ -58,8 +65,31 @@ public partial class App : Application
         SystemEvents.UserPreferenceChanged += (_, _) => Dispatcher.Invoke(ApplySystemTheme);
 
         var vm = _host.Services.GetRequiredService<MainViewModel>();
+        var session = _host.Services.GetRequiredService<IHostSession>();
         var window = new MainWindow { DataContext = vm };
         MainWindow = window;
+        window.Closing += (_, args) =>
+        {
+            if (!_exiting && vm.ShouldHideOnClose)
+            {
+                args.Cancel = true;
+                window.Hide();
+                _tray?.Show("PassTheStick is still hosting", "It stays in the notification area. Use its icon to open it again or end the session.");
+            }
+        };
+
+        _tray = new TrayService(vm, ShowMainWindow, ExitApp);
+        _host.Services.GetRequiredService<DeferredNotifier>().Attach(_tray);
+        _overlay = new OverlayController(session, vm);
+
+        var settings = _host.Services.GetRequiredService<AppSettings>();
+        _hotkeys = new HotkeyHost();
+        _hotkeys.PassPressed += () => Dispatcher.BeginInvoke(() => vm.PassNextCommand.Execute(null));
+        _hotkeys.TakeBackPressed += () => Dispatcher.BeginInvoke(() => vm.TakeBackCommand.Execute(null));
+        var pass = HotkeyBinding.TryParse(settings.PassHotkey, out var passBinding) ? passBinding : HotkeyBinding.DefaultPass;
+        var back = HotkeyBinding.TryParse(settings.TakeBackHotkey, out var backBinding) ? backBinding : HotkeyBinding.DefaultTakeBack;
+        vm.ReportHotkeyProblems(_hotkeys.Register(pass, back));
+
         window.Show();
 
         _gameTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
@@ -67,9 +97,25 @@ public partial class App : Application
         _gameTimer.Start();
     }
 
+    private void ShowMainWindow()
+    {
+        MainWindow?.Show();
+        MainWindow!.WindowState = WindowState.Normal;
+        MainWindow.Activate();
+    }
+
+    private void ExitApp()
+    {
+        _exiting = true;
+        Shutdown();
+    }
+
     protected override void OnExit(ExitEventArgs e)
     {
         _gameTimer?.Stop();
+        _hotkeys?.Dispose();
+        _overlay?.Dispose();
+        _tray?.Dispose();
         if (_host is not null)
         {
             // Ending the session releases every held key and button before the process goes away.
@@ -151,4 +197,14 @@ internal sealed class WpfClipboard : IClipboardService
             return false; // another app holds the clipboard
         }
     }
+}
+
+/// <summary>The view model is built before the tray icon exists, so it talks to this and the tray is attached afterwards.</summary>
+internal sealed class DeferredNotifier : INotifier
+{
+    private INotifier? _target;
+
+    public void Attach(INotifier target) => _target = target;
+
+    public void Show(string title, string text) => _target?.Show(title, text);
 }

@@ -18,6 +18,10 @@ public sealed record AppSettings
     public IReadOnlyList<string> IceServers { get; init; } = ["stun:stun.cloudflare.com:3478"];
 
     public string? LastGameProcess { get; init; }
+
+    public string PassHotkey { get; init; } = "Ctrl+Shift+Right";
+
+    public string TakeBackHotkey { get; init; } = "Ctrl+Shift+Left";
 }
 
 public sealed record SettingsLoadResult(AppSettings Settings, string? Notice);
