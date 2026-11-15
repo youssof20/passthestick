@@ -1,10 +1,36 @@
-# PassTheStick
+<p align="center">
+  <img src="site/icon-192.png" width="96" height="96" alt="PassTheStick logo: a single upright joystick">
+</p>
 
-Let friends play your single-player game over the internet. You run the game on your Windows PC. Friends open a link in their browser and send their keyboard, controller or phone to it. Everyone watches your Discord screen share.
+<h1 align="center">PassTheStick</h1>
 
-No account, no video capture, no port forwarding. Free and open source (MIT).
+<p align="center">
+  Let friends play your single-player game over the internet.<br>
+  You run the game on your Windows PC. Friends open a link and send their keyboard, controller or phone to it.
+</p>
 
-[Download for Windows](https://github.com/youssof20/passthestick/releases/latest) &middot; [Website and docs](https://youssof20.github.io/passthestick/) &middot; [Report a problem](https://github.com/youssof20/passthestick/issues)
+<p align="center">
+  <a href="https://github.com/youssof20/passthestick/releases/latest">Download for Windows</a> &middot;
+  <a href="https://youssof20.github.io/passthestick/">Website and docs</a> &middot;
+  <a href="https://github.com/youssof20/passthestick/issues">Report a problem</a>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/hosting.png" width="760" alt="The PassTheStick host window during a session: room code, invite link, players, hotkeys">
+</p>
+
+No account, no video capture, no port forwarding. Everyone watches your Discord screen share. Free and open source (MIT).
+
+## How a session goes
+
+1. Open PassTheStick and pick the game window.
+2. Start a session and send the invite link.
+3. Friends open the link in a browser. No install.
+4. Pass the stick with a hotkey, the tray icon or a button.
+
+<p align="center">
+  <img src="docs/screenshots/main.png" width="560" alt="Setup screen: pick the game window, then start a session">
+</p>
 
 ## What it does
 
