@@ -203,8 +203,11 @@ export class Room extends DurableObject {
       if (typeof msg.hostToken !== "string") return this.fail(ws, "bad_token");
       const hash = await sha256(msg.hostToken);
       if (!constantTimeEqual(hash, meta.hostHash)) return this.fail(ws, "bad_token");
-      const existing = this.ctx.getWebSockets().find((s) => s !== ws && (s.deserializeAttachment() as Attachment).role === "host");
-      if (existing) return this.fail(ws, "host_exists");
+      // The token proves this is the host. An older host socket may be a half-open connection the room has not noticed
+      // is dead (a Wi-Fi drop, a killed app), so the newer one replaces it instead of being locked out.
+      for (const other of this.ctx.getWebSockets()) {
+        if (other !== ws && (other.deserializeAttachment() as Attachment).role === "host") other.close(1000, "replaced");
+      }
 
       att.id = HOST_ID;
       att.role = "host";
@@ -263,8 +266,13 @@ export class Room extends DurableObject {
       }
       case "holder": {
         const id = msg.id === null || msg.id === HOST_ID ? null : msg.id;
-        if (id !== null && (typeof id !== "string" || !meta.players[id])) return this.fail(ws, "bad_message");
-        if (typeof msg.epoch !== "number" || !Number.isInteger(msg.epoch) || msg.epoch < meta.epoch) return this.fail(ws, "bad_message");
+        if (typeof msg.epoch !== "number" || !Number.isInteger(msg.epoch) || (id !== null && typeof id !== "string")) return this.fail(ws, "bad_message");
+        // A holder who was purged a moment ago, or an epoch from a host that has not caught up yet, is not a protocol
+        // error worth dropping the host for. Refuse that one update and tell the host what the room believes.
+        if ((id !== null && !meta.players[id]) || msg.epoch < meta.epoch) {
+          this.send(ws, { t: "presence", players: this.players(meta), holder: meta.holder ?? HOST_ID, epoch: meta.epoch, mode: meta.mode, hostAway: meta.hostGoneAt !== null });
+          break;
+        }
         meta.holder = id;
         meta.epoch = msg.epoch;
         meta.mode = msg.mode === "everyone" ? "everyone" : "one";
@@ -428,7 +436,7 @@ export class Room extends DurableObject {
     }
     att.winCount++;
     ws.serializeAttachment(att);
-    return att.winCount > LIMITS.messagesPerSecond;
+    return att.winCount > (att.role === "host" ? LIMITS.hostMessagesPerSecond : LIMITS.messagesPerSecond);
   }
 
   private throttledJoin(ip: string, now: number): boolean {

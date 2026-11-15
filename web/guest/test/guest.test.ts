@@ -230,3 +230,38 @@ describe("test mode echo", () => {
     expect(keyLabel("Space")).toBe("Space");
   });
 });
+
+describe("signal ordering", () => {
+  it("handles the offer completely before the candidates that follow it", async () => {
+    const calls: string[] = [];
+    class FakePc {
+      onicecandidate: unknown;
+      ondatachannel: unknown;
+      onconnectionstatechange: unknown;
+      localDescription = { toJSON: () => ({ type: "answer", sdp: "a" }) };
+      async setRemoteDescription(): Promise<void> {
+        calls.push("remote:start");
+        await new Promise((r) => setTimeout(r, 30));
+        calls.push("remote:done");
+      }
+      async createAnswer(): Promise<object> { return { type: "answer", sdp: "a" }; }
+      async setLocalDescription(): Promise<void> { calls.push("local"); }
+      async addIceCandidate(): Promise<void> { calls.push("candidate"); }
+      close(): void { calls.push("close"); }
+    }
+    const g = globalThis as unknown as { RTCPeerConnection?: unknown };
+    const saved = g.RTCPeerConnection;
+    g.RTCPeerConnection = FakePc;
+    try {
+      const { HostLink } = await import("../src/peer");
+      const link = new HostLink({ send: () => undefined, sendBinary: () => undefined } as never, [], { path: () => undefined, control: () => undefined, rumble: () => undefined });
+      void link.onSignal({ sdp: { type: "offer", sdp: "o" } });
+      void link.onSignal({ candidate: { candidate: "c1" } });
+      await link.onSignal({ candidate: { candidate: "c2" } });
+      expect(calls.slice(0, 5)).toEqual(["remote:start", "remote:done", "local", "candidate", "candidate"]);
+      link.close();
+    } finally {
+      g.RTCPeerConnection = saved;
+    }
+  });
+});

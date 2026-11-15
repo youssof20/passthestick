@@ -33,12 +33,18 @@ describe("host attach", () => {
     expect((await d.next()).code).toBe("bad_token");
   });
 
-  it("accepts the right token and refuses a second host", async () => {
+  it("accepts the right token, and a newer connection with the token replaces an older, possibly half-open, one", async () => {
     const { code, hostToken } = await createRoom();
-    await joinHost(code, hostToken);
+    const first = await joinHost(code, hostToken);
     const second = await connect(code);
     second.send({ t: "hello", v: 1, role: "host", hostToken });
-    expect((await second.next()).code).toBe("host_exists");
+    expect((await second.next()).t).toBe("welcome");
+    await new Promise((r) => setTimeout(r, 150));
+    expect(first.closed?.reason).toBe("replaced");
+
+    const stranger = await connect(code);
+    stranger.send({ t: "hello", v: 1, role: "host", hostToken: "wrong" });
+    expect((await stranger.next()).code).toBe("bad_token");
   });
 
   it("does not leak the host token or its hash to guests", async () => {
@@ -145,7 +151,7 @@ describe("holder rules", () => {
     guest.send({ t: "holder", id: welcome.you, epoch: 1 });
     expect((await guest.until("error")).code).toBe("bad_message");
 
-    host.send({ t: "holder", id: "ffffffffffffffff", epoch: 1 });
+    host.send({ t: "holder", id: 7, epoch: 1 });
     expect((await host.until("error")).code).toBe("bad_message");
   });
 
@@ -161,7 +167,7 @@ describe("holder rules", () => {
         break;
       }
     }
-    host.send({ t: "holder", id: null, epoch: 2 });
+    host.send({ t: "holder", id: null, epoch: "two" });
     expect((await host.until("error")).code).toBe("bad_message");
   });
 

@@ -238,42 +238,42 @@ describe("garbage from every kind of client", () => {
   });
 });
 
-describe("clients", () => {
-  it("get a plain refusal for a room code that was never created", async () => {
-    const c = await connect("ZZZZZY");
-    expect(new Client(c.ws)).toBeDefined();
+describe("a host that is ahead of, or behind, the room", () => {
+  it("can send a burst of signaling without being cut off", async () => {
+    const { code, hostToken } = await createRoom();
+    const host = await joinHost(code, hostToken);
+    const { welcome } = await joinGuest(code, "Ann");
+    for (let i = 0; i < 120; i++) host.send({ t: "signal", to: welcome.you, candidate: { candidate: "c" + i } });
+    await new Promise((r) => setTimeout(r, 300));
+    expect(host.closed).toBeNull();
+  });
+
+  it("is told what the room believes, not disconnected, when it names a player who is gone or an old epoch", async () => {
+    const { code, hostToken } = await createRoom();
+    const host = await joinHost(code, hostToken);
+    const { welcome } = await joinGuest(code, "Ann");
+    host.send({ t: "holder", id: welcome.you, epoch: 5 });
+    await new Promise((r) => setTimeout(r, 200));
+
+    const lastPresence = async (): Promise<Msg> => (await host.drain(300)).filter((m) => m.t === "presence").at(-1) ?? {};
+    await lastPresence();
+
+    host.send({ t: "holder", id: "ffffffffffffffff", epoch: 6 });
+    const afterGone = await lastPresence();
+    expect(afterGone.holder).toBe(welcome.you);
+    expect(afterGone.epoch).toBe(5);
+
+    host.send({ t: "holder", id: null, epoch: 2 });
+    expect((await lastPresence()).epoch).toBe(5);
+    expect(host.closed).toBeNull();
   });
 });
 
-describe("everyone-at-once mode", () => {
-  it("is announced to everyone and lets any guest's binary frames through, not only the holder's", async () => {
-    const { code, hostToken } = await createRoom();
-    const host = await joinHost(code, hostToken);
-    const a = await joinGuest(code, "Ann");
-    const b = await joinGuest(code, "Bo");
-    host.send({ t: "holder", id: null, epoch: 1, mode: "everyone" });
-    let seen: Msg = {};
-    for (let i = 0; i < 10 && seen.mode !== "everyone"; i++) seen = await b.c.until("presence");
-    expect(seen.mode).toBe("everyone");
-
-    a.c.send(new Uint8Array([1, 2, 3]));
-    b.c.send(new Uint8Array([4, 5, 6]));
-    expect(await binaryFrames(host, 400)).toBe(2);
-
-    host.send({ t: "holder", id: null, epoch: 2, mode: "one" });
-    await new Promise((r) => setTimeout(r, 150));
-    a.c.send(new Uint8Array([1, 2, 3]));
-    expect(await binaryFrames(host, 300)).toBe(0);
-  });
-
-  it("is part of the welcome a late joiner receives, and anything other than 'everyone' means one at a time", async () => {
-    const { code, hostToken } = await createRoom();
-    const host = await joinHost(code, hostToken);
-    host.send({ t: "holder", id: null, epoch: 1, mode: "everyone" });
-    await new Promise((r) => setTimeout(r, 150));
-    expect((await joinGuest(code, "Late")).welcome.mode).toBe("everyone");
-    host.send({ t: "holder", id: null, epoch: 2, mode: "chaos" });
-    await new Promise((r) => setTimeout(r, 150));
-    expect((await joinGuest(code, "Later")).welcome.mode).toBe("one");
+describe("refusals", () => {
+  it("a room that was never created is refused over the socket with a plain code", async () => {
+    const res = await SELF.fetch("https://example.com/v1/room/ZZZZZY", { headers: { Upgrade: "websocket" } });
+    expect(res.status).toBe(101);
+    const c = new Client(res.webSocket as WebSocket);
+    expect((await c.next()).code).toBe("room_not_found");
   });
 });

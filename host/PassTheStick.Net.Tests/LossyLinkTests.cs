@@ -231,7 +231,12 @@ internal sealed class LockedInjector : IInputInjector
 
 internal sealed class BridgeRoom : IRoomLink
 {
-    public event Action<RoomEvent>? Received;
+    // This bridge only carries signals to the guest; it never raises room events.
+    public event Action<RoomEvent>? Received
+    {
+        add { }
+        remove { }
+    }
 
     public Action<JsonObject>? ToGuest { get; set; }
 
@@ -245,7 +250,6 @@ internal sealed class BridgeRoom : IRoomLink
 
     public Task KickAsync(string guestId, CancellationToken cancellationToken) => Task.CompletedTask;
 
-    public void Unused() => Received?.Invoke(new EndedEvent("unused"));
 }
 
 public sealed class LossyLinkTests

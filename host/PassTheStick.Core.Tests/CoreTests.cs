@@ -236,6 +236,86 @@ public class KeyMapTests
     }
 }
 
+public sealed class ChordGuardTests : IDisposable
+{
+    private const string Alice = "alice";
+
+    private readonly StickSession _session = new("host");
+    private readonly FakeInjector _inj = new();
+    private readonly FakePad _pad = new();
+    private bool _foreground = true;
+    private readonly InputPipeline _pipe;
+
+    public ChordGuardTests()
+    {
+        _session.AddPlayer(Alice, "Alice");
+        Assert.True(_session.PassTo(Alice));
+        _pipe = new InputPipeline(_session, _inj, _pad, null, () => _foreground);
+    }
+
+    public void Dispose() => _pipe.Dispose();
+
+    private InputResult Down(string code) => _pipe.HandleKey(Alice, _session.Epoch, code, true);
+
+    [Theory]
+    [InlineData("ControlLeft", "Escape")]
+    [InlineData("ControlRight", "Escape")]
+    [InlineData("AltLeft", "Tab")]
+    [InlineData("AltLeft", "Escape")]
+    [InlineData("AltLeft", "Space")]
+    [InlineData("AltLeft", "F4")]
+    public void Chords_that_leave_the_game_are_not_injected(string modifier, string key)
+    {
+        Assert.Equal(InputResult.Accepted, Down(modifier));
+        Assert.Equal(InputResult.UnknownKey, Down(key));
+        Assert.DoesNotContain(_inj.Log, e => e.Contains(key, StringComparison.Ordinal));
+        Assert.Single(_inj.Down);
+    }
+
+    [Fact]
+    public void Modifier_pressed_after_the_second_key_is_refused_too()
+    {
+        Assert.Equal(InputResult.Accepted, Down("Tab"));
+        Assert.Equal(InputResult.UnknownKey, Down("AltLeft"));
+    }
+
+    [Fact]
+    public void Ctrl_alt_delete_and_task_manager_chords_are_refused()
+    {
+        Assert.Equal(InputResult.Accepted, Down("ControlLeft"));
+        Assert.Equal(InputResult.UnknownKey, Down("AltLeft"));
+        Assert.Equal(InputResult.Accepted, Down("ShiftLeft"));
+        Assert.Equal(InputResult.UnknownKey, Down("Escape"));
+    }
+
+    [Fact]
+    public void Ordinary_game_chords_still_work()
+    {
+        Assert.Equal(InputResult.Accepted, Down("ControlLeft"));
+        Assert.Equal(InputResult.Accepted, Down("KeyW"));
+        Assert.Equal(InputResult.Accepted, Down("Space"));
+        Assert.Equal(InputResult.Accepted, Down("Tab"));
+        Assert.Equal(InputResult.Accepted, Down("Delete"));
+        Assert.Equal(InputResult.Accepted, _pipe.HandleKey(Alice, _session.Epoch, "ControlLeft", false));
+        Assert.Equal(InputResult.Accepted, Down("Escape"));
+    }
+
+    [Fact]
+    public void A_burst_that_opens_start_and_types_injects_none_of_the_text()
+    {
+        Assert.Equal(InputResult.Accepted, Down("ControlLeft"));
+        Assert.Equal(InputResult.UnknownKey, Down("Escape"));
+        _foreground = false;
+        foreach (var code in new[] { "KeyC", "KeyM", "KeyD", "Enter" })
+        {
+            Assert.Equal(InputResult.Paused, Down(code));
+        }
+
+        Assert.Empty(_inj.Down);
+        Assert.True(_pipe.Paused);
+    }
+}
+
 public sealed class InputPipelineTests : IDisposable
 {
     private const string Alice = "alice";

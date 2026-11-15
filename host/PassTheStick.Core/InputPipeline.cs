@@ -35,16 +35,19 @@ public sealed class InputPipeline : IDisposable
     private readonly IInputInjector _injector;
     private readonly IVirtualPadBackend _pad;
     private readonly TimeProvider _clock;
+    private readonly Func<bool> _isGameForeground;
     private readonly HashSet<ScanKey> _heldKeys = [];
     private readonly Dictionary<int, string> _padOwner = [];
     private readonly Dictionary<string, (ushort Seq, bool Have)> _padSeq = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> _lastSeen = new(StringComparer.Ordinal);
+    private readonly List<string> _expired = [];
     private string? _keyOwner;
     private bool _paused;
     private bool _disposed;
 
-    public InputPipeline(StickSession session, IInputInjector injector, IVirtualPadBackend pad, TimeProvider? clock = null)
+    public InputPipeline(StickSession session, IInputInjector injector, IVirtualPadBackend pad, TimeProvider? clock = null, Func<bool>? isGameForeground = null)
     {
+        _isGameForeground = isGameForeground ?? (() => true);
         _session = session;
         _injector = injector;
         _pad = pad;
@@ -106,6 +109,19 @@ public sealed class InputPipeline : IDisposable
                 return InputResult.UnknownKey;
             }
 
+            if (down && !_isGameForeground())
+            {
+                // The pump only checks focus every few milliseconds; a burst of keys must not outrun it.
+                _paused = true;
+                ReleaseAllLocked();
+                return InputResult.Paused;
+            }
+
+            if (down && LeavesGame(key))
+            {
+                return InputResult.UnknownKey;
+            }
+
             Touch(fromId);
             if (down)
             {
@@ -122,6 +138,39 @@ public sealed class InputPipeline : IDisposable
 
             return InputResult.Accepted;
         }
+    }
+
+    private static bool IsCtrl(ScanKey k) => k.ScanCode == 0x1D;
+
+    private static bool IsAlt(ScanKey k) => k.ScanCode == 0x38;
+
+    /// <summary>Escape, Tab, Space, F4 and Delete: the second key of the chords that open Start, switch windows or close them.</summary>
+    private static bool IsChordTarget(ScanKey k) => k.ScanCode is 0x01 or 0x0F or 0x39 or 0x3E or 0x53;
+
+    /// <summary>
+    /// A guest may act inside the game window only. Ctrl+Esc, Ctrl+Shift+Esc, Alt+Tab, Alt+Esc, Alt+Space, Alt+F4 and
+    /// Ctrl+Alt+Delete reach Start, Task Manager, the window switcher or the system menu, whichever order the keys arrive in.
+    /// </summary>
+    private bool LeavesGame(ScanKey key)
+    {
+        var ctrl = IsCtrl(key) || _heldKeys.Any(IsCtrl);
+        var alt = IsAlt(key) || _heldKeys.Any(IsAlt);
+        if (!ctrl && !alt)
+        {
+            return false;
+        }
+
+        if (IsCtrl(key) || IsAlt(key))
+        {
+            return _heldKeys.Any(IsChordTarget) || (IsAlt(key) && _heldKeys.Any(IsCtrl)) || (IsCtrl(key) && _heldKeys.Any(IsAlt));
+        }
+
+        if (!IsChordTarget(key))
+        {
+            return false;
+        }
+
+        return key.ScanCode == 0x53 ? ctrl && alt : alt || key.ScanCode == 0x01;
     }
 
     public InputResult HandlePad(string fromId, uint epoch, ushort seq, in PadState state)
@@ -194,7 +243,16 @@ public sealed class InputPipeline : IDisposable
             }
 
             var now = _clock.GetTimestamp();
-            foreach (var id in _lastSeen.Where(kv => _clock.GetElapsedTime(kv.Value, now) > ProtocolInfo.StateTimeout).Select(kv => kv.Key).ToList())
+            _expired.Clear();
+            foreach (var (id, seen) in _lastSeen)
+            {
+                if (_clock.GetElapsedTime(seen, now) > ProtocolInfo.StateTimeout)
+                {
+                    _expired.Add(id);
+                }
+            }
+
+            foreach (var id in _expired)
             {
                 ReleasePlayerLocked(id);
                 _lastSeen.Remove(id);

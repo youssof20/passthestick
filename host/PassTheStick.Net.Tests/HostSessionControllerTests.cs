@@ -540,4 +540,46 @@ public sealed class HostSessionControllerTests : IDisposable
         _ctl.Maintain();
         Assert.Empty(_peers.Removed);
     }
+
+    [Fact]
+    public void A_host_that_resumes_a_room_ahead_of_it_moves_past_the_rooms_epoch_and_takes_the_stick_back()
+    {
+        var resumed = new PresenceEvent([new RoomPlayer("a", "Ann", 0, false)], "a", 7, false);
+        _room.Raise(resumed);
+        Assert.True(_session.HostHoldsStick);
+        Assert.Equal(8u, _session.Epoch);
+        Assert.Equal([(null, 8u)], _room.Holders);
+        Assert.Equal("host", (string?)_peers.Broadcasts[^1]["id"]);
+    }
+
+    [Fact]
+    public void A_mode_chosen_before_the_connection_came_up_is_told_to_the_room_when_it_does()
+    {
+        _session.SetMode(TurnMode.Everyone);
+        _room.Holders.Clear();
+        _room.Modes.Clear();
+        _room.Raise(new PresenceEvent([], "host", 0, false, Everyone: false));
+        Assert.Equal([true], _room.Modes);
+    }
+
+    [Fact]
+    public void A_fresh_session_meeting_a_fresh_room_says_nothing_extra()
+    {
+        _room.Raise(new PresenceEvent([], "host", 0, false));
+        Assert.Empty(_room.Holders);
+    }
+
+    [Fact]
+    public void After_a_reconnect_the_room_is_brought_back_in_line_once()
+    {
+        Join("a");
+        _session.PassTo("a");
+        _room.Holders.Clear();
+        _room.Raise(new ConnectionEvent(RoomConnectionState.Reconnecting));
+        _room.Raise(new PresenceEvent([new RoomPlayer("a", "A", 0, false)], "host", 0, false));
+        Assert.Single(_room.Holders);
+        Assert.Equal(("a", 1u), _room.Holders[0]);
+        _room.Raise(new PresenceEvent([new RoomPlayer("a", "A", 0, false)], "a", 1, false));
+        Assert.Single(_room.Holders);
+    }
 }

@@ -52,6 +52,7 @@ public sealed partial class PeerHub : IPeerLink, IDisposable
     private readonly ICollection<string> _iceServers;
     private readonly ILogger _log;
     private readonly string? _bindAddress;
+    private readonly CancellationTokenSource _shutdown = new();
     private readonly ConcurrentDictionary<string, Peer> _peers = new(StringComparer.Ordinal);
 
     /// <param name="bindAddress">Restricts the local interface used for media, for example 127.0.0.1 in tests. Null uses all interfaces.</param>
@@ -128,6 +129,7 @@ public sealed partial class PeerHub : IPeerLink, IDisposable
 
     public void Dispose()
     {
+        _shutdown.Cancel();
         foreach (var id in _peers.Keys.ToArray())
         {
             if (_peers.TryRemove(id, out var peer))
@@ -145,12 +147,12 @@ public sealed partial class PeerHub : IPeerLink, IDisposable
         connection.OnLocalDescriptionSafe += (_, d) =>
         {
             var sdp = new JsonObject { ["sdp"] = new JsonObject { ["type"] = d.Type.ToString().ToLowerInvariant(), ["sdp"] = d.Sdp } };
-            FireAndLog(_room.SendSignalAsync(guestId, sdp, CancellationToken.None), "offer");
+            FireAndLog(_room.SendSignalAsync(guestId, sdp, _shutdown.Token), "offer");
         };
         connection.OnCandidateSafe += (_, c) =>
         {
             var body = new JsonObject { ["candidate"] = new JsonObject { ["candidate"] = c.Content, ["sdpMid"] = c.Mid, ["sdpMLineIndex"] = 0 } };
-            FireAndLog(_room.SendSignalAsync(guestId, body, CancellationToken.None), "candidate");
+            FireAndLog(_room.SendSignalAsync(guestId, body, _shutdown.Token), "candidate");
         };
         connection.OnConnectionStateChange += (_, state) =>
         {

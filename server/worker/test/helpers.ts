@@ -53,6 +53,17 @@ export class Client {
     throw new Error(`no ${type} message arrived`);
   }
 
+  /** Waits, then returns every JSON message that arrived meanwhile, without leaving a pending waiter behind. */
+  async drain(ms = 250): Promise<Msg[]> {
+    await new Promise((r) => setTimeout(r, ms));
+    const out: Msg[] = [];
+    while (this.queue.length > 0) {
+      const m = this.queue.shift();
+      if (typeof m === "string") out.push(JSON.parse(m) as Msg);
+    }
+    return out;
+  }
+
   async silence(ms = 150): Promise<boolean> {
     if (this.queue.length > 0) return false;
     await new Promise((r) => setTimeout(r, ms));

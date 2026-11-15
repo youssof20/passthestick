@@ -18,6 +18,7 @@ public sealed partial class HostSessionController : IDisposable
 {
     private static readonly TimeSpan EchoInterval = TimeSpan.FromMilliseconds(100);
 
+    private readonly CancellationTokenSource _shutdown = new();
     private readonly Lock _probeGate = new();
     private readonly Dictionary<string, ProbeState> _testing = new(StringComparer.Ordinal);
     private readonly TimeProvider _clock;
@@ -57,11 +58,13 @@ public sealed partial class HostSessionController : IDisposable
 
     public void Dispose()
     {
+        _shutdown.Cancel();
         _room.Received -= OnRoomEvent;
         _peers.StateReceived -= OnState;
         _peers.ControlReceived -= OnControl;
         _session.HolderChanged -= OnHolderChanged;
         _peers.StatusChanged -= OnPeerStatus;
+        _shutdown.Dispose();
     }
 
     private void OnRoomEvent(RoomEvent e)
@@ -69,6 +72,12 @@ public sealed partial class HostSessionController : IDisposable
         switch (e)
         {
             case PresenceEvent presence:
+                if (_syncPending)
+                {
+                    _syncPending = false;
+                    SyncWithRoom(presence);
+                }
+
                 Reconcile(presence);
                 break;
             case SignalEvent signal:
@@ -81,6 +90,7 @@ public sealed partial class HostSessionController : IDisposable
                 HandleFrame(relay.From, relay.Payload);
                 break;
             case ConnectionEvent { State: RoomConnectionState.Reconnecting }:
+                _syncPending = true;
                 _outageStartedAt ??= _clock.GetTimestamp();
                 break;
             case ConnectionEvent { State: RoomConnectionState.Open }:
@@ -120,7 +130,7 @@ public sealed partial class HostSessionController : IDisposable
             {
                 if (_session.AddPlayer(player.Id, player.Name) is null)
                 {
-                    FireAndLog(_room.KickAsync(player.Id, CancellationToken.None));
+                    FireAndLog(_room.KickAsync(player.Id, _shutdown.Token));
                     continue;
                 }
             }
@@ -147,6 +157,7 @@ public sealed partial class HostSessionController : IDisposable
     private readonly Dictionary<string, PeerHealth> _health = new(StringComparer.Ordinal);
     private long? _outageStartedAt;
     private bool _reoffering;
+    private bool _syncPending = true;
 
     private sealed class PeerHealth
     {
@@ -255,12 +266,32 @@ public sealed partial class HostSessionController : IDisposable
         }
     }
 
-    private void OnHolderChanged(HolderChange change)
+    private void OnHolderChanged(HolderChange change) => Publish(change.Current, change.Epoch);
+
+    private void Publish(string holder, uint epoch)
     {
-        var wire = change.Current == _session.HostId ? null : change.Current;
+        var wire = holder == _session.HostId ? null : holder;
         var everyone = _session.Mode == TurnMode.Everyone;
-        FireAndLog(_room.SendHolderAsync(wire, change.Epoch, everyone, CancellationToken.None));
-        _peers.BroadcastControl(new JsonObject { ["t"] = "holder", ["id"] = wire ?? _session.HostId, ["epoch"] = change.Epoch, ["mode"] = everyone ? "everyone" : "one" });
+        FireAndLog(_room.SendHolderAsync(wire, epoch, everyone, _shutdown.Token));
+        _peers.BroadcastControl(new JsonObject { ["t"] = "holder", ["id"] = wire ?? _session.HostId, ["epoch"] = epoch, ["mode"] = everyone ? "everyone" : "one" });
+    }
+
+    /// <summary>
+    /// The first thing the room tells a newly attached host is its own idea of the stick. A fresh session knows nothing of
+    /// an old holder and epoch (the app restarted, or a mode was chosen before the connection came up), so reconcile:
+    /// move past the room's epoch if it is ahead, otherwise just tell the room what this session believes.
+    /// </summary>
+    private void SyncWithRoom(PresenceEvent room)
+    {
+        var holderHere = _session.HostHoldsStick ? "host" : _session.Holder;
+        if (room.Epoch > _session.Epoch || (room.Holder != "host" && room.Holder != holderHere))
+        {
+            _session.ResumeAt(room.Epoch);
+        }
+        else if (room.Everyone != (_session.Mode == TurnMode.Everyone) || room.Holder != holderHere || room.Epoch != _session.Epoch)
+        {
+            Publish(_session.Holder, _session.Epoch);
+        }
     }
 
     private void OnState(string from, byte[] data) => HandleFrame(from, data);

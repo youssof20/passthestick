@@ -12,6 +12,8 @@ export const LIMITS = {
   hostGraceMs: 60_000,
   roomIdleMs: 30 * 60_000,
   messagesPerSecond: 20,
+  // The host sends an offer and several candidates per guest, so a reconnect to a full room is a burst.
+  hostMessagesPerSecond: 300,
   relayFramesPerSecond: 64,
   relayFramesPerSecondHolder: 250,
   joinAttemptsPerMinute: 5,

@@ -42,7 +42,6 @@ public sealed class ChaosTests
         var tracker = new FakeTrackerForChaos();
         var pump = new InputPump(tracker, pipeline);
 
-        var inRoom = new HashSet<string>();
         ushort seq = 0;
 
         string Snapshot() => string.Join(",", inj.Down.OrderBy(k => k.ScanCode).ThenBy(k => k.Extended).Select(k => $"{k.ScanCode}{(k.Extended ? "e" : string.Empty)}"))
@@ -71,7 +70,6 @@ public sealed class ChaosTests
                 case 0:
                     var present = new[] { "a", "b", "c" }.Where(_ => rng.Next(3) != 0).ToArray();
                     room.Raise(new PresenceEvent([.. present.Select((id, i) => new RoomPlayer(id, id.ToUpperInvariant(), i, rng.Next(8) == 0))], "host", 0, false));
-                    inRoom = [.. present];
                     break;
                 case 1:
                     _ = who != "ghost" ? session.PassTo(who) : false;
@@ -141,7 +139,6 @@ public sealed class ChaosTests
         session.Reset();
         Assert.Empty(inj.Down);
         Assert.All(pad.State.Values, s => Assert.Equal(PadState.Neutral, s));
-        _ = inRoom;
     }
 
     private sealed class FakeTrackerForChaos : IWindowTracker

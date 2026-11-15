@@ -10,7 +10,7 @@ public sealed record RoomPlayer(string Id, string Name, int Slot, bool Away);
 
 public abstract record RoomEvent;
 
-public sealed record PresenceEvent(IReadOnlyList<RoomPlayer> Players, string Holder, uint Epoch, bool HostAway) : RoomEvent;
+public sealed record PresenceEvent(IReadOnlyList<RoomPlayer> Players, string Holder, uint Epoch, bool HostAway, bool Everyone = false) : RoomEvent;
 
 public sealed record SignalEvent(string From, JsonObject Payload) : RoomEvent;
 
@@ -294,7 +294,7 @@ public sealed class RoomClient : IRoomLink
         }
 
         var epoch = json["epoch"] is { } e ? Convert.ToUInt32(e.GetValue<double>(), CultureInfo.InvariantCulture) : 0u;
-        return new PresenceEvent(players, (string?)json["holder"] ?? "host", epoch, (bool?)json["hostAway"] ?? false);
+        return new PresenceEvent(players, (string?)json["holder"] ?? "host", epoch, (bool?)json["hostAway"] ?? false, (string?)json["mode"] == "everyone");
     }
 
     private void Raise(RoomEvent e) => Received?.Invoke(e);

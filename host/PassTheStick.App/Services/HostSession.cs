@@ -116,7 +116,7 @@ public sealed partial class HostSession : IHostSession
         IVirtualPadBackend padBackend = pad is null ? new NoPadBackend() : pad;
 
         var session = new StickSession("host");
-        var pipeline = new InputPipeline(session, new SendInputInjector(_logs.CreateLogger<SendInputInjector>()), padBackend);
+        var pipeline = new InputPipeline(session, new SendInputInjector(_logs.CreateLogger<SendInputInjector>()), padBackend, null, () => _tracker.IsPinned && _tracker.IsGameForeground);
         var wsBase = new UriBuilder(server) { Scheme = server.Scheme == Uri.UriSchemeHttps ? "wss" : "ws" }.Uri;
         var client = new RoomClient(new WebSocketFactory(), wsBase, room.Code, room.HostToken);
         var hub = new PeerHub(client, settings.IceServers, _logs.CreateLogger<PeerHub>());

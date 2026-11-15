@@ -226,6 +226,26 @@ public sealed class StickSession
         return true;
     }
 
+    /// <summary>
+    /// For a host that has just taken over an existing room: moves the epoch past whatever the room last saw and gives the
+    /// stick to the host, so the room and its guests stop acting on a holder this session never knew about.
+    /// </summary>
+    public void ResumeAt(uint roomEpoch)
+    {
+        HolderChange change;
+        lock (_gate)
+        {
+            if (roomEpoch > _epoch)
+            {
+                _epoch = roomEpoch;
+            }
+
+            change = SetHolderLocked(HostId, HolderChangeReason.Reset);
+        }
+
+        Raise(change);
+    }
+
     /// <summary>Forces the stick back to the host and bumps the epoch, even if the host already holds it.</summary>
     public void Reset()
     {

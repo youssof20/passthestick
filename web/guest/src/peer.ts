@@ -19,6 +19,7 @@ export class HostLink {
   private relay = false;
   private fallbackTimer: ReturnType<typeof setTimeout> | undefined;
   private statsTimer: ReturnType<typeof setInterval> | undefined;
+  private signalChain: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly signaling: SignalingClient,
@@ -30,7 +31,16 @@ export class HostLink {
     return this.relay;
   }
 
-  async onSignal(msg: { sdp?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit }): Promise<void> {
+  /**
+   * Signals are handled one at a time, in arrival order. The host sends an offer and its candidates back to back; handled
+   * concurrently, a candidate could reach addIceCandidate before setRemoteDescription finished and be silently lost.
+   */
+  onSignal(msg: { sdp?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit }): Promise<void> {
+    this.signalChain = this.signalChain.then(() => this.handleSignal(msg)).catch(() => undefined);
+    return this.signalChain;
+  }
+
+  private async handleSignal(msg: { sdp?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit }): Promise<void> {
     if (msg.sdp?.type === "offer") {
       this.reset();
       const pc = new RTCPeerConnection({ iceServers: this.iceServers });
