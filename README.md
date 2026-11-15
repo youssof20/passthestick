@@ -29,7 +29,7 @@ No account, no video capture, no port forwarding. Everyone watches your Discord 
 4. Pass the stick with a hotkey, the tray icon or a button.
 
 <p align="center">
-  <img src="docs/screenshots/main.png" width="560" alt="Setup screen: pick the game window, then start a session">
+  <img src="docs/screenshots/main.png" width="620" alt="Setup screen: pick the game window, then start a session">
 </p>
 
 ## What it does

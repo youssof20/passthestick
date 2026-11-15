@@ -4,7 +4,7 @@
         xmlns:vm="clr-namespace:PassTheStick.App.ViewModels"
         xmlns:wn="clr-namespace:PassTheStick.Windows;assembly=PassTheStick.Windows"
         xmlns:ss="clr-namespace:PassTheStick.App.Services"
-        Style="{StaticResource PtsWindow}" Title="PassTheStick" Width="1040" Height="780" MinWidth="900" MinHeight="660"
+        Style="{StaticResource PtsWindow}" Title="PassTheStick" Width="1040" Height="860" MinWidth="900" MinHeight="700"
         WindowStartupLocation="CenterScreen">
   <Grid>
     <Grid.RowDefinitions>
@@ -18,7 +18,13 @@
     <Border Grid.Row="0" Padding="{StaticResource PtsSpace5Thickness}" BorderBrush="{DynamicResource PtsBorderSubtleBrush}" BorderThickness="0,0,0,1">
       <Grid>
         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-          <Image Source="pack://application:,,,/passthestick.ico" Width="32" Height="32" Margin="{StaticResource PtsSpace3Right}" RenderOptions.BitmapScalingMode="HighQuality"/>
+          <Viewbox Width="22" Height="30" Margin="0,0,12,0" VerticalAlignment="Center" AutomationProperties.Name="PassTheStick logo">
+            <Canvas Width="144" Height="198">
+              <Ellipse Canvas.Left="10" Canvas.Top="170" Width="124" Height="28" Fill="{DynamicResource PtsTextBrush}" Opacity="0.85"/>
+              <Line X1="72" Y1="178" X2="72" Y2="68" Stroke="{DynamicResource PtsAccentBrush}" StrokeThickness="22" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+              <Ellipse Canvas.Left="28" Canvas.Top="6" Width="88" Height="88" Fill="{DynamicResource PtsAccentBrush}"/>
+            </Canvas>
+          </Viewbox>
           <TextBlock Style="{StaticResource PtsHeading}" Text="PassTheStick" VerticalAlignment="Center"/>
         </StackPanel>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
@@ -62,18 +68,18 @@
     </Border>
 
     <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-      <Grid Margin="{StaticResource PtsSpace5Thickness}" HorizontalAlignment="Center" MaxWidth="1000">
+      <Grid Margin="{StaticResource PtsSpace5Thickness}" HorizontalAlignment="Stretch" MaxWidth="1000">
 
         <!-- Before a session: two short steps, centered. -->
-        <StackPanel MaxWidth="660" Margin="{StaticResource PtsSpace5Top}">
+        <StackPanel Width="620" HorizontalAlignment="Center" Margin="{StaticResource PtsSpace5Top}">
           <StackPanel.Style>
             <Style TargetType="StackPanel">
               <Setter Property="Visibility" Value="Collapsed"/>
               <Style.Triggers><DataTrigger Binding="{Binding IsIdle}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
             </Style>
           </StackPanel.Style>
-          <TextBlock Style="{StaticResource PtsDisplay}" Text="Host a game" Margin="{StaticResource PtsSpace2Bottom}"/>
-          <TextBlock Style="{StaticResource PtsLead}" Text="Pick the window your friends will play in, then start a session and send them the link." Margin="{StaticResource PtsSpace5Bottom}"/>
+          <TextBlock Style="{StaticResource PtsDisplay}" Text="Host a game" TextAlignment="Center" Margin="{StaticResource PtsSpace2Bottom}"/>
+          <TextBlock Style="{StaticResource PtsLead}" Text="Pick the game window, then start a session." TextAlignment="Center" Margin="{StaticResource PtsSpace5Bottom}"/>
 
           <Border Style="{StaticResource PtsCard}" Margin="{StaticResource PtsSpace4Bottom}">
             <StackPanel>
@@ -125,7 +131,8 @@
             </StackPanel>
           </Border>
 
-          <Expander Header="Advanced" Style="{StaticResource PtsExpander}">
+          <Expander Style="{StaticResource PtsExpander}">
+            <Expander.Header><TextBlock Text="Advanced" FontWeight="SemiBold" Foreground="{DynamicResource PtsTextMutedBrush}"/></Expander.Header>
             <StackPanel Margin="{StaticResource PtsSpace3Top}">
               <TextBlock Style="{StaticResource PtsMuted}" Text="Where rooms are created. Leave this alone unless you run your own server." Margin="{StaticResource PtsSpace2Bottom}"/>
               <TextBox Text="{Binding ServerUrl, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Server address"/>
@@ -136,40 +143,46 @@
         </StackPanel>
 
         <!-- During a session: the code first, then who is playing, with the game and hotkeys alongside. -->
-        <Grid Margin="{StaticResource PtsSpace5Top}">
+        <Grid>
           <Grid.Style>
             <Style TargetType="Grid">
               <Setter Property="Visibility" Value="Collapsed"/>
               <Style.Triggers><DataTrigger Binding="{Binding IsLive}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
             </Style>
           </Grid.Style>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+          </Grid.RowDefinitions>
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="3*" MinWidth="360"/>
             <ColumnDefinition Width="24"/>
             <ColumnDefinition Width="2*" MinWidth="300"/>
           </Grid.ColumnDefinitions>
 
-          <StackPanel Grid.Column="0">
-            <Border Style="{StaticResource PtsCard}" Margin="{StaticResource PtsSpace4Bottom}">
+          <Border Grid.Row="0" Grid.ColumnSpan="3" Style="{StaticResource PtsCard}" Margin="{StaticResource PtsSpace4Bottom}">
+            <Grid>
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
               <StackPanel>
                 <TextBlock Style="{StaticResource PtsMuted}" Text="Room code"/>
-                <StackPanel Orientation="Horizontal" Margin="{StaticResource PtsSpace2Top}">
+                <StackPanel Orientation="Horizontal">
                   <TextBlock Style="{StaticResource PtsRoomCode}" Text="{Binding RoomCode}" VerticalAlignment="Center" AutomationProperties.Name="Room code"/>
                   <Button Style="{StaticResource PtsIconButton}" Content="&#xE8C8;" Command="{Binding CopyCodeCommand}" Margin="{StaticResource PtsSpace4Left}" VerticalAlignment="Center" AutomationProperties.Name="Copy room code"/>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="{StaticResource PtsSpace3Top}">
-                  <TextBlock Style="{StaticResource PtsIcon}" Text="&#xE71B;" Margin="{StaticResource PtsSpace2Right}" VerticalAlignment="Center"/>
-                  <TextBlock Style="{StaticResource PtsMuted}" Text="{Binding InviteLink}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                </StackPanel>
-                <Button Style="{StaticResource PtsPrimaryButton}" Command="{Binding CopyInviteCommand}" HorizontalAlignment="Left" Margin="{StaticResource PtsSpace4Top}" AutomationProperties.Name="Copy invite link">
+              </StackPanel>
+              <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
+                <Button Style="{StaticResource PtsPrimaryButton}" Command="{Binding CopyInviteCommand}" HorizontalAlignment="Right" MinHeight="48" MinWidth="200" AutomationProperties.Name="Copy invite link">
                   <StackPanel Orientation="Horizontal">
                     <TextBlock Style="{StaticResource PtsIcon}" Text="&#xE71B;" Margin="{StaticResource PtsSpace2Right}" Foreground="{DynamicResource PtsOnAccentBrush}"/>
                     <TextBlock Text="Copy invite link" Foreground="{DynamicResource PtsOnAccentBrush}"/>
                   </StackPanel>
                 </Button>
+                <TextBlock Style="{StaticResource PtsMuted}" Text="{Binding InviteLink}" MaxWidth="340" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" TextAlignment="Right" Margin="{StaticResource PtsSpace2Top}"/>
               </StackPanel>
-            </Border>
+            </Grid>
+          </Border>
 
+          <StackPanel Grid.Row="1" Grid.Column="0">
             <Border Style="{StaticResource PtsCard}">
               <StackPanel>
                 <Grid Margin="{StaticResource PtsSpace3Bottom}">
@@ -203,7 +216,7 @@
                 </ItemsControl>
                   <TextBlock Style="{StaticResource PtsMuted}" Text="{Binding TurnLeftText}"/>
                 </StackPanel>
-                <StackPanel HorizontalAlignment="Center" Margin="{StaticResource PtsSpace5Thickness}">
+                <StackPanel HorizontalAlignment="Center" Margin="{StaticResource PtsSpace3Thickness}">
                   <StackPanel.Style>
                     <Style TargetType="StackPanel">
                       <Setter Property="Visibility" Value="Collapsed"/>
@@ -259,7 +272,7 @@
             </Border>
           </StackPanel>
 
-          <StackPanel Grid.Column="2">
+          <StackPanel Grid.Row="1" Grid.Column="2">
             <Border Style="{StaticResource PtsCard}" Margin="{StaticResource PtsSpace4Bottom}">
               <StackPanel>
                 <Grid Margin="{StaticResource PtsSpace3Bottom}">
@@ -408,9 +421,9 @@
           <Style.Triggers><DataTrigger Binding="{Binding IsIdle}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
         </Style>
       </Border.Style>
-      <Grid MaxWidth="660">
+      <Grid Width="620" HorizontalAlignment="Center">
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <TextBlock Style="{StaticResource PtsMuted}" Text="{Binding StartHint}" VerticalAlignment="Center" Margin="{StaticResource PtsSpace4Right}"/>
+        <TextBlock Style="{StaticResource PtsMuted}" Text="{Binding StartHint}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="{StaticResource PtsSpace4Right}"/>
         <Button Grid.Column="1" Style="{StaticResource PtsPrimaryButton}" Command="{Binding StartCommand}" MinWidth="200" MinHeight="48" AutomationProperties.Name="Start a session">
           <StackPanel Orientation="Horizontal">
             <TextBlock Style="{StaticResource PtsIcon}" Text="&#xE768;" Margin="{StaticResource PtsSpace3Right}" Foreground="{DynamicResource PtsOnAccentBrush}"/>

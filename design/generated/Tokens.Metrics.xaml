@@ -71,5 +71,5 @@
   <sys:Double x:Key="PtsTypeTitleSize">22</sys:Double>
   <sys:Double x:Key="PtsTypeHeadingSize">32</sys:Double>
   <sys:Double x:Key="PtsTypeDisplaySize">56</sys:Double>
-  <sys:Double x:Key="PtsTypeRoomCodeSize">72</sys:Double>
+  <sys:Double x:Key="PtsTypeRoomCodeSize">56</sys:Double>
 </ResourceDictionary>
