@@ -1,0 +1,535 @@
+<Window x:Class="PassTheStick.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:PassTheStick.App.ViewModels"
+        xmlns:wn="clr-namespace:PassTheStick.Windows;assembly=PassTheStick.Windows"
+        xmlns:ss="clr-namespace:PassTheStick.App.Services"
+        Style="{StaticResource PtsWindow}" Title="PassTheStick" Width="1040" Height="780" MinWidth="900" MinHeight="660"
+        WindowStartupLocation="CenterScreen">
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+
+    <!-- Header: who we are and whether we are live. -->
+    <Border Grid.Row="0" Padding="{StaticResource PtsSpace5Thickness}" BorderBrush="{DynamicResource PtsBorderSubtleBrush}" BorderThickness="0,0,0,1">
+      <Grid>
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <Image Source="pack://application:,,,/passthestick.ico" Width="32" Height="32" Margin="{StaticResource PtsSpace3Right}" RenderOptions.BitmapScalingMode="HighQuality"/>
+          <TextBlock Style="{StaticResource PtsHeading}" Text="PassTheStick" VerticalAlignment="Center"/>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+        <Button Content="Restart to update" Command="{Binding InstallUpdateCommand}" Margin="{StaticResource PtsSpace4Right}" MinHeight="32">
+          <Button.Style>
+            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+              <Setter Property="Visibility" Value="Collapsed"/>
+              <Style.Triggers><DataTrigger Binding="{Binding HasUpdate}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+            </Style>
+          </Button.Style>
+        </Button>
+        <Border VerticalAlignment="Center" Style="{StaticResource PtsStatusPill}" AutomationProperties.Name="Session status">
+          <StackPanel Orientation="Horizontal">
+            <Ellipse Width="10" Height="10" Margin="{StaticResource PtsSpace2Right}" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Border}, Path=(TextElement.Foreground)}"/>
+            <TextBlock Text="{Binding PhaseText}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Border>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- One place for anything the person needs to read: information, or a problem with a way forward. -->
+    <Border Grid.Row="1" Margin="{StaticResource PtsSpace5Thickness}" Padding="{StaticResource PtsSpace3Thickness}" Style="{StaticResource PtsNotice}">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <TextBlock Margin="{StaticResource PtsSpace3Right}" VerticalAlignment="Center">
+          <TextBlock.Style>
+            <Style TargetType="TextBlock" BasedOn="{StaticResource PtsIcon}">
+              <Setter Property="Text" Value="&#xE946;"/>
+              <Style.Triggers><DataTrigger Binding="{Binding NoticeIsProblem}" Value="True"><Setter Property="Text" Value="&#xE7BA;"/></DataTrigger></Style.Triggers>
+            </Style>
+          </TextBlock.Style>
+        </TextBlock>
+        <TextBlock Grid.Column="1" Text="{Binding Notice}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite"/>
+        <Button Grid.Column="2" Style="{StaticResource PtsIconButton}" Content="&#xE711;" Command="{Binding DismissNoticeCommand}" AutomationProperties.Name="Dismiss message"/>
+      </Grid>
+    </Border>
+
+    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <Grid Margin="{StaticResource PtsSpace5Thickness}" HorizontalAlignment="Center" MaxWidth="1000">
+
+        <!-- Before a session: two short steps, centered. -->
+        <StackPanel MaxWidth="660" Margin="{StaticResource PtsSpace5Top}">
+          <StackPanel.Style>
+            <Style TargetType="StackPanel">
+              <Setter Property="Visibility" Value="Collapsed"/>
+              <Style.Triggers><DataTrigger Binding="{Binding IsIdle}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+            </Style>
+          </StackPanel.Style>
+          <TextBlock Style="{StaticResource PtsDisplay}" Text="Host a game" Margin="{StaticResource PtsSpace2Bottom}"/>
+          <TextBlock Style="{StaticResource PtsLead}" Text="Pick the window your friends will play in, then start a session and send them the link." Margin="{StaticResource PtsSpace5Bottom}"/>
+
+          <Border Style="{StaticResource PtsCard}" Margin="{StaticResource PtsSpace4Bottom}">
+            <StackPanel>
+              <StackPanel Orientation="Horizontal" Margin="{StaticResource PtsSpace3Bottom}">
+                <Border Style="{StaticResource PtsStep}"><TextBlock Text="1" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                <TextBlock Style="{StaticResource PtsCardTitle}" Text="Pick the game window" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock Text="{Binding GameTitle}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis">
+                <TextBlock.Style>
+                  <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers><DataTrigger Binding="{Binding HasGame}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                  </Style>
+                </TextBlock.Style>
+              </TextBlock>
+              <TextBlock Style="{StaticResource PtsMuted}" Text="{Binding GameText}" Margin="{StaticResource PtsSpace3Bottom}"/>
+              <Grid Margin="{StaticResource PtsSpace3Bottom}">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <Border BorderBrush="{DynamicResource PtsBorderBrush}" BorderThickness="2" CornerRadius="{StaticResource PtsRadiusControl}" Background="{DynamicResource PtsSurfaceRaisedBrush}">
+                <Grid MinHeight="40">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Style="{StaticResource PtsIcon}" Text="&#xE721;" Margin="{StaticResource PtsSpace3Thickness}" Foreground="{DynamicResource PtsTextMutedBrush}"/>
+                  <TextBox Grid.Column="1" Style="{StaticResource PtsBareTextBox}" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Search windows"/>
+                  <TextBlock Grid.Column="1" Text="Search windows" IsHitTestVisible="False" VerticalAlignment="Center">
+                    <TextBlock.Style>
+                      <Style TargetType="TextBlock" BasedOn="{StaticResource PtsMuted}">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers><DataTrigger Binding="{Binding SearchText}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                      </Style>
+                    </TextBlock.Style>
+                  </TextBlock>
+                </Grid>
+              </Border>
+                <Button Grid.Column="1" Style="{StaticResource PtsIconButton}" Content="&#xE72C;" Command="{Binding RefreshWindowsCommand}" Margin="{StaticResource PtsSpace2Left}" AutomationProperties.Name="Refresh window list"/>
+              </Grid>
+              <Border BorderBrush="{DynamicResource PtsBorderSubtleBrush}" BorderThickness="1" CornerRadius="{StaticResource PtsRadiusControl}" Background="{DynamicResource PtsBgBrush}">
+                <ListBox ItemsSource="{Binding Windows}" SelectedItem="{Binding SelectedWindow}" MaxHeight="168" MinHeight="96" BorderThickness="0" Background="Transparent" AutomationProperties.Name="Open windows 1">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate DataType="{x:Type wn:WindowInfo}">
+                      <StackPanel>
+                        <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding ProcessName}" Style="{StaticResource PtsMuted}"/>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+              </Border>
+              <Button Content="Use this window" Command="{Binding PinCommand}" HorizontalAlignment="Left" Margin="{StaticResource PtsSpace3Top}"/>
+            </StackPanel>
+          </Border>
+
+          <Expander Header="Advanced" Style="{StaticResource PtsExpander}">
+            <StackPanel Margin="{StaticResource PtsSpace3Top}">
+              <TextBlock Style="{StaticResource PtsMuted}" Text="Where rooms are created. Leave this alone unless you run your own server." Margin="{StaticResource PtsSpace2Bottom}"/>
+              <TextBox Text="{Binding ServerUrl, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Server address"/>
+              <TextBlock Style="{StaticResource PtsMuted}" Text="Having trouble? Save a bundle of logs for a bug report. Secrets are removed first." Margin="{StaticResource PtsSpace4Top}"/>
+              <Button Content="Save diagnostics" Command="{Binding ExportDiagnosticsCommand}" HorizontalAlignment="Left" Margin="{StaticResource PtsSpace2Top}"/>
+            </StackPanel>
+          </Expander>
+        </StackPanel>
+
+        <!-- During a session: the code first, then who is playing, with the game and hotkeys alongside. -->
+        <Grid Margin="{StaticResource PtsSpace5Top}">
+          <Grid.Style>
+            <Style TargetType="Grid">
+              <Setter Property="Visibility" Value="Collapsed"/>
+              <Style.Triggers><DataTrigger Binding="{Binding IsLive}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+            </Style>
+          </Grid.Style>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="3*" MinWidth="360"/>
+            <ColumnDefinition Width="24"/>
+            <ColumnDefinition Width="2*" MinWidth="300"/>
+          </Grid.ColumnDefinitions>
+
+          <StackPanel Grid.Column="0">
+            <Border Style="{StaticResource PtsCard}" Margin="{StaticResource PtsSpace4Bottom}">
+              <StackPanel>
+                <TextBlock Style="{StaticResource PtsMuted}" Text="Room code"/>
+                <StackPanel Orientation="Horizontal" Margin="{StaticResource PtsSpace2Top}">
+                  <TextBlock Style="{StaticResource PtsRoomCode}" Text="{Binding RoomCode}" VerticalAlignment="Center" AutomationProperties.Name="Room code"/>
+                  <Button Style="{StaticResource PtsIconButton}" Content="&#xE8C8;" Command="{Binding CopyCodeCommand}" Margin="{StaticResource PtsSpace4Left}" VerticalAlignment="Center" AutomationProperties.Name="Copy room code"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="{StaticResource PtsSpace3Top}">
+                  <TextBlock Style="{StaticResource PtsIcon}" Text="&#xE71B;" Margin="{StaticResource PtsSpace2Right}" VerticalAlignment="Center"/>
+                  <TextBlock Style="{StaticResource PtsMuted}" Text="{Binding InviteLink}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                </StackPanel>
+                <Button Style="{StaticResource PtsPrimaryButton}" Command="{Binding CopyInviteCommand}" HorizontalAlignment="Left" Margin="{StaticResource PtsSpace4Top}" AutomationProperties.Name="Copy invite link">
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource PtsIcon}" Text="&#xE71B;" Margin="{StaticResource PtsSpace2Right}" Foreground="{DynamicResource PtsOnAccentBrush}"/>
+                    <TextBlock Text="Copy invite link" Foreground="{DynamicResource PtsOnAccentBrush}"/>
+                  </StackPanel>
+                </Button>
+              </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource PtsCard}">
+              <StackPanel>
+                <Grid Margin="{StaticResource PtsSpace3Bottom}">
+                  <TextBlock Style="{StaticResource PtsCardTitle}" Text="Players"/>
+                  <TextBlock Style="{StaticResource PtsMuted}" Text="{Binding PlayersSummary}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                </Grid>
+                <TextBlock Style="{StaticResource PtsMuted}" Text="How you play" Margin="{StaticResource PtsSpace1Bottom}"/>
+                <ItemsControl ItemsSource="{Binding ModeChoices}" Margin="{StaticResource PtsSpace3Bottom}" AutomationProperties.Name="How you play">
+                  <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Button Style="{StaticResource PtsSegment}" Content="{Binding Label}" Command="{Binding DataContext.ChooseModeCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"/>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <StackPanel Margin="{StaticResource PtsSpace3Bottom}">
+                  <StackPanel.Style>
+                    <Style TargetType="StackPanel">
+                      <Setter Property="Visibility" Value="Collapsed"/>
+                      <Style.Triggers><DataTrigger Binding="{Binding ShowTurnControls}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                    </Style>
+                  </StackPanel.Style>
+                  <TextBlock Style="{StaticResource PtsMuted}" Text="Turn length" Margin="{StaticResource PtsSpace1Bottom}"/>
+                <ItemsControl ItemsSource="{Binding TimerChoices}" AutomationProperties.Name="Turn length">
+                  <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Button Style="{StaticResource PtsSegment}" Content="{Binding Label}" Command="{Binding DataContext.ChooseTimerCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"/>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                  <TextBlock Style="{StaticResource PtsMuted}" Text="{Binding TurnLeftText}"/>
+                </StackPanel>
+                <StackPanel HorizontalAlignment="Center" Margin="{StaticResource PtsSpace5Thickness}">
+                  <StackPanel.Style>
+                    <Style TargetType="StackPanel">
+                      <Setter Property="Visibility" Value="Collapsed"/>
+                      <Style.Triggers><DataTrigger Binding="{Binding NoPlayers}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                    </Style>
+                  </StackPanel.Style>
+                  <TextBlock Style="{StaticResource PtsIcon}" Text="&#xE716;" FontSize="{StaticResource PtsTypeHeadingSize}" HorizontalAlignment="Center" Foreground="{DynamicResource PtsTextMutedBrush}" Margin="{StaticResource PtsSpace2Bottom}"/>
+                  <TextBlock Text="Waiting for friends" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                  <TextBlock Style="{StaticResource PtsMuted}" Text="Send the invite link. They open it in a browser and they are in." TextAlignment="Center" Margin="{StaticResource PtsSpace1Top}"/>
+                </StackPanel>
+                <ItemsControl ItemsSource="{Binding Players}" AutomationProperties.Name="Players">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:PlayerViewModel}">
+                      <Border x:Name="Row" Margin="{StaticResource PtsSpace2Bottom}" Padding="{StaticResource PtsSpace3Thickness}" Style="{StaticResource PtsRow}">
+                        <Grid>
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                          </Grid.ColumnDefinitions>
+                          <Border Style="{StaticResource PtsAvatar}" Margin="{StaticResource PtsSpace3Right}">
+                            <TextBlock Text="{Binding Initial}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                          </Border>
+                          <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{Binding Status}" Style="{StaticResource PtsMuted}"/>
+                          </StackPanel>
+                          <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border x:Name="HolderTag" Style="{StaticResource PtsHolderTag}" Visibility="Collapsed" Margin="{StaticResource PtsSpace3Right}">
+                              <TextBlock Text="Stick" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            </Border>
+                            <Button x:Name="PassButton" Content="Pass" Command="{Binding PassCommand}" MinWidth="72"/>
+                          </StackPanel>
+                        </Grid>
+                      </Border>
+                      <DataTemplate.Triggers>
+                        <DataTrigger Binding="{Binding HasStick}" Value="True">
+                          <Setter TargetName="Row" Property="BorderBrush" Value="{DynamicResource PtsAccentBrush}"/>
+                          <Setter TargetName="Row" Property="Background" Value="{DynamicResource PtsSurfaceRaisedBrush}"/>
+                          <Setter TargetName="HolderTag" Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding ShowPass}" Value="False">
+                          <Setter TargetName="PassButton" Property="Visibility" Value="Collapsed"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Away}" Value="True">
+                          <Setter TargetName="Row" Property="Opacity" Value="0.6"/>
+                        </DataTrigger>
+                      </DataTemplate.Triggers>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <StackPanel Grid.Column="2">
+            <Border Style="{StaticResource PtsCard}" Margin="{StaticResource PtsSpace4Bottom}">
+              <StackPanel>
+                <Grid Margin="{StaticResource PtsSpace3Bottom}">
+                  <TextBlock Style="{StaticResource PtsCardTitle}" Text="Game window"/>
+                  <Button Content="Change" Command="{Binding ChangeGameCommand}" HorizontalAlignment="Right" MinHeight="32" Padding="{StaticResource PtsSpace3Thickness}">
+                    <Button.Style>
+                      <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers><DataTrigger Binding="{Binding HasGame}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                      </Style>
+                    </Button.Style>
+                  </Button>
+                </Grid>
+                <StackPanel>
+                  <StackPanel.Style>
+                    <Style TargetType="StackPanel">
+                      <Setter Property="Visibility" Value="Collapsed"/>
+                      <Style.Triggers><DataTrigger Binding="{Binding HasGame}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                    </Style>
+                  </StackPanel.Style>
+                  <TextBlock Text="{Binding GameTitle}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+                <TextBlock Style="{StaticResource PtsMuted}" Text="{Binding GameText}" Margin="{StaticResource PtsSpace1Top}"/>
+                <Border Style="{StaticResource PtsWarning}" Margin="{StaticResource PtsSpace3Top}" Padding="{StaticResource PtsSpace3Thickness}">
+                  <TextBlock Text="{Binding GameWarning}"/>
+                </Border>
+                <StackPanel Margin="{StaticResource PtsSpace3Top}">
+                  <StackPanel.Style>
+                    <Style TargetType="StackPanel">
+                      <Setter Property="Visibility" Value="Collapsed"/>
+                      <Style.Triggers><DataTrigger Binding="{Binding ShowPicker}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                    </Style>
+                  </StackPanel.Style>
+                  <Grid Margin="{StaticResource PtsSpace3Bottom}">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <Border BorderBrush="{DynamicResource PtsBorderBrush}" BorderThickness="2" CornerRadius="{StaticResource PtsRadiusControl}" Background="{DynamicResource PtsSurfaceRaisedBrush}">
+                <Grid MinHeight="40">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Style="{StaticResource PtsIcon}" Text="&#xE721;" Margin="{StaticResource PtsSpace3Thickness}" Foreground="{DynamicResource PtsTextMutedBrush}"/>
+                  <TextBox Grid.Column="1" Style="{StaticResource PtsBareTextBox}" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Search windows"/>
+                  <TextBlock Grid.Column="1" Text="Search windows" IsHitTestVisible="False" VerticalAlignment="Center">
+                    <TextBlock.Style>
+                      <Style TargetType="TextBlock" BasedOn="{StaticResource PtsMuted}">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers><DataTrigger Binding="{Binding SearchText}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                      </Style>
+                    </TextBlock.Style>
+                  </TextBlock>
+                </Grid>
+              </Border>
+                <Button Grid.Column="1" Style="{StaticResource PtsIconButton}" Content="&#xE72C;" Command="{Binding RefreshWindowsCommand}" Margin="{StaticResource PtsSpace2Left}" AutomationProperties.Name="Refresh window list"/>
+              </Grid>
+              <Border BorderBrush="{DynamicResource PtsBorderSubtleBrush}" BorderThickness="1" CornerRadius="{StaticResource PtsRadiusControl}" Background="{DynamicResource PtsBgBrush}">
+                <ListBox ItemsSource="{Binding Windows}" SelectedItem="{Binding SelectedWindow}" MaxHeight="168" MinHeight="96" BorderThickness="0" Background="Transparent" AutomationProperties.Name="Open windows 2">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate DataType="{x:Type wn:WindowInfo}">
+                      <StackPanel>
+                        <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding ProcessName}" Style="{StaticResource PtsMuted}"/>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+              </Border>
+              <Button Content="Use this window" Command="{Binding PinCommand}" HorizontalAlignment="Left" Margin="{StaticResource PtsSpace3Top}"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource PtsCard}" Margin="{StaticResource PtsSpace4Bottom}">
+              <Border.Resources>
+                <Style x:Key="ProbeCard" TargetType="Border" BasedOn="{StaticResource PtsCard}"/>
+              </Border.Resources>
+              <Border.Visibility>
+                <Binding Path="Probe.IsActive">
+                  <Binding.Converter>
+                    <BooleanToVisibilityConverter/>
+                  </Binding.Converter>
+                </Binding>
+              </Border.Visibility>
+              <StackPanel>
+                <TextBlock Style="{StaticResource PtsCardTitle}" Text="{Binding Probe.Title}" Margin="{StaticResource PtsSpace1Bottom}"/>
+                <TextBlock Style="{StaticResource PtsMuted}" Text="Nothing here reaches the game." Margin="{StaticResource PtsSpace3Bottom}"/>
+                <ItemsControl ItemsSource="{Binding Probe.Buttons}" AutomationProperties.Name="Buttons the guest is pressing">
+                  <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:ButtonChip}">
+                      <Border x:Name="Chip" Style="{StaticResource PtsKeycap}" MinWidth="40">
+                        <TextBlock x:Name="Label" Text="{Binding Name}" FontWeight="SemiBold" TextAlignment="Center"/>
+                      </Border>
+                      <DataTemplate.Triggers>
+                        <DataTrigger Binding="{Binding IsDown}" Value="True">
+                          <Setter TargetName="Chip" Property="Background" Value="{DynamicResource PtsAccentBrush}"/>
+                          <Setter TargetName="Chip" Property="BorderBrush" Value="{DynamicResource PtsOnAccentBrush}"/>
+                          <Setter TargetName="Label" Property="Foreground" Value="{DynamicResource PtsOnAccentBrush}"/>
+                        </DataTrigger>
+                      </DataTemplate.Triggers>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="Left stick" Style="{StaticResource PtsMuted}" Margin="{StaticResource PtsSpace3Top}"/>
+                <ProgressBar Style="{StaticResource PtsMeter}" Value="{Binding Probe.LeftX}" AutomationProperties.Name="Left stick horizontal"/>
+                <ProgressBar Style="{StaticResource PtsMeter}" Value="{Binding Probe.LeftY}" Margin="{StaticResource PtsSpace1Top}" AutomationProperties.Name="Left stick vertical"/>
+                <TextBlock Text="Right stick" Style="{StaticResource PtsMuted}" Margin="{StaticResource PtsSpace2Top}"/>
+                <ProgressBar Style="{StaticResource PtsMeter}" Value="{Binding Probe.RightX}" AutomationProperties.Name="Right stick horizontal"/>
+                <ProgressBar Style="{StaticResource PtsMeter}" Value="{Binding Probe.RightY}" Margin="{StaticResource PtsSpace1Top}" AutomationProperties.Name="Right stick vertical"/>
+                <TextBlock Text="Triggers" Style="{StaticResource PtsMuted}" Margin="{StaticResource PtsSpace2Top}"/>
+                <ProgressBar Style="{StaticResource PtsMeter}" Value="{Binding Probe.LeftTrigger}" AutomationProperties.Name="Left trigger"/>
+                <ProgressBar Style="{StaticResource PtsMeter}" Value="{Binding Probe.RightTrigger}" Margin="{StaticResource PtsSpace1Top}" AutomationProperties.Name="Right trigger"/>
+                <TextBlock Text="{Binding Probe.KeysText}" Margin="{StaticResource PtsSpace3Top}"/>
+              </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource PtsCard}">
+              <StackPanel>
+                <TextBlock Style="{StaticResource PtsCardTitle}" Text="Hotkeys" Margin="{StaticResource PtsSpace3Bottom}"/>
+                <Grid Margin="{StaticResource PtsSpace3Bottom}">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="Pass the stick" VerticalAlignment="Center"/>
+                  <ItemsControl Grid.Column="1" ItemsSource="{Binding PassKeys}" AutomationProperties.Name="Pass hotkey">
+                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate><DataTemplate><Border Style="{StaticResource PtsKeycap}"><TextBlock Text="{Binding}"/></Border></DataTemplate></ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </Grid>
+                <Grid>
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="Take it back" VerticalAlignment="Center"/>
+                  <ItemsControl Grid.Column="1" ItemsSource="{Binding TakeBackKeys}" AutomationProperties.Name="Take back hotkey">
+                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate><DataTemplate><Border Style="{StaticResource PtsKeycap}"><TextBlock Text="{Binding}"/></Border></DataTemplate></ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </Grid>
+                <TextBlock Style="{StaticResource PtsMuted}" Text="They work while the game is in front." Margin="{StaticResource PtsSpace3Top}"/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Grid>
+      </Grid>
+    </ScrollViewer>
+
+    <!-- Before a session, the one action that matters sits where the live controls will be. -->
+    <Border Grid.Row="3" Padding="{StaticResource PtsSpace5Thickness}" Background="{DynamicResource PtsSurfaceBrush}" BorderBrush="{DynamicResource PtsBorderSubtleBrush}" BorderThickness="0,1,0,0">
+      <Border.Style>
+        <Style TargetType="Border">
+          <Setter Property="Visibility" Value="Collapsed"/>
+          <Style.Triggers><DataTrigger Binding="{Binding IsIdle}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+        </Style>
+      </Border.Style>
+      <Grid MaxWidth="660">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <TextBlock Style="{StaticResource PtsMuted}" Text="{Binding StartHint}" VerticalAlignment="Center" Margin="{StaticResource PtsSpace4Right}"/>
+        <Button Grid.Column="1" Style="{StaticResource PtsPrimaryButton}" Command="{Binding StartCommand}" MinWidth="200" MinHeight="48" AutomationProperties.Name="Start a session">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Style="{StaticResource PtsIcon}" Text="&#xE768;" Margin="{StaticResource PtsSpace3Right}" Foreground="{DynamicResource PtsOnAccentBrush}"/>
+            <TextBlock Text="Start a session" Foreground="{DynamicResource PtsOnAccentBrush}"/>
+          </StackPanel>
+        </Button>
+      </Grid>
+    </Border>
+
+    <!-- Actions that matter mid-game stay in reach at the bottom. -->
+    <Border Grid.Row="3" Padding="{StaticResource PtsSpace5Thickness}" Background="{DynamicResource PtsSurfaceBrush}" BorderBrush="{DynamicResource PtsBorderSubtleBrush}" BorderThickness="0,1,0,0">
+      <Border.Style>
+        <Style TargetType="Border">
+          <Setter Property="Visibility" Value="Collapsed"/>
+          <Style.Triggers><DataTrigger Binding="{Binding IsLive}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+        </Style>
+      </Border.Style>
+      <Grid MaxWidth="1000">
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+          <StackPanel.Style>
+            <Style TargetType="StackPanel">
+              <Setter Property="Visibility" Value="Collapsed"/>
+              <Style.Triggers><DataTrigger Binding="{Binding ShowTurnControls}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+            </Style>
+          </StackPanel.Style>
+          <Button Style="{StaticResource PtsPrimaryButton}" Command="{Binding PassNextCommand}" MinWidth="160" MinHeight="48" Margin="{StaticResource PtsSpace3Right}" AutomationProperties.Name="Pass to next">
+            <TextBlock Text="Pass to next" Foreground="{DynamicResource PtsOnAccentBrush}"/>
+          </Button>
+          <Button Content="Take the stick back" Command="{Binding TakeBackCommand}" MinHeight="48"/>
+        </StackPanel>
+        <Button Style="{StaticResource PtsDangerButton}" Content="End session" Command="{Binding EndCommand}" HorizontalAlignment="Right" MinHeight="48"/>
+      </Grid>
+    </Border>
+
+        <!-- First-run wizard, shown over everything until it is finished or skipped. -->
+    <Border Grid.RowSpan="4" Background="{DynamicResource PtsBgBrush}" Padding="{StaticResource PtsSpace5Thickness}">
+      <Border.Style>
+        <Style TargetType="Border">
+          <Setter Property="Visibility" Value="Collapsed"/>
+          <Style.Triggers>
+            <DataTrigger Binding="{Binding ShowWizard}" Value="True">
+              <Setter Property="Visibility" Value="Visible"/>
+            </DataTrigger>
+          </Style.Triggers>
+        </Style>
+      </Border.Style>
+      <Border Style="{StaticResource PtsCard}" DataContext="{Binding Wizard}" MaxWidth="560" HorizontalAlignment="Center" VerticalAlignment="Center"><Grid>
+        <StackPanel>
+          <StackPanel>
+            <StackPanel.Style>
+              <Style TargetType="StackPanel">
+                <Setter Property="Visibility" Value="Collapsed"/>
+                <Style.Triggers><DataTrigger Binding="{Binding IsWelcome}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+              </Style>
+            </StackPanel.Style>
+            <TextBlock Style="{StaticResource PtsHeading}" Text="Welcome to PassTheStick" Margin="{StaticResource PtsSpace3Bottom}"/>
+            <TextBlock Text="You run the game. Your friends send their keyboard, controller or phone to it from a link, and everyone watches your Discord screen share. Nobody else installs anything." Margin="{StaticResource PtsSpace3Bottom}"/>
+            <TextBlock Text="Use it for single-player and local games. Anti-cheat in online games can flag virtual input and get you banned." Margin="{StaticResource PtsSpace3Bottom}"/>
+            <TextBlock Style="{StaticResource PtsMuted}" Text="Setup takes about a minute. You can skip it and change any of this later."/>
+          </StackPanel>
+          <StackPanel>
+            <StackPanel.Style>
+              <Style TargetType="StackPanel">
+                <Setter Property="Visibility" Value="Collapsed"/>
+                <Style.Triggers><DataTrigger Binding="{Binding IsGame}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+              </Style>
+            </StackPanel.Style>
+            <TextBlock Style="{StaticResource PtsHeading}" Text="Which window is the game?" Margin="{StaticResource PtsSpace3Bottom}"/>
+            <TextBlock Style="{StaticResource PtsMuted}" Text="Open the game first, then pick its window. Input only goes to this window." Margin="{StaticResource PtsSpace2Bottom}"/>
+            <ListBox ItemsSource="{Binding Windows}" SelectedItem="{Binding SelectedWindow}" Height="200" AutomationProperties.Name="Open windows">
+              <ListBox.ItemTemplate>
+                <DataTemplate DataType="{x:Type wn:WindowInfo}">
+                  <StackPanel>
+                    <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding ProcessName}" Style="{StaticResource PtsMuted}"/>
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <StackPanel Orientation="Horizontal" Margin="{StaticResource PtsSpace3Top}">
+              <Button Content="Use this window" Command="{Binding PickCommand}" Margin="{StaticResource PtsSpace3Right}"/>
+              <Button Content="Refresh list" Command="{Binding RefreshWindowsCommand}"/>
+            </StackPanel>
+            <TextBlock Margin="{StaticResource PtsSpace3Top}"><Run Text="Picked: "/><Run Text="{Binding PickedTitle, Mode=OneWay, FallbackValue=nothing yet}" FontWeight="SemiBold"/></TextBlock>
+            <TextBlock Foreground="{DynamicResource PtsDangerBrush}" Text="{Binding Error}"/>
+          </StackPanel>
+          <StackPanel>
+            <StackPanel.Style>
+              <Style TargetType="StackPanel">
+                <Setter Property="Visibility" Value="Collapsed"/>
+                <Style.Triggers><DataTrigger Binding="{Binding IsControls}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+              </Style>
+            </StackPanel.Style>
+            <TextBlock Style="{StaticResource PtsHeading}" Text="What will your friends use?" Margin="{StaticResource PtsSpace3Bottom}"/>
+            <RadioButton GroupName="controls" Content="Keyboard only" IsChecked="True" Margin="{StaticResource PtsSpace2Bottom}"/>
+            <RadioButton GroupName="controls" Content="Controllers too" IsChecked="{Binding WantsControllers}" Margin="{StaticResource PtsSpace3Bottom}"/>
+            <TextBlock Text="{Binding DriverMessage}" Margin="{StaticResource PtsSpace2Bottom}"/>
+            <Button Content="Check again" Command="{Binding CheckDriverCommand}" HorizontalAlignment="Left"/>
+          </StackPanel>
+          <StackPanel>
+            <StackPanel.Style>
+              <Style TargetType="StackPanel">
+                <Setter Property="Visibility" Value="Collapsed"/>
+                <Style.Triggers><DataTrigger Binding="{Binding IsDone}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+              </Style>
+            </StackPanel.Style>
+            <TextBlock Style="{StaticResource PtsHeading}" Text="You are set" Margin="{StaticResource PtsSpace3Bottom}"/>
+            <TextBlock Text="Press Start a session, then copy the invite link into Discord. Your friends click it and they are in." Margin="{StaticResource PtsSpace3Bottom}"/>
+            <TextBlock Style="{StaticResource PtsMuted}" Text="While you play, the hotkeys and the tray icon pass the stick without leaving the game."/>
+          </StackPanel>
+
+          <StackPanel Orientation="Horizontal" Margin="{StaticResource PtsSpace5Top}">
+            <Button Content="Back" Command="{Binding BackCommand}" Margin="{StaticResource PtsSpace3Right}"/>
+            <Button Style="{StaticResource PtsPrimaryButton}" Content="{Binding NextText}" Command="{Binding NextCommand}" Margin="{StaticResource PtsSpace3Right}"/>
+            <Button Content="Skip setup" Command="{Binding SkipCommand}"/>
+          </StackPanel>
+        </StackPanel>
+      </Grid></Border>
+    </Border>
+
+  </Grid>
+</Window>

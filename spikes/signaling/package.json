@@ -1,0 +1,1 @@
+{"name":"pts-signaling-spike","private":true,"type":"module","devDependencies":{"wrangler":"4.162.0","typescript":"5.9.3","@cloudflare/workers-types":"latest","ws":"8.23.0"},"allowScripts":{"workerd@1.20261113.1":true,"esbuild@0.28.2":true}}

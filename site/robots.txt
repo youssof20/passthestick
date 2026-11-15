@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /join/
+
+Sitemap: https://youssof20.github.io/passthestick/sitemap.xml

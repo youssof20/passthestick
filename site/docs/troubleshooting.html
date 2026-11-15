@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Troubleshooting | PassTheStick docs</title>
+  <meta name="description" content="Fixes for the common problems: a friend cannot join, keys do nothing in the game, a controller is missing, or phone motion does not move.">
+  <link rel="canonical" href="https://youssof20.github.io/passthestick/docs/troubleshooting.html">
+  <meta name="theme-color" content="#14161A">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../favicon.ico" sizes="any">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="PassTheStick">
+  <meta property="og:title" content="Troubleshooting | PassTheStick docs">
+  <meta property="og:description" content="Fixes for the common problems: a friend cannot join, keys do nothing in the game, a controller is missing, or phone motion does not move.">
+  <meta property="og:image" content="https://youssof20.github.io/passthestick/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preload" href="../fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="../css/fonts.css">
+  <link rel="stylesheet" href="../css/tokens.css">
+  <link rel="stylesheet" href="../css/site.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to the content</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../"><img src="../favicon.svg" alt="" width="32" height="32">PassTheStick</a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="../#how">How it works</a>
+        <a href="./" aria-current="page">Docs</a>
+        <a href="https://github.com/youssof20/passthestick">GitHub</a>
+      </nav>
+    </div>
+  </header>
+  <div class="wrap">
+    <nav class="doc-nav" aria-label="Docs">
+        <a href="index.html">Get started</a>
+        <a href="dolphin.html">Dolphin and phone motion</a>
+        <a href="self-hosting.html">Run your own server</a>
+        <a href="troubleshooting.html" aria-current="page">Troubleshooting</a>
+    </nav>
+  </div>
+  <main id="main" class="doc">
+    <div class="wrap">
+      <h1>Troubleshooting</h1>
+
+      <h2>A friend cannot join</h2>
+      <ul>
+        <li><strong>"That code is wrong or the session has ended."</strong> The room closed. It ends 60 seconds after you leave and after 30 quiet minutes. Start a session and send the new link.</li>
+        <li><strong>"This page and the host run different versions."</strong> Update PassTheStick and reload the page.</li>
+        <li><strong>"Too many attempts."</strong> Wait a minute. Joining is limited to five tries a minute per address.</li>
+        <li><strong>"This session is full."</strong> A room holds eight guests.</li>
+      </ul>
+
+      <h2>Keys do nothing in the game</h2>
+      <ul>
+        <li>Check the Game window card. It should say input is going to the window. If it says the game is not in front, click the game once. Input pauses on purpose while another window has focus.</li>
+        <li>Check that the friend holds the stick. Only the holder's input goes to the game.</li>
+        <li>If PassTheStick shows an administrator warning, restart it as administrator.</li>
+        <li>Ask the friend to run <strong>Test my controls</strong>. If their keys light up in your test panel, the connection works and the problem is the game window.</li>
+      </ul>
+
+      <h2>The test shows nothing</h2>
+      <p>Test mode needs a direct connection. If the page says it is using the room server, it only passes the stick holder's input, so the test cannot work. A different network, or turning off a VPN, usually gets a direct connection.</p>
+
+      <h2>Controllers do not work</h2>
+      <ul>
+        <li>Guests need ViGEmBus installed on the host, and the setup choice must be controllers, not keyboard only.</li>
+        <li>Restart the host PC after installing ViGEmBus.</li>
+        <li>The browser reads controllers only after a button is pressed on them. Press a button, then look at the test panel.</li>
+      </ul>
+
+      <h2>Phone motion does not move</h2>
+      <p>See <a href="dolphin.html">Dolphin and phone motion</a>. On an iPhone, allow the motion permission when the page asks.</p>
+
+      <h2>A key or button seems stuck</h2>
+      <p>Every held key and button is released when the stick moves, when a player leaves, when the game loses focus, and after three quarters of a second without input from the holder. If something still seems stuck, take the stick back with <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Left</kbd>, then report it.</p>
+
+      <h2>Report a problem</h2>
+      <p>Open an issue on <a href="https://github.com/youssof20/passthestick/issues">GitHub</a> and say what you did, what you expected, and what happened. Include your Windows version and the game.</p>
+
+    </div>
+  </main>
+  <footer>
+    <div class="wrap">
+      <span>PassTheStick is free and open source under the MIT license.</span>
+      <span><a href="https://github.com/youssof20/passthestick/issues">Report a problem</a> &middot; <a href="../">Home</a></span>
+    </div>
+  </footer>
+</body>
+</html>
