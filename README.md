@@ -1,135 +1,74 @@
 # PassTheStick
 
-**Couch co-op energy for single-player games, over the internet.**
+Let friends play your single-player game over the internet. You run the game on your Windows PC. Friends open a link in their browser and send their keyboard, controller or phone to it. Everyone watches your Discord screen share.
 
-Take turns controlling a single-player game on one person's PC. Everyone watches via Discord screenshare. PassTheStick decides whose keyboard or controller is active.
+No account, no video capture, no port forwarding. Free and open source (MIT).
 
-> No screen capture. No video. No voice. Just input routing.
+[Download for Windows](https://github.com/youssof20/passthestick/releases/latest) &middot; [Website and docs](https://youssof20.github.io/passthestick/) &middot; [Report a problem](https://github.com/youssof20/passthestick/issues)
 
-<img width="1142" height="871" alt="image" src="https://github.com/user-attachments/assets/f8c6295e-0943-4282-a303-199a2bde3e12" />
+## What it does
 
----
+- One player at a time holds "the stick" and controls the game. The host passes it with a hotkey (`Ctrl+Shift+Right`), the tray icon or a button, and takes it back with `Ctrl+Shift+Left`.
+- A guest can ask for the stick. The host approves with the same key.
+- Guests need only a browser. Keyboard, controllers (the browser Gamepad API), on-screen buttons and phone motion all work.
+- Phone motion reaches emulators such as Dolphin through a local DSU server, so a phone can act as a Wii Remote.
+- Each guest can run a control test first: their buttons light up on the host and on their own screen, and nothing reaches the game.
+- Every held key and button is released whenever the stick moves, a player leaves, the game loses focus, or input goes quiet.
 
-## How it works
+It works with any window: emulators, old games, non-Steam games. It is not built for online or competitive games, where virtual input can trip anti-cheat.
 
-- The **host** runs the game + PassTheStick
-- **Guests** install the lightweight client, enter a 4-character room code, and wait
-- The host passes the stick with **Ctrl+Shift+→** (picker), the **player list**, or **tray** — whoever has it controls the game
-- **Ctrl+Shift+←** on the host **takes the stick back** immediately
-- Everyone else’s keys are blocked (when the pinned game is focused) until it’s their turn
+## How it is built
 
----
+| Part | Folder | What it is |
+|---|---|---|
+| Host app | `host/` | Windows app, .NET 10, WPF. Session logic, input injection, virtual controllers, DSU server, overlay, tray. |
+| Web guest | `web/guest` | The page friends open. TypeScript, no framework. |
+| Signaling server | `server/worker` | Cloudflare Worker with one Durable Object per room. |
+| Website and docs | `site/` | Static pages for GitHub Pages. |
+| Design tokens | `design/` | One JSON file generates the app's resources and the site's CSS, and fails the build on any contrast miss. |
 
-## Install
+Friends connect to your PC directly over WebRTC when their network allows it. The server only introduces the two sides, and carries the stick holder's input if a direct link is impossible. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/protocol.md](docs/protocol.md).
 
-1. Download the latest **`PassTheStick-Setup-<version>.exe`** from [Releases](../../releases)
-2. Run the installer (administrator when prompted — needed for hooks/injection with some games)
-3. Launch **PassTheStick** — choose **Host** or **Guest** from the launcher when offered
-4. **Optional:** Controller support can install ViGEmBus / HidHide (may require a reboot)
+## Measured
 
-> The installed folder contains compiled apps and a **`relay\`** subfolder (bundled Node + `server.js`) for **LAN / local** relay only. There is no `src\` tree in the install — clone the repo to hack on or self-host the relay from source.
+Numbers from one development machine (Windows 10, loopback), not a benchmark suite.
 
----
-
-## Quick start
-
-### Host
-
-1. Launch PassTheStick — the host app has a **main window** and a **system tray** icon
-2. Complete the short **first-run tips** (optional; can skip)
-3. If prompted, **restart as administrator** (some games need it for `SendInput` to work)
-4. Pick your game in the window list and click **Pin selected window**
-5. When connected, share the **room code** with guests (shown large in the UI — use **Copy code**)
-6. Pass the stick: **Ctrl+Shift+→**, or select a guest and **Pass to selected**, **double-click** a row, or use **Pass** (visible when you hover a row), or use the tray menu
-7. Open **Settings** (footer) to override **relay WebSocket URL**, enable optional **stick sounds** (Windows system sounds), or read hotkey reminders
-
-### Guest
-
-1. Launch PassTheStick (or `PassTheStick.exe` with guest mode if your shortcut uses it)
-2. Enter the room code and your display name → **Join**
-3. When the host passes you the stick, the app shows **YOU HAVE THE STICK** and (when connected) latency / status
-4. Your keyboard or controller is sent to the host — the **game must be focused on the host PC** for input to apply
-
----
-
-## Input support
-
-| Guest input | What the host game receives |
+| What | Result |
 |---|---|
-| Keyboard | Keyboard (scan-code injected, works with Raw Input + DirectInput) |
-| Xbox / XInput controller | Virtual Xbox controller via ViGEmBus |
+| Installer (self-contained, no prerequisites) | 81 MB |
+| Portable zip | 74 MB |
+| Time from launch to window | 0.86 to 1.4 s |
+| Idle CPU (app open, not hosting) | 0.5% of one core |
+| Idle memory | 133 MB working set, 71 MB private |
+| Data channel round trip, loopback (libdatachannel) | 0.45 ms median |
+| Data channel round trip, loopback (SIPSorcery, rejected) | 32 ms median |
 
-> **Keyboard layouts:** guest **VK** is mapped on the host with `MapVirtualKey`; guest scan code is a fallback when needed (e.g. AZERTY guest → QWERTY host).
+Real-world latency depends on the route between host and guest and has not been measured yet.
 
----
+## Build and test
 
-## Overlay
+You need the .NET 10 SDK and Node 22.
 
-A small **pill** shows whose turn it is while the **pinned game window** is in the foreground. Drag it to move. Hover for a short **queue** hint and **Pass**.
-
-> Use **borderless** or **windowed** mode so the overlay stays visible. **Exclusive fullscreen** can hide it.
-
----
-
-## Relay server
-
-PassTheStick uses a **WebSocket relay** (Node + `ws` in this repo) to route control and messages.
-
-| Mode | What to do |
-|------|------------|
-| **Default** | No setup — the app uses the **cloud relay** baked into `Constants` (overridable). |
-| **Env override** | Set `PTS_RELAY_URL=wss://your-server` before launch. |
-| **In-app** | Host **Settings** → relay URL → saved to `%AppData%\PassTheStick\settings.json`. |
-| **Local / LAN** | Tray: start **bundled relay** (requires installer `relay\` files), or self-host from source. |
-
-**Self-host from GitHub:** releases attach **`PassTheStick-relay-selfhost.zip`** (`server.js`, `package.json`, Docker/fly files — not the full `node_modules`; run `npm install` where you deploy).
-
----
-
-## Build from source
-
-Requirements: [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) (Windows)
-
-```bash
-dotnet build PassTheStick.sln --configuration Release
+```
+dotnet test host/PassTheStick.slnx                    # host, protocol, networking, DSU, app
+cd server/worker && npm ci && npm test                # signaling server
+cd web/guest && npm ci && npm test && node build.mjs  # guest page, bundled into site/join
+node scripts/gen-design.mjs                           # regenerate tokens; fails on a contrast miss
 ```
 
-**CI / installer:** pushing a git tag `v*` runs GitHub Actions — publish a single self-contained **`PassTheStick.exe`** (unified host + guest UI); bundle relay runtime into `publish\app\relay\`; run Inno Setup → `output\PassTheStick-Setup-<tag>.exe`. Align **tag**, **`PassTheStick.Host.csproj` `<Version>`** (output assembly name `PassTheStick`), and Inno **`AppVersion`** (CI passes `/DAppVersion=` from the tag).
+Run the app against a local server:
 
----
+```
+cd server/worker && npx wrangler dev --port 8787
+dotnet run --project host/PassTheStick.App
+```
 
-## Game compatibility
+To package a release locally, see `.github/workflows/release.yml`. Installers use [Velopack](https://velopack.io), so installs go to the user profile and updates are delta downloads from GitHub Releases.
 
-| Scenario | Example | What to verify |
-|---|---|---|
-| Raw Input (elevated) | Elden Ring | UAC + scan code injection |
-| DirectInput | Older title / emulator | Keyboard + ViGEm |
-| XInput-only | Game ignores keyboard | ViGEm + HidHide |
-| Foreground strict | Game ignores input when unfocused | Host pins correct window; focus on host |
-| Scan code / layout | Non-QWERTY host or guest | MapVirtualKey + sc fallback |
-| Multiple controllers | Game picks "first" controller | Only one ViGEm device visible |
-| Borderless fullscreen | Most modern games | Overlay visible, focus correct |
+## Contributing
 
-> **Do not use PassTheStick in online or competitive game modes.** It is for **local / couch** style play on a single copy of a game.
-
----
-
-## Frequently asked questions
-
-**Does the guest need to install anything?**  
-Yes — the same **PassTheStick** app; they use the **Guest** section in the sidebar. No drivers for keyboard-only. Controller path needs ViGEm (host) and optionally HidHide.
-
-**Does it work if we're not on the same network?**  
-Yes, with the cloud relay or any reachable `wss://` / `ws://` relay. No port forwarding for guests.
-
-**Will it get me banned?**  
-It uses normal Windows input APIs. Still: use only in **offline / single-player** contexts you’re allowed to modify.
-
-**What about mouse?**  
-Not supported in v1; controller + keyboard only.
-
----
+Issues and pull requests are welcome. Read [CLAUDE.md](CLAUDE.md) for the code, design and writing rules, and [docs/DECISIONS.md](docs/DECISIONS.md) for why things are the way they are. The pre-rewrite code is kept at the tag `legacy-v0.1.29`.
 
 ## License
 
-MIT — see [LICENSE](LICENSE)
+MIT. Bundled fonts (Familjen Grotesk, Atkinson Hyperlegible Next, JetBrains Mono) are under the SIL Open Font License; their licenses sit next to the files in `site/fonts`.

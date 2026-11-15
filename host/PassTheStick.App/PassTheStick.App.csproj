@@ -11,7 +11,6 @@
     <RootNamespace>PassTheStick.App</RootNamespace>
     <ApplicationIcon>..\..\design\generated\icons\passthestick.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.2.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -26,6 +25,7 @@
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.8" />
+    <PackageReference Include="Velopack" Version="1.2.161" />
   </ItemGroup>
 
   <!-- Design tokens are generated from design/tokens.json by scripts/gen-design.mjs. Never edit them here. -->
@@ -38,6 +38,12 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="PassTheStick.App.Tests" />
+  </ItemGroup>
+
+  <!-- Program.cs is the entry point so Velopack can run first, so App.xaml is a page rather than the application definition. -->
+  <ItemGroup>
+    <ApplicationDefinition Remove="App.xaml" />
+    <Page Include="App.xaml" />
   </ItemGroup>
 
   <ItemGroup>

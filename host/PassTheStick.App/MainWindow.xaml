@@ -21,12 +21,22 @@
           <Image Source="pack://application:,,,/passthestick.ico" Width="32" Height="32" Margin="{StaticResource PtsSpace3Right}" RenderOptions.BitmapScalingMode="HighQuality"/>
           <TextBlock Style="{StaticResource PtsHeading}" Text="PassTheStick" VerticalAlignment="Center"/>
         </StackPanel>
-        <Border HorizontalAlignment="Right" VerticalAlignment="Center" Style="{StaticResource PtsStatusPill}" AutomationProperties.Name="Session status">
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+        <Button Content="Restart to update" Command="{Binding InstallUpdateCommand}" Margin="{StaticResource PtsSpace4Right}" MinHeight="32">
+          <Button.Style>
+            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+              <Setter Property="Visibility" Value="Collapsed"/>
+              <Style.Triggers><DataTrigger Binding="{Binding HasUpdate}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+            </Style>
+          </Button.Style>
+        </Button>
+        <Border VerticalAlignment="Center" Style="{StaticResource PtsStatusPill}" AutomationProperties.Name="Session status">
           <StackPanel Orientation="Horizontal">
             <Ellipse Width="10" Height="10" Margin="{StaticResource PtsSpace2Right}" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Border}, Path=(TextElement.Foreground)}"/>
             <TextBlock Text="{Binding PhaseText}" FontWeight="SemiBold" VerticalAlignment="Center"/>
           </StackPanel>
         </Border>
+        </StackPanel>
       </Grid>
     </Border>
 

@@ -56,3 +56,15 @@ Format: decision, alternatives considered, why.
 ## D11. Net layer shape
 
 - `IMessageSocket` serializes sends and reassembles fragments (audit S11, S12). `RoomClient`, `PeerHub` and `HostSessionController` sit behind `IRoomLink` and `IPeerLink`, so session logic is tested with fakes and the real path is covered by one end-to-end test.
+
+## D12. Installer and updates: Velopack, self-contained, per-user
+
+- **Alternatives:** Inno Setup (the old one; needs a separate updater, installs per machine), MSIX (store-style signing and sandbox rules fight input injection), a framework-dependent Velopack build.
+- **Measured here** (same app, same machine): self-contained installer 81 MB, framework-dependent installer 14 MB. The small build needs the .NET 10 Desktop Runtime and Velopack downloads and installs it on first run, which can need elevation and a network.
+- **Decision:** ship the self-contained build as the one installer. It installs into the user profile with no prerequisites and no admin prompt, which matters more here than 67 MB. The framework-dependent build stays an option if download size becomes the complaint.
+- **Updates:** Velopack with GitHub Releases as the feed, delta packages, checked 10 seconds after start and switchable off in settings. An update downloads in the background and installs when the app closes, or on request while no session is running. It is never applied under a live session.
+- **Shrinking done:** English-only resources (WPF ships dozens of languages). Trimming is not available for WPF. The tray icon pulls in Windows Forms (about 20 MB); replacing it with a direct Shell_NotifyIcon wrapper would save most of that and is a possible later step.
+
+## D13. Legacy removal
+
+- `src/`, `installer/`, the Inno script, the bundled Node relay, the old solution file and the old workflow were deleted. They remain reachable at the tag `legacy-v0.1.29`.

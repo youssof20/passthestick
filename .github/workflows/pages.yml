@@ -1,0 +1,44 @@
+name: pages
+
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", "web/guest/**", "design/**", "scripts/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/guest/package-lock.json
+      - name: Build the guest page for the production server
+        working-directory: web/guest
+        env:
+          # Repository variable, for example wss://passthestick.example.workers.dev
+          PTS_SIGNALING_URL: ${{ vars.PTS_SIGNALING_URL }}
+        run: |
+          npm ci
+          npm test
+          node build.mjs
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

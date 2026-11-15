@@ -66,10 +66,12 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly IClipboardService _clipboard;
     private readonly INotifier _notifier;
     private readonly SettingsStore _store;
+    private readonly UpdateCoordinator? _updates;
     private AppSettings _settings;
 
-    public MainViewModel(IHostSession session, IUiThread ui, IClipboardService clipboard, INotifier notifier, SettingsStore store, AppSettings settings, string? startupNotice)
+    public MainViewModel(IHostSession session, IUiThread ui, IClipboardService clipboard, INotifier notifier, SettingsStore store, AppSettings settings, string? startupNotice, UpdateCoordinator? updates = null)
     {
+        _updates = updates;
         _session = session;
         _ui = ui;
         _clipboard = clipboard;
@@ -96,6 +98,11 @@ public sealed partial class MainViewModel : ObservableObject
                 RefreshWindows();
                 RefreshGame();
             };
+        }
+
+        if (_updates is not null)
+        {
+            _updates.UpdateReady += version => _ui.Post(() => OnUpdateReady(version));
         }
 
         _session.PhaseChanged += (phase, message) => _ui.Post(() => OnPhase(phase, message));
@@ -165,7 +172,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle), nameof(IsLive), nameof(CanStart), nameof(PhaseText), nameof(HasRoom), nameof(InviteLink), nameof(ShouldHideOnClose), nameof(ShowPicker))]
-    [NotifyCanExecuteChangedFor(nameof(StartCommand), nameof(EndCommand))]
+    [NotifyCanExecuteChangedFor(nameof(StartCommand), nameof(EndCommand), nameof(InstallUpdateCommand))]
     private SessionPhase _phase = SessionPhase.Idle;
 
     [ObservableProperty]
@@ -326,6 +333,31 @@ public sealed partial class MainViewModel : ObservableObject
         {
             Warn(string.Join(" ", problems));
         }
+    }
+
+    /// <summary>The version waiting to be installed, or null.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUpdate))]
+    [NotifyCanExecuteChangedFor(nameof(InstallUpdateCommand))]
+    private string? _updateVersion;
+
+    public bool HasUpdate => UpdateVersion is not null;
+
+    [RelayCommand(CanExecute = nameof(CanInstallUpdate))]
+    private void InstallUpdate()
+    {
+        if (_updates?.TryInstallNow() != true)
+        {
+            Say("The update installs when you close PassTheStick.");
+        }
+    }
+
+    private bool CanInstallUpdate() => HasUpdate && !IsLive;
+
+    private void OnUpdateReady(string version)
+    {
+        UpdateVersion = version;
+        Say($"Version {version} is ready. It installs when you close PassTheStick, or press Restart to update when you are not hosting.");
     }
 
     private void OnStickRequested(string name)

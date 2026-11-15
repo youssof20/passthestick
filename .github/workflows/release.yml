@@ -1,92 +1,99 @@
 name: release
 
+# Push a tag like v0.2.1 to build, package and publish a release.
 on:
   push:
-    tags:
-      - "v*"
+    tags: ["v*"]
 
 permissions:
   contents: write
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
+  DOTNET_NOLOGO: "1"
   DOTNET_CLI_TELEMETRY_OPTOUT: "1"
 
 jobs:
   release:
     runs-on: windows-latest
+    env:
+      SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
     defaults:
       run:
         shell: pwsh
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup .NET 8
-        uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v4
         with:
-          dotnet-version: "8.0.x"
+          fetch-depth: 0
 
-      - name: Restore solution
-        run: dotnet restore PassTheStick.sln
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
 
-      - name: Build solution
-        run: dotnet build PassTheStick.sln --configuration Release --no-restore
+      - name: Version from the tag
+        id: version
+        run: |
+          $v = "${{ github.ref_name }}".TrimStart('v')
+          "value=$v" >> $env:GITHUB_OUTPUT
 
-      - name: Publish app (unified Host + Guest UI)
+      - name: Test
+        run: dotnet test host/PassTheStick.slnx --configuration Release
+
+      - name: Publish
         run: >
-          dotnet publish src/PassTheStick.Host/PassTheStick.Host.csproj
-          -c Release -r win-x64 --self-contained true
-          -p:PublishSingleFile=true
-          -p:EnableCompressionInSingleFile=true
-          -o publish/app
+          dotnet publish host/PassTheStick.App -c Release -r win-x64 --self-contained
+          -p:Version=${{ steps.version.outputs.value }} -p:DebugType=None -p:SatelliteResourceLanguages=en
+          -o artifacts/publish
 
-      - name: Bundle relay runtime (Node + ws)
-        run: |
-          $relayOut = "publish/app/relay"
-          New-Item -ItemType Directory -Force $relayOut | Out-Null
-
-          Copy-Item -Force src/PassTheStick.Relay/server.js $relayOut/
-          Copy-Item -Force src/PassTheStick.Relay/package.json $relayOut/
-
-          Push-Location src/PassTheStick.Relay
-          npm install --omit=dev
-          Pop-Location
-
-          Copy-Item -Recurse -Force src/PassTheStick.Relay/node_modules $relayOut/
-
-          $nodeZip = "node-win-x64.zip"
-          $nodeUrl = "https://nodejs.org/dist/v22.14.0/node-v22.14.0-win-x64.zip"
-          Invoke-WebRequest -Uri $nodeUrl -OutFile $nodeZip
-          Expand-Archive -Path $nodeZip -DestinationPath node-extract -Force
-          Copy-Item -Force node-extract/node-v22.14.0-win-x64/node.exe $relayOut/node.exe
-
-      - name: Package relay
-        run: |
-          New-Item -ItemType Directory -Force artifacts | Out-Null
-          $relayFiles = @(
-            "src/PassTheStick.Relay/server.js",
-            "src/PassTheStick.Relay/Dockerfile",
-            "src/PassTheStick.Relay/fly.toml",
-            "src/PassTheStick.Relay/package.json"
-          )
-          Compress-Archive -Path $relayFiles -DestinationPath artifacts/PassTheStick-relay-selfhost.zip -Force
-
-      - name: Build installer
-        run: |
-          $tag = "${{ github.ref_name }}"
-          $ver = $tag.TrimStart('v')
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=$ver installer/setup.iss
-
-      - name: Upload release assets
-        uses: softprops/action-gh-release@v2
+      # Optional code signing with SignPath (free for qualifying open-source projects). It runs only when the
+      # SIGNPATH_API_TOKEN secret exists, so unsigned releases still work until the account is set up.
+      # The organisation id, project and policy slugs are repository variables. See HANDOFF.md for the setup steps.
+      - name: Upload files for signing
+        id: unsigned
+        if: ${{ env.SIGNPATH_API_TOKEN != '' }}
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          files: |
-            output/PassTheStick-Setup-*.exe
-            artifacts/PassTheStick-relay-selfhost.zip
+          name: unsigned
+          path: artifacts/publish
+      - name: Sign
+        if: ${{ env.SIGNPATH_API_TOKEN != '' }}
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_POLICY_SLUG }}
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: artifacts/signed
+      - name: Use the signed files
+        if: ${{ env.SIGNPATH_API_TOKEN != '' }}
+        run: Copy-Item artifacts/signed/* artifacts/publish -Recurse -Force
+
+      - name: Install Velopack
+        run: dotnet tool install -g vpk
+
+      - name: Fetch earlier releases so the new one can ship delta updates
+        run: vpk download github --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Package
+        run: >
+          vpk pack --packId PassTheStick --packVersion ${{ steps.version.outputs.value }}
+          --packDir artifacts/publish --mainExe PassTheStick.exe --packTitle PassTheStick
+          --packAuthors "PassTheStick contributors" --icon design/generated/icons/passthestick.ico
+          --outputDir artifacts/releases
+
+      - name: Publish the release
+        run: >
+          vpk upload github --repoUrl https://github.com/${{ github.repository }}
+          --publish --releaseName "PassTheStick ${{ steps.version.outputs.value }}"
+          --tag ${{ github.ref_name }} --token ${{ secrets.GITHUB_TOKEN }}
+          --outputDir artifacts/releases
+
+      - name: Winget manifest
+        run: ./scripts/make-winget.ps1 -Version ${{ steps.version.outputs.value }} -Repository ${{ github.repository }} -Installer artifacts/releases/PassTheStick-win-Setup.exe -OutDir artifacts/winget
+
+      - name: Attach the winget manifest to the release
+        run: gh release upload ${{ github.ref_name }} artifacts/winget/* --clobber
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

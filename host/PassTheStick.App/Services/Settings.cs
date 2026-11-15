@@ -30,6 +30,9 @@ public sealed record AppSettings
     /// <summary>Whether guests may get virtual controllers. Keyboard-only sessions need no driver at all.</summary>
     public bool UseVirtualPads { get; init; } = true;
 
+    /// <summary>Whether to look for new versions on GitHub at startup. Turning it off stops that request.</summary>
+    public bool CheckForUpdates { get; init; } = true;
+
     public string PassHotkey { get; init; } = "Ctrl+Shift+Right";
 
     public string TakeBackHotkey { get; init; } = "Ctrl+Shift+Left";

@@ -21,8 +21,7 @@ Status: rebuild in progress on branch `revamp`. Phases 0-1 done (`docs/AUDIT.md`
 Windows, PowerShell. If `dotnet` is not found in a fresh shell, refresh PATH first.
 
 ```
-dotnet build PassTheStick.sln -c Release          # legacy solution still builds (0 errors)
-cd host; dotnet test                              # 78 tests, analyzers as errors
+cd host; dotnet test                              # all host tests, analyzers as errors
 cd server/worker; npm ci; npx wrangler dev        # signaling server locally (port 8787)
 cd server/worker; npm test                        # Worker tests
 cd web/guest; npm test; node build.mjs            # web guest tests; bundle into site/join
@@ -31,7 +30,7 @@ cd web/guest; npm test; node build.mjs            # web guest tests; bundle into
 # Without PTS_WORKER_URL that test returns immediately, so a green run alone proves nothing about it.
 ```
 
-Not yet created: web guest dev server, installer build, site build. Add them here when they exist. NuGet source `nuget.org` must be configured (`dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org`). npm 11 blocks postinstall scripts: approve `workerd` and `esbuild` with `npm install-scripts approve`.
+Release build: see `.github/workflows/release.yml` (publish self-contained win-x64, then `vpk pack`). Version lives in `host/Directory.Build.props`. The old Inno Setup installer and Node relay are gone. NuGet source `nuget.org` must be configured (`dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org`). npm 11 blocks postinstall scripts: approve `workerd` and `esbuild` with `npm install-scripts approve`.
 
 ## Architecture rules
 

@@ -21,6 +21,9 @@ public partial class App : Application
     private OverlayController? _overlay;
     private HotkeyHost? _hotkeys;
     private bool _exiting;
+    private readonly CancellationTokenSource _updateCancel = new();
+
+    private const string RepositoryUrl = "https://github.com/youssof20/passthestick";
 
     /// <summary>True when Windows is set to the light app theme.</summary>
     public static bool IsLightTheme { get; private set; }
@@ -51,6 +54,12 @@ public partial class App : Application
                 s.AddSingleton<DeferredNotifier>();
                 s.AddSingleton<INotifier>(sp => sp.GetRequiredService<DeferredNotifier>());
                 s.AddSingleton<IHostSession>(sp => new HostSession(store, sp.GetRequiredService<ILoggerFactory>()));
+                s.AddSingleton<IUpdateClient>(_ => new VelopackUpdateClient(RepositoryUrl));
+                s.AddSingleton(sp => new UpdateCoordinator(
+                    sp.GetRequiredService<IUpdateClient>(),
+                    () => sp.GetRequiredService<MainViewModel>().IsLive,
+                    loaded.Settings.CheckForUpdates,
+                    sp.GetRequiredService<ILoggerFactory>().CreateLogger<UpdateCoordinator>()));
                 s.AddSingleton(sp => new MainViewModel(
                     sp.GetRequiredService<IHostSession>(),
                     sp.GetRequiredService<IUiThread>(),
@@ -58,7 +67,8 @@ public partial class App : Application
                     sp.GetRequiredService<INotifier>(),
                     store,
                     loaded.Settings,
-                    loaded.Notice));
+                    loaded.Notice,
+                    sp.GetRequiredService<UpdateCoordinator>()));
             })
             .Build();
 
@@ -95,6 +105,14 @@ public partial class App : Application
 
         window.Show();
 
+        // Look for an update a little after startup so it never competes with the window appearing.
+        var updates = _host.Services.GetRequiredService<UpdateCoordinator>();
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(TimeSpan.FromSeconds(10), _updateCancel.Token).ConfigureAwait(false);
+            await updates.CheckAsync(_updateCancel.Token).ConfigureAwait(false);
+        }, _updateCancel.Token).ContinueWith(_ => { }, TaskScheduler.Default);
+
         _gameTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
         _gameTimer.Tick += (_, _) => vm.RefreshGame();
         _gameTimer.Start();
@@ -115,6 +133,8 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _updateCancel.Cancel();
+        _host?.Services.GetService<UpdateCoordinator>()?.OnExit();
         _gameTimer?.Stop();
         _hotkeys?.Dispose();
         _overlay?.Dispose();

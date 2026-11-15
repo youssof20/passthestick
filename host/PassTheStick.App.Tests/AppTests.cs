@@ -856,3 +856,138 @@ public class InviteLinkTests
         Assert.DoesNotContain("?", link.Split('#')[1], StringComparison.Ordinal);
     }
 }
+
+internal sealed class FakeUpdateClient : IUpdateClient
+{
+    public bool IsInstalled { get; set; } = true;
+
+    public string? Available { get; set; }
+
+    public bool Throw { get; set; }
+
+    public int Checks { get; private set; }
+
+    public int Restarts { get; private set; }
+
+    public int ExitApplies { get; private set; }
+
+    public Task<string?> CheckAndDownloadAsync(CancellationToken cancellationToken)
+    {
+        Checks++;
+        return Throw ? throw new HttpRequestException("offline") : Task.FromResult(Available);
+    }
+
+    public void ApplyAndRestart() => Restarts++;
+
+    public void ApplyOnExit() => ExitApplies++;
+}
+
+public class UpdateCoordinatorTests
+{
+    private static UpdateCoordinator Make(FakeUpdateClient client, Func<bool>? live = null, bool enabled = true) =>
+        new(client, live ?? (() => false), enabled, Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance);
+
+    [Fact]
+    public async Task A_newer_version_is_downloaded_and_announced_but_not_installed()
+    {
+        var client = new FakeUpdateClient { Available = "0.3.0" };
+        var u = Make(client);
+        string? announced = null;
+        u.UpdateReady += v => announced = v;
+        await u.CheckAsync(CancellationToken.None);
+        Assert.Equal("0.3.0", announced);
+        Assert.Equal("0.3.0", u.ReadyVersion);
+        Assert.Equal(0, client.Restarts + client.ExitApplies);
+    }
+
+    [Fact]
+    public async Task Nothing_happens_when_up_to_date_when_not_installed_or_when_turned_off()
+    {
+        foreach (var (installed, enabled, available) in new[] { (true, true, (string?)null), (false, true, "9.9.9"), (true, false, "9.9.9") })
+        {
+            var client = new FakeUpdateClient { IsInstalled = installed, Available = available };
+            var u = Make(client, enabled: enabled);
+            await u.CheckAsync(CancellationToken.None);
+            Assert.Null(u.ReadyVersion);
+            Assert.Equal(installed && enabled ? 1 : 0, client.Checks);
+        }
+    }
+
+    [Fact]
+    public async Task A_failed_check_is_swallowed_and_retried_on_the_next_start()
+    {
+        var client = new FakeUpdateClient { Throw = true };
+        var u = Make(client);
+        await u.CheckAsync(CancellationToken.None);
+        Assert.Null(u.ReadyVersion);
+    }
+
+    [Fact]
+    public async Task Only_one_update_is_held_at_a_time()
+    {
+        var client = new FakeUpdateClient { Available = "0.3.0" };
+        var u = Make(client);
+        await u.CheckAsync(CancellationToken.None);
+        await u.CheckAsync(CancellationToken.None);
+        Assert.Equal(1, client.Checks);
+    }
+
+    [Fact]
+    public async Task Installing_now_is_refused_while_a_session_is_live_and_allowed_otherwise()
+    {
+        var live = true;
+        var client = new FakeUpdateClient { Available = "0.3.0" };
+        var u = Make(client, () => live);
+        Assert.False(u.TryInstallNow());
+        await u.CheckAsync(CancellationToken.None);
+        Assert.False(u.TryInstallNow());
+        Assert.Equal(0, client.Restarts);
+        live = false;
+        Assert.True(u.TryInstallNow());
+        Assert.Equal(1, client.Restarts);
+        Assert.False(u.TryInstallNow());
+    }
+
+    [Fact]
+    public async Task On_exit_the_waiting_update_is_scheduled_exactly_once_and_never_without_one()
+    {
+        var none = new FakeUpdateClient();
+        Make(none).OnExit();
+        Assert.Equal(0, none.ExitApplies);
+
+        var client = new FakeUpdateClient { Available = "0.3.0" };
+        var u = Make(client);
+        await u.CheckAsync(CancellationToken.None);
+        u.OnExit();
+        u.OnExit();
+        Assert.Equal(1, client.ExitApplies);
+    }
+
+    [Fact]
+    public async Task The_window_learns_about_the_update_and_the_restart_button_waits_for_the_session_to_end()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "pts-upd-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var client = new FakeUpdateClient { Available = "0.3.0" };
+            var coordinator = Make(client);
+            var session = new FakeSession();
+            var vm = new MainViewModel(session, new InlineUi(), new FakeClipboard(), new FakeNotifier(), new SettingsStore(Path.Combine(dir, "s.json")), new AppSettings { OnboardingCompleted = true }, null, coordinator);
+            Assert.False(vm.HasUpdate);
+            await coordinator.CheckAsync(CancellationToken.None);
+            Assert.True(vm.HasUpdate);
+            Assert.Contains("0.3.0", vm.Notice);
+            Assert.True(vm.InstallUpdateCommand.CanExecute(null));
+
+            await vm.StartCommand.ExecuteAsync(null);
+            Assert.False(vm.InstallUpdateCommand.CanExecute(null));
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, true);
+            }
+        }
+    }
+}
