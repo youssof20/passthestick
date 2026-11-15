@@ -991,3 +991,101 @@ public class UpdateCoordinatorTests
         }
     }
 }
+
+internal sealed class RecordingHidHide : PassTheStick.Windows.IHidHideService
+{
+    public bool IsActive { get; set; } = true;
+
+    public List<string> Blocked { get; } = ["HID-MINE", "HID-OURS"];
+
+    public List<string> Apps { get; } = ["C:-ours.exe"];
+
+    public IReadOnlyList<string> BlockedInstanceIds => [.. Blocked];
+
+    public IReadOnlyList<string> ApplicationPaths => [.. Apps];
+
+    public void AddBlockedInstanceId(string instanceId) => Blocked.Add(instanceId);
+
+    public void RemoveBlockedInstanceId(string instanceId) => Blocked.Remove(instanceId);
+
+    public void AddApplicationPath(string path) => Apps.Add(path);
+
+    public void RemoveApplicationPath(string path) => Apps.Remove(path);
+}
+
+public sealed class UninstallCleanupTests : IDisposable
+{
+    private readonly string _dir = Path.Combine(Path.GetTempPath(), "pts-un-" + Guid.NewGuid().ToString("N"));
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_dir))
+        {
+            Directory.Delete(_dir, true);
+        }
+    }
+
+    private static Microsoft.Extensions.Logging.ILogger Log => Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
+
+    [Fact]
+    public void Removes_our_files_and_the_folder_when_nothing_else_is_in_it()
+    {
+        Directory.CreateDirectory(_dir);
+        foreach (var f in new[] { "settings.json", "settings.json.damaged-20260101", "hidhide.json", "x.tmp" })
+        {
+            File.WriteAllText(Path.Combine(_dir, f), "x");
+        }
+
+        UninstallCleanup.Run(_dir, () => null, Log);
+        Assert.False(Directory.Exists(_dir));
+    }
+
+    [Fact]
+    public void Leaves_files_it_does_not_own_and_keeps_the_folder()
+    {
+        Directory.CreateDirectory(_dir);
+        File.WriteAllText(Path.Combine(_dir, "settings.json"), "x");
+        File.WriteAllText(Path.Combine(_dir, "notes-from-user.txt"), "keep");
+        UninstallCleanup.Run(_dir, () => null, Log);
+        Assert.True(File.Exists(Path.Combine(_dir, "notes-from-user.txt")));
+        Assert.False(File.Exists(Path.Combine(_dir, "settings.json")));
+    }
+
+    [Fact]
+    public void Undoes_leftover_HidHide_changes_from_the_journal_and_nothing_more()
+    {
+        Directory.CreateDirectory(_dir);
+        var hid = new RecordingHidHide { IsActive = false };
+        var journalPath = Path.Combine(_dir, "hidhide.json");
+        using (var guard = new PassTheStick.Windows.HidHideGuard(hid, journalPath, Log))
+        {
+            // Simulate a crash: the guard wrote its journal and changed HidHide, then the app died.
+            hid.Blocked.Clear();
+            hid.Apps.Clear();
+            guard.Begin("C:-ours.exe", ["HID-OURS"]);
+            File.Copy(journalPath, journalPath + ".keep");
+        }
+
+        // Dispose already restored; recreate the crashed state.
+        File.Move(journalPath + ".keep", journalPath, overwrite: true);
+        hid.Blocked.Add("HID-MINE");
+        hid.Blocked.Add("HID-OURS");
+        hid.Apps.Add("C:-ours.exe");
+        hid.IsActive = true;
+
+        UninstallCleanup.Run(_dir, () => hid, Log);
+        Assert.Equal(["HID-MINE"], hid.Blocked);
+        Assert.Empty(hid.Apps);
+        Assert.False(hid.IsActive);
+    }
+
+    [Fact]
+    public void Missing_HidHide_or_a_missing_folder_never_throws()
+    {
+        UninstallCleanup.Run(_dir, () => null, Log);
+        Directory.CreateDirectory(_dir);
+        File.WriteAllText(Path.Combine(_dir, "hidhide.json"), "{}");
+        UninstallCleanup.Run(_dir, () => throw new InvalidOperationException("HidHide is not installed"), Log);
+        Assert.False(File.Exists(Path.Combine(_dir, "hidhide.json")));
+    }
+}

@@ -1,3 +1,6 @@
+using Microsoft.Extensions.Logging.Abstractions;
+using PassTheStick.App.Services;
+using PassTheStick.Windows;
 using Velopack;
 
 namespace PassTheStick.App;
@@ -11,7 +14,12 @@ internal static class Program
     [STAThread]
     private static void Main()
     {
-        VelopackApp.Build().Run();
+        VelopackApp.Build()
+            .OnBeforeUninstallFastCallback(_ => UninstallCleanup.Run(
+                Path.GetDirectoryName(SettingsStore.DefaultPath)!,
+                () => new NefariusHidHideService(),
+                NullLogger.Instance))
+            .Run();
         var app = new App();
         app.InitializeComponent();
         app.Run();

@@ -287,8 +287,13 @@ async function keepAwake(): Promise<void> {
   }
 }
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && signaling) void keepAwake();
+  // A hidden tab stops delivering key-up events, so let go of everything before it vanishes.
+  if (document.visibilityState === "hidden") releaseEverything();
+  else if (signaling) void keepAwake();
 });
+// Losing focus or leaving the page has the same problem: whatever was held would stay held on the host.
+window.addEventListener("blur", releaseEverything);
+window.addEventListener("pagehide", releaseEverything);
 
 function leave(): void {
   releaseEverything();

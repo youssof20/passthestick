@@ -431,6 +431,7 @@
             </StackPanel.Style>
             <TextBlock Style="{StaticResource PtsHeading}" Text="Welcome to PassTheStick" Margin="{StaticResource PtsSpace3Bottom}"/>
             <TextBlock Text="You run the game. Your friends send their keyboard, controller or phone to it from a link, and everyone watches your Discord screen share. Nobody else installs anything." Margin="{StaticResource PtsSpace3Bottom}"/>
+            <TextBlock Text="Use it for single-player and local games. Anti-cheat in online games can flag virtual input and get you banned." Margin="{StaticResource PtsSpace3Bottom}"/>
             <TextBlock Style="{StaticResource PtsMuted}" Text="Setup takes about a minute. You can skip it and change any of this later."/>
           </StackPanel>
           <StackPanel>
