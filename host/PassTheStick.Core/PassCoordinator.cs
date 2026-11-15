@@ -10,6 +10,9 @@ public enum PassOutcome
 
     /// <summary>There is nobody to pass to.</summary>
     NoOneToPass,
+
+    /// <summary>Everyone is playing at once, so there is no stick to pass.</summary>
+    NotApplicable,
 }
 
 /// <summary>
@@ -46,6 +49,11 @@ public sealed class PassCoordinator : IDisposable
 
     public PassOutcome Pass()
     {
+        if (_session.Mode == TurnMode.Everyone)
+        {
+            return PassOutcome.NotApplicable;
+        }
+
         if (PendingRequest is { } asking && !_isAway(asking.Id) && _session.PassTo(asking.Id))
         {
             return PassOutcome.ApprovedRequest;

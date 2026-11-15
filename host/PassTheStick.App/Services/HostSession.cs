@@ -16,16 +16,20 @@ namespace PassTheStick.App.Services;
 public sealed partial class HostSession : IHostSession
 {
     private readonly SettingsStore _store;
+    private readonly RoomVault _vault;
     private readonly ILoggerFactory _logs;
     private readonly ILogger _log;
     private readonly WindowTracker _tracker = new();
     private readonly Lock _gate = new();
     private string _gameTitle = string.Empty;
+    private TurnMode _mode;
+    private int _turnSeconds;
     private Running? _running;
 
-    public HostSession(SettingsStore store, ILoggerFactory logs)
+    public HostSession(SettingsStore store, RoomVault vault, ILoggerFactory logs)
     {
         _store = store;
+        _vault = vault;
         _logs = logs;
         _log = logs.CreateLogger<HostSession>();
     }
@@ -60,7 +64,30 @@ public sealed partial class HostSession : IHostSession
         }
     }
 
-    public GameStatus Game => new(_tracker.IsPinned, _gameTitle, _tracker.IsGameForeground, _tracker.NeedsElevation());
+    public GameStatus Game => new(_tracker.IsPinned, _gameTitle, _tracker.IsGameForeground, _tracker.NeedsElevation(), _tracker.LooksExclusiveFullscreen);
+
+    public TurnMode Mode => _running?.Session.Mode ?? _mode;
+
+    public int TurnSeconds
+    {
+        get => _turnSeconds;
+        set
+        {
+            _turnSeconds = Math.Max(0, value);
+            if (_running?.TurnTimer is { } timer)
+            {
+                timer.Limit = TimeSpan.FromSeconds(_turnSeconds);
+            }
+        }
+    }
+
+    public int? TurnSecondsLeft => _running?.TurnTimer?.Remaining is { } left ? (int)Math.Ceiling(left.TotalSeconds) : null;
+
+    public void SetMode(TurnMode mode)
+    {
+        _mode = mode;
+        _running?.Session.SetMode(mode);
+    }
 
     public async Task StartAsync(Uri server, CancellationToken cancellationToken)
     {
@@ -74,8 +101,7 @@ public sealed partial class HostSession : IHostSession
         CreatedRoom room;
         try
         {
-            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-            room = await RoomClient.CreateRoomAsync(http, server, cancellationToken).ConfigureAwait(false);
+            room = await ResumeOrCreateAsync(server, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
         {
@@ -98,6 +124,8 @@ public sealed partial class HostSession : IHostSession
         var dsu = TryStartDsu();
         var run = new Running(session, pipeline, padBackend, client, hub, controller, dsu, new TimerResolution());
         run.Pass = new PassCoordinator(session, id => run.Away.Contains(id));
+        run.TurnTimer = new TurnTimer(session, run.Pass) { Limit = TimeSpan.FromSeconds(_turnSeconds) };
+        session.SetMode(_mode);
         _running = run;
 
         controller.MotionReceived += (id, motion) =>
@@ -129,6 +157,32 @@ public sealed partial class HostSession : IHostSession
         RoomCreated?.Invoke(room.Code);
     }
 
+    /// <summary>
+    /// A room saved by an earlier run is taken over if the server still has it (the app crashed or was updated within the
+    /// server's grace window); otherwise a new room is created. Guests of a resumed room reconnect on their own.
+    /// </summary>
+    private async Task<CreatedRoom> ResumeOrCreateAsync(Uri server, CancellationToken cancellationToken)
+    {
+        var wsBase = new UriBuilder(server) { Scheme = server.Scheme == Uri.UriSchemeHttps ? "wss" : "ws" }.Uri;
+        var serverKey = server.ToString().TrimEnd('/');
+        CreatedRoom room;
+        if (_vault.Load() is { } saved
+            && string.Equals(saved.Server, serverKey, StringComparison.OrdinalIgnoreCase)
+            && await RoomClient.ProbeAsync(new WebSocketFactory(), wsBase, saved.Code, saved.HostToken, TimeSpan.FromSeconds(6), cancellationToken).ConfigureAwait(false))
+        {
+            room = new CreatedRoom(saved.Code, saved.HostToken);
+            PhaseChanged?.Invoke(SessionPhase.Starting, "Picked up your previous session. Friends reconnect on their own.");
+        }
+        else
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            room = await RoomClient.CreateRoomAsync(http, server, cancellationToken).ConfigureAwait(false);
+        }
+
+        _vault.Save(new SavedRoom(serverKey, room.Code, room.HostToken));
+        return room;
+    }
+
     public async Task StopAsync()
     {
         Running? run;
@@ -143,9 +197,11 @@ public sealed partial class HostSession : IHostSession
             return;
         }
 
+        _vault.Clear(); // ending the session on purpose is not a crash: do not offer to resume it
         await run.Stop.CancelAsync().ConfigureAwait(false);
         await Task.WhenAll(run.Room ?? Task.CompletedTask, run.Pump ?? Task.CompletedTask).ConfigureAwait(false);
         run.Pipeline.ReleaseAll(); // nothing may stay held, whatever state the session was in
+        run.TurnTimer?.Dispose();
         run.Pass?.Dispose();
         run.Controller.Dispose();
         run.Hub.Dispose();
@@ -201,6 +257,7 @@ public sealed partial class HostSession : IHostSession
                 PhaseChanged?.Invoke(SessionPhase.Failed, ErrorText(error.Code));
                 break;
             case EndedEvent:
+                _vault.Clear();
                 PhaseChanged?.Invoke(SessionPhase.Failed, "The server closed this session. Start a new one to get a new code.");
                 break;
             default:
@@ -227,6 +284,8 @@ public sealed partial class HostSession : IHostSession
             {
                 pump.Step();
                 run.Controller.FlushEchoes();
+                run.Controller.Maintain();
+                run.TurnTimer?.Tick();
             }
         }
         catch (OperationCanceledException)
@@ -287,6 +346,8 @@ public sealed partial class HostSession : IHostSession
         public HashSet<string> Away { get; set; } = [];
 
         public PassCoordinator? Pass { get; set; }
+
+        public TurnTimer? TurnTimer { get; set; }
 
         public Task? Pump { get; set; }
 

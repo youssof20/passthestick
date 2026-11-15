@@ -8,8 +8,8 @@ export interface PlayerInfo {
 }
 
 export type ServerMessage =
-  | { t: "welcome"; v: number; you: string; players: PlayerInfo[]; holder: string; epoch: number; hostAway: boolean; resumeToken?: string }
-  | { t: "presence"; players: PlayerInfo[]; holder: string; epoch: number; hostAway: boolean }
+  | { t: "welcome"; v: number; you: string; players: PlayerInfo[]; holder: string; epoch: number; mode?: string; hostAway: boolean; resumeToken?: string }
+  | { t: "presence"; players: PlayerInfo[]; holder: string; epoch: number; mode?: string; hostAway: boolean }
   | { t: "signal"; from: string; sdp?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit }
   | { t: "chat"; from: string; text: string }
   | { t: "ended"; reason: string }

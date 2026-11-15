@@ -33,6 +33,9 @@ public sealed record AppSettings
     /// <summary>Whether to look for new versions on GitHub at startup. Turning it off stops that request.</summary>
     public bool CheckForUpdates { get; init; } = true;
 
+    /// <summary>Seconds each guest keeps the stick before it moves on; 0 means no limit.</summary>
+    public int TurnSeconds { get; init; }
+
     public string PassHotkey { get; init; } = "Ctrl+Shift+Right";
 
     public string TakeBackHotkey { get; init; } = "Ctrl+Shift+Left";

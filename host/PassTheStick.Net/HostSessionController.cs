@@ -40,6 +40,7 @@ public sealed partial class HostSessionController : IDisposable
         _peers.StateReceived += OnState;
         _peers.ControlReceived += OnControl;
         _session.HolderChanged += OnHolderChanged;
+        _peers.StatusChanged += OnPeerStatus;
     }
 
     /// <summary>Motion from the current holder, for the DSU server. Never raised for anyone else.</summary>
@@ -60,6 +61,7 @@ public sealed partial class HostSessionController : IDisposable
         _peers.StateReceived -= OnState;
         _peers.ControlReceived -= OnControl;
         _session.HolderChanged -= OnHolderChanged;
+        _peers.StatusChanged -= OnPeerStatus;
     }
 
     private void OnRoomEvent(RoomEvent e)
@@ -77,6 +79,12 @@ public sealed partial class HostSessionController : IDisposable
                 break;
             case RelayFrameEvent relay:
                 HandleFrame(relay.From, relay.Payload);
+                break;
+            case ConnectionEvent { State: RoomConnectionState.Reconnecting }:
+                _outageStartedAt ??= _clock.GetTimestamp();
+                break;
+            case ConnectionEvent { State: RoomConnectionState.Open }:
+                OnRoomOpen();
                 break;
             case EndedEvent:
                 _pipeline.ReleaseAll();
@@ -96,6 +104,11 @@ public sealed partial class HostSessionController : IDisposable
             {
                 _session.RemovePlayer(known.Id);
                 _peers.RemovePeer(known.Id);
+                lock (_health)
+                {
+                    _health.Remove(known.Id);
+                }
+
                 SetTesting(known.Id, false);
             }
         }
@@ -114,16 +127,140 @@ public sealed partial class HostSessionController : IDisposable
 
             if (!player.Away)
             {
+                lock (_health)
+                {
+                    _health.TryAdd(player.Id, new PeerHealth { Since = _clock.GetTimestamp() });
+                }
+
                 _peers.EnsurePeer(player.Id);
             }
+        }
+    }
+
+    // ---- keeping the WebRTC links alive ----
+
+    private static readonly TimeSpan DisconnectedGrace = TimeSpan.FromSeconds(8);
+    private static readonly TimeSpan ConnectingPatience = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan OutageThatKillsLinks = TimeSpan.FromSeconds(5);
+    private const int MaxReoffers = 6;
+
+    private readonly Dictionary<string, PeerHealth> _health = new(StringComparer.Ordinal);
+    private long? _outageStartedAt;
+    private bool _reoffering;
+
+    private sealed class PeerHealth
+    {
+        public PeerStatus Status { get; set; } = PeerStatus.Connecting;
+
+        public long Since { get; set; }
+
+        public int Attempts { get; set; }
+    }
+
+    private void OnPeerStatus(string guestId, PeerStatus status)
+    {
+        if (_reoffering)
+        {
+            return; // our own teardown, not news
+        }
+
+        lock (_health)
+        {
+            if (!_health.TryGetValue(guestId, out var h))
+            {
+                _health[guestId] = h = new PeerHealth();
+            }
+
+            if (h.Status != status)
+            {
+                h.Status = status;
+                h.Since = _clock.GetTimestamp();
+            }
+
+            if (status == PeerStatus.Open)
+            {
+                h.Attempts = 0;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Starts a fresh offer to any guest whose link failed, stayed disconnected, or never connected, with growing delays and
+    /// a cap. Call this regularly from the input loop.
+    /// </summary>
+    public void Maintain()
+    {
+        List<string> stale = [];
+        var now = _clock.GetTimestamp();
+        lock (_health)
+        {
+            foreach (var (id, h) in _health)
+            {
+                var waited = _clock.GetElapsedTime(h.Since, now);
+                var due = h.Status switch
+                {
+                    PeerStatus.Failed or PeerStatus.Closed => waited >= TimeSpan.FromSeconds(Math.Min(8, 1 << Math.Min(h.Attempts, 3))),
+                    PeerStatus.Disconnected => waited >= DisconnectedGrace,
+                    PeerStatus.Connecting => waited >= ConnectingPatience,
+                    _ => false,
+                };
+                if (due && h.Attempts < MaxReoffers && _session.Players.Any(p => p.Id == id))
+                {
+                    h.Attempts++;
+                    h.Status = PeerStatus.Connecting;
+                    h.Since = now;
+                    stale.Add(id);
+                }
+            }
+        }
+
+        foreach (var id in stale)
+        {
+            Reoffer(id);
+        }
+    }
+
+    private void Reoffer(string guestId)
+    {
+        _reoffering = true;
+        try
+        {
+            _peers.RemovePeer(guestId);
+            _peers.EnsurePeer(guestId);
+        }
+        finally
+        {
+            _reoffering = false;
+        }
+    }
+
+    /// <summary>After a long enough outage the old links are dead, so every guest gets a new offer.</summary>
+    private void OnRoomOpen()
+    {
+        var started = _outageStartedAt;
+        _outageStartedAt = null;
+        if (started is null || _clock.GetElapsedTime(started.Value) < OutageThatKillsLinks)
+        {
+            return;
+        }
+
+        foreach (var player in _session.Players)
+        {
+            lock (_health)
+            {
+                _health[player.Id] = new PeerHealth { Status = PeerStatus.Connecting, Since = _clock.GetTimestamp() };
+            }
+
+            Reoffer(player.Id);
         }
     }
 
     private void OnHolderChanged(HolderChange change)
     {
         var wire = change.Current == _session.HostId ? null : change.Current;
-        FireAndLog(_room.SendHolderAsync(wire, change.Epoch, CancellationToken.None));
-        _peers.BroadcastControl(new JsonObject { ["t"] = "holder", ["id"] = wire ?? _session.HostId, ["epoch"] = change.Epoch });
+        var everyone = _session.Mode == TurnMode.Everyone;
+        FireAndLog(_room.SendHolderAsync(wire, change.Epoch, everyone, CancellationToken.None));
+        _peers.BroadcastControl(new JsonObject { ["t"] = "holder", ["id"] = wire ?? _session.HostId, ["epoch"] = change.Epoch, ["mode"] = everyone ? "everyone" : "one" });
     }
 
     private void OnState(string from, byte[] data) => HandleFrame(from, data);

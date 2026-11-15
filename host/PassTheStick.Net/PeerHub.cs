@@ -13,6 +13,10 @@ public enum PeerStatus
 {
     Connecting,
     Open,
+
+    /// <summary>The path went quiet. It can recover by itself, so the host waits before starting over.</summary>
+    Disconnected,
+
     Failed,
     Closed,
 }
@@ -151,7 +155,8 @@ public sealed partial class PeerHub : IPeerLink, IDisposable
             {
                 rtcState.RTC_CONNECTED => PeerStatus.Open,
                 rtcState.RTC_FAILED => PeerStatus.Failed,
-                rtcState.RTC_CLOSED or rtcState.RTC_DISCONNECTED => PeerStatus.Closed,
+                rtcState.RTC_DISCONNECTED => PeerStatus.Disconnected,
+                rtcState.RTC_CLOSED => PeerStatus.Closed,
                 _ => PeerStatus.Connecting,
             };
             StatusChanged?.Invoke(guestId, status);

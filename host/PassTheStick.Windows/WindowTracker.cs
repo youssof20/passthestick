@@ -16,6 +16,18 @@ public static class ForegroundPolicy
         foreground != 0 && pinned != 0 && (foreground == pinned || rootOwnerOf(foreground) == pinned);
 }
 
+/// <summary>
+/// Windows reports a full-screen Direct3D application through the shell's notification state. Such a game draws over every
+/// overlay, so the host app tells the person to switch it to borderless or windowed.
+/// </summary>
+public static class FullscreenPolicy
+{
+    /// <summary>QUNS_RUNNING_D3D_FULL_SCREEN from shellapi.h.</summary>
+    public const int RunningD3DFullScreen = 3;
+
+    public static bool IsExclusive(int notificationState) => notificationState == RunningD3DFullScreen;
+}
+
 public sealed class WindowTracker : IWindowTracker
 {
     private static readonly TimeSpan NullForegroundGrace = TimeSpan.FromMilliseconds(500);
@@ -71,6 +83,10 @@ public sealed class WindowTracker : IWindowTracker
             return _lastResult;
         }
     }
+
+    /// <summary>True when the game is in front and Windows reports an exclusive full-screen application.</summary>
+    public bool LooksExclusiveFullscreen =>
+        IsGameForeground && NativeMethods.SHQueryUserNotificationState(out var state) == 0 && FullscreenPolicy.IsExclusive(state);
 
     public void Pin(nint window)
     {

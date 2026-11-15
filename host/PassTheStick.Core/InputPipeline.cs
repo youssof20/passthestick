@@ -11,27 +11,36 @@ public enum InputResult
     UnknownKey,
     StaleSequence,
     Paused,
+
+    /// <summary>Everyone-at-once mode: the keyboard belongs to the first player only.</summary>
+    NotKeyboardOwner,
+
+    /// <summary>Everyone-at-once mode: Windows games see four pads at most.</summary>
+    NoPadSlot,
 }
 
 /// <summary>
-/// Validates guest input against the stick state and drives the injector and pad backend.
-/// Invariants: only the current holder's input under the current epoch is injected, and every held key
-/// and button is released on any holder change, pause, timeout or shutdown.
+/// Validates guest input against the session and drives the injector and pad backend.
+/// Invariants: input is applied only for players the session allows to send (the holder in one-at-a-time mode, every
+/// player in everyone-at-once mode) under the current epoch, and every held key and button is released on any holder
+/// or mode change, when the player leaves, on pause, when that player goes quiet, and on shutdown.
 /// All members are safe to call from any thread; the injector and pad are only touched under one lock.
 /// </summary>
 public sealed class InputPipeline : IDisposable
 {
+    public const int MaxPads = 4;
+
     private readonly object _gate = new();
     private readonly StickSession _session;
     private readonly IInputInjector _injector;
     private readonly IVirtualPadBackend _pad;
     private readonly TimeProvider _clock;
     private readonly HashSet<ScanKey> _heldKeys = [];
-    private readonly HashSet<int> _padSlots = [];
+    private readonly Dictionary<int, string> _padOwner = [];
+    private readonly Dictionary<string, (ushort Seq, bool Have)> _padSeq = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, long> _lastSeen = new(StringComparer.Ordinal);
+    private string? _keyOwner;
     private bool _paused;
-    private ushort _lastPadSeq;
-    private bool _haveSeq;
-    private long _lastFrameTicks;
     private bool _disposed;
 
     public InputPipeline(StickSession session, IInputInjector injector, IVirtualPadBackend pad, TimeProvider? clock = null)
@@ -41,6 +50,7 @@ public sealed class InputPipeline : IDisposable
         _pad = pad;
         _clock = clock ?? TimeProvider.System;
         _session.HolderChanged += OnHolderChanged;
+        _session.PlayerRemoved += OnPlayerRemoved;
     }
 
     /// <summary>True while the pinned game is not the foreground window. Input is dropped and everything is released.</summary>
@@ -82,14 +92,24 @@ public sealed class InputPipeline : IDisposable
                 return gate;
             }
 
+            if (_session.Mode == TurnMode.Everyone)
+            {
+                var players = _session.Players;
+                if (players.Count == 0 || players[0].Id != fromId)
+                {
+                    return InputResult.NotKeyboardOwner;
+                }
+            }
+
             if (!KeyMap.TryResolve(code, out var key))
             {
                 return InputResult.UnknownKey;
             }
 
-            Touch();
+            Touch(fromId);
             if (down)
             {
+                _keyOwner = fromId;
                 if (_heldKeys.Add(key))
                 {
                     _injector.KeyDown(key);
@@ -114,30 +134,34 @@ public sealed class InputPipeline : IDisposable
                 return gate;
             }
 
-            if (_haveSeq && !SerialNumber.IsNewer(seq, _lastPadSeq))
+            var slot = PadSlotFor(fromId);
+            if (slot is null)
+            {
+                return InputResult.NoPadSlot;
+            }
+
+            if (_padSeq.TryGetValue(fromId, out var last) && last.Have && !SerialNumber.IsNewer(seq, last.Seq))
             {
                 return InputResult.StaleSequence;
             }
 
-            _haveSeq = true;
-            _lastPadSeq = seq;
-            Touch();
-            var slot = SlotOf(fromId);
-            _pad.Submit(slot, state);
+            _padSeq[fromId] = (seq, true);
+            Touch(fromId);
+            _pad.Submit(slot.Value, state);
             if (state == PadState.Neutral)
             {
-                _padSlots.Remove(slot);
+                _padOwner.Remove(slot.Value);
             }
             else
             {
-                _padSlots.Add(slot);
+                _padOwner[slot.Value] = fromId;
             }
 
             return InputResult.Accepted;
         }
     }
 
-    /// <summary>Keepalives and other state frames from the holder prove the link is alive.</summary>
+    /// <summary>Keepalives and other state frames from a sender prove its link is alive.</summary>
     public InputResult HandleKeepalive(string fromId, uint epoch)
     {
         lock (_gate)
@@ -145,27 +169,28 @@ public sealed class InputPipeline : IDisposable
             var gate = CheckLocked(fromId, epoch);
             if (gate == InputResult.Accepted)
             {
-                Touch();
+                Touch(fromId);
             }
 
             return gate;
         }
     }
 
-    /// <summary>Call every few milliseconds. Releases everything when the holder has gone quiet for too long.</summary>
+    /// <summary>Call every few milliseconds. Releases what a player was holding once that player has gone quiet for too long.</summary>
     public void Tick()
     {
         lock (_gate)
         {
-            if (_disposed || (_heldKeys.Count == 0 && _padSlots.Count == 0))
+            if (_disposed || (_heldKeys.Count == 0 && _padOwner.Count == 0))
             {
                 return;
             }
 
-            var elapsed = _clock.GetElapsedTime(_lastFrameTicks);
-            if (elapsed > ProtocolInfo.StateTimeout)
+            var now = _clock.GetTimestamp();
+            foreach (var id in _lastSeen.Where(kv => _clock.GetElapsedTime(kv.Value, now) > ProtocolInfo.StateTimeout).Select(kv => kv.Key).ToList())
             {
-                ReleaseAllLocked();
+                ReleasePlayerLocked(id);
+                _lastSeen.Remove(id);
             }
         }
     }
@@ -189,6 +214,7 @@ public sealed class InputPipeline : IDisposable
 
             _disposed = true;
             _session.HolderChanged -= OnHolderChanged;
+            _session.PlayerRemoved -= OnPlayerRemoved;
             ReleaseAllLocked();
         }
     }
@@ -200,7 +226,7 @@ public sealed class InputPipeline : IDisposable
             return InputResult.Paused;
         }
 
-        if (fromId == _session.HostId || _session.Holder != fromId)
+        if (!_session.MaySend(fromId))
         {
             return InputResult.NotHolder;
         }
@@ -208,16 +234,60 @@ public sealed class InputPipeline : IDisposable
         return _session.Epoch == epoch ? InputResult.Accepted : InputResult.StaleEpoch;
     }
 
-    private int SlotOf(string id) => _session.Players.FirstOrDefault(p => p.Id == id)?.Slot ?? 0;
+    /// <summary>
+    /// One at a time: whoever holds the stick is player 1, so the game always sees pad 1.
+    /// Everyone at once: each player's own slot, and none beyond the four pads Windows games can read.
+    /// </summary>
+    private int? PadSlotFor(string id)
+    {
+        if (_session.Mode == TurnMode.OneAtATime)
+        {
+            return 0;
+        }
 
-    private void Touch() => _lastFrameTicks = _clock.GetTimestamp();
+        var slot = _session.Players.FirstOrDefault(p => p.Id == id)?.Slot ?? int.MaxValue;
+        return slot < MaxPads ? slot : null;
+    }
+
+    private void Touch(string id) => _lastSeen[id] = _clock.GetTimestamp();
 
     private void OnHolderChanged(HolderChange change)
     {
         lock (_gate)
         {
             ReleaseAllLocked();
-            _haveSeq = false;
+            _padSeq.Clear();
+            _lastSeen.Clear();
+        }
+    }
+
+    private void OnPlayerRemoved(string id)
+    {
+        lock (_gate)
+        {
+            ReleasePlayerLocked(id);
+            _padSeq.Remove(id);
+            _lastSeen.Remove(id);
+        }
+    }
+
+    private void ReleasePlayerLocked(string id)
+    {
+        if (_keyOwner == id)
+        {
+            foreach (var key in _heldKeys)
+            {
+                _injector.KeyUp(key);
+            }
+
+            _heldKeys.Clear();
+            _keyOwner = null;
+        }
+
+        foreach (var slot in _padOwner.Where(kv => kv.Value == id).Select(kv => kv.Key).ToList())
+        {
+            _pad.Neutralize(slot);
+            _padOwner.Remove(slot);
         }
     }
 
@@ -229,11 +299,12 @@ public sealed class InputPipeline : IDisposable
         }
 
         _heldKeys.Clear();
-        foreach (var slot in _padSlots)
+        _keyOwner = null;
+        foreach (var slot in _padOwner.Keys)
         {
             _pad.Neutralize(slot);
         }
 
-        _padSlots.Clear();
+        _padOwner.Clear();
     }
 }

@@ -339,6 +339,19 @@
     <Setter Property="BorderBrush" Value="{DynamicResource PtsDangerBrush}"/>
   </Style>
 
+  <Style x:Key="PtsSegment" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+    <Setter Property="MinHeight" Value="32"/>
+    <Setter Property="Padding" Value="{StaticResource PtsInsetControl}"/>
+    <Setter Property="Margin" Value="{StaticResource PtsSpace1Right}"/>
+    <Style.Triggers>
+      <DataTrigger Binding="{Binding IsSelected}" Value="True">
+        <Setter Property="Background" Value="{DynamicResource PtsAccentBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PtsOnAccentBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PtsOnAccentBrush}"/>
+      </DataTrigger>
+    </Style.Triggers>
+  </Style>
+
   <Style x:Key="PtsBareTextBox" TargetType="TextBox">
     <Setter Property="Foreground" Value="{DynamicResource PtsTextBrush}"/>
     <Setter Property="CaretBrush" Value="{DynamicResource PtsTextBrush}"/>

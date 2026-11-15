@@ -174,6 +174,33 @@
                   <TextBlock Style="{StaticResource PtsCardTitle}" Text="Players"/>
                   <TextBlock Style="{StaticResource PtsMuted}" Text="{Binding PlayersSummary}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                 </Grid>
+                <TextBlock Style="{StaticResource PtsMuted}" Text="How you play" Margin="{StaticResource PtsSpace1Bottom}"/>
+                <ItemsControl ItemsSource="{Binding ModeChoices}" Margin="{StaticResource PtsSpace3Bottom}" AutomationProperties.Name="How you play">
+                  <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Button Style="{StaticResource PtsSegment}" Content="{Binding Label}" Command="{Binding DataContext.ChooseModeCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"/>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <StackPanel Margin="{StaticResource PtsSpace3Bottom}">
+                  <StackPanel.Style>
+                    <Style TargetType="StackPanel">
+                      <Setter Property="Visibility" Value="Collapsed"/>
+                      <Style.Triggers><DataTrigger Binding="{Binding ShowTurnControls}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                    </Style>
+                  </StackPanel.Style>
+                  <TextBlock Style="{StaticResource PtsMuted}" Text="Turn length" Margin="{StaticResource PtsSpace1Bottom}"/>
+                <ItemsControl ItemsSource="{Binding TimerChoices}" AutomationProperties.Name="Turn length">
+                  <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Button Style="{StaticResource PtsSegment}" Content="{Binding Label}" Command="{Binding DataContext.ChooseTimerCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"/>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                  <TextBlock Style="{StaticResource PtsMuted}" Text="{Binding TurnLeftText}"/>
+                </StackPanel>
                 <StackPanel HorizontalAlignment="Center" Margin="{StaticResource PtsSpace5Thickness}">
                   <StackPanel.Style>
                     <Style TargetType="StackPanel">
@@ -215,6 +242,8 @@
                           <Setter TargetName="Row" Property="BorderBrush" Value="{DynamicResource PtsAccentBrush}"/>
                           <Setter TargetName="Row" Property="Background" Value="{DynamicResource PtsSurfaceRaisedBrush}"/>
                           <Setter TargetName="HolderTag" Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding ShowPass}" Value="False">
                           <Setter TargetName="PassButton" Property="Visibility" Value="Collapsed"/>
                         </DataTrigger>
                         <DataTrigger Binding="{Binding Away}" Value="True">
@@ -399,6 +428,12 @@
       </Border.Style>
       <Grid MaxWidth="1000">
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+          <StackPanel.Style>
+            <Style TargetType="StackPanel">
+              <Setter Property="Visibility" Value="Collapsed"/>
+              <Style.Triggers><DataTrigger Binding="{Binding ShowTurnControls}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+            </Style>
+          </StackPanel.Style>
           <Button Style="{StaticResource PtsPrimaryButton}" Command="{Binding PassNextCommand}" MinWidth="160" MinHeight="48" Margin="{StaticResource PtsSpace3Right}" AutomationProperties.Name="Pass to next">
             <TextBlock Text="Pass to next" Foreground="{DynamicResource PtsOnAccentBrush}"/>
           </Button>

@@ -31,11 +31,14 @@ internal sealed class FakeRoom : IRoomLink
 
     public List<(string? Id, uint Epoch)> Holders { get; } = [];
 
+    public List<bool> Modes { get; } = [];
+
     public List<string> Kicked { get; } = [];
 
-    public Task SendHolderAsync(string? guestId, uint epoch, CancellationToken cancellationToken)
+    public Task SendHolderAsync(string? guestId, uint epoch, bool everyone, CancellationToken cancellationToken)
     {
         Holders.Add((guestId, epoch));
+        Modes.Add(everyone);
         return Task.CompletedTask;
     }
 
@@ -79,6 +82,7 @@ internal sealed class FakePeers : IPeerLink
 
     public void RemovePeer(string guestId)
     {
+        Removed.Add(guestId);
         Peers.Remove(guestId);
         StatusChanged?.Invoke(guestId, PeerStatus.Closed);
     }
@@ -96,6 +100,10 @@ internal sealed class FakePeers : IPeerLink
     public void BroadcastControl(JsonObject message) => Broadcasts.Add(message);
 
     public void RaiseState(string from, byte[] data) => StateReceived?.Invoke(from, data);
+
+    public void RaiseStatus(string id, PeerStatus status) => StatusChanged?.Invoke(id, status);
+
+    public List<string> Removed { get; } = [];
 
     public void RaiseControl(string from, JsonObject message) => ControlReceived?.Invoke(from, message);
 }
@@ -441,5 +449,95 @@ public sealed class HostSessionControllerTests : IDisposable
             }
         }));
         await Task.WhenAll(work);
+    }
+
+    [Fact]
+    public void A_failed_link_gets_a_fresh_offer_after_a_growing_delay_and_stops_after_six_tries()
+    {
+        Join("a");
+        _peers.RaiseStatus("a", PeerStatus.Open);
+        _peers.RaiseStatus("a", PeerStatus.Failed);
+        _ctl.Maintain();
+        Assert.Empty(_peers.Removed);
+
+        _clock.Advance(1000);
+        _ctl.Maintain();
+        Assert.Equal(["a"], _peers.Removed);
+        Assert.Contains("a", _peers.Peers);
+
+        // The new link fails too: the wait doubles (2 s, then 4 s, then 8 s) and the tries stop at six.
+        var tries = 1;
+        for (var round = 0; round < 12; round++)
+        {
+            _peers.RaiseStatus("a", PeerStatus.Failed);
+            _clock.Advance(8000);
+            _ctl.Maintain();
+            tries = _peers.Removed.Count;
+        }
+
+        Assert.Equal(6, tries);
+    }
+
+    [Fact]
+    public void A_link_that_recovers_by_itself_is_left_alone_and_one_that_stays_disconnected_is_replaced()
+    {
+        Join("a");
+        _peers.RaiseStatus("a", PeerStatus.Open);
+        _peers.RaiseStatus("a", PeerStatus.Disconnected);
+        _clock.Advance(7000);
+        _ctl.Maintain();
+        Assert.Empty(_peers.Removed);
+        _peers.RaiseStatus("a", PeerStatus.Open);
+        _clock.Advance(20000);
+        _ctl.Maintain();
+        Assert.Empty(_peers.Removed);
+
+        _peers.RaiseStatus("a", PeerStatus.Disconnected);
+        _clock.Advance(8000);
+        _ctl.Maintain();
+        Assert.Equal(["a"], _peers.Removed);
+    }
+
+    [Fact]
+    public void A_link_that_never_finishes_connecting_is_retried_and_a_healthy_one_is_not()
+    {
+        _room.Raise(Presence(("a", "A", false), ("b", "B", false)));
+        _peers.RaiseStatus("b", PeerStatus.Open);
+        _clock.Advance(14000);
+        _ctl.Maintain();
+        Assert.Empty(_peers.Removed);
+        _clock.Advance(1500);
+        _ctl.Maintain();
+        Assert.Equal(["a"], _peers.Removed);
+    }
+
+    [Fact]
+    public void A_long_network_outage_on_the_host_makes_every_guest_get_a_new_offer_but_a_short_one_does_not()
+    {
+        _room.Raise(Presence(("a", "A", false), ("b", "B", false)));
+        _peers.RaiseStatus("a", PeerStatus.Open);
+        _peers.RaiseStatus("b", PeerStatus.Open);
+
+        _room.Raise(new ConnectionEvent(RoomConnectionState.Reconnecting));
+        _clock.Advance(2000);
+        _room.Raise(new ConnectionEvent(RoomConnectionState.Open));
+        Assert.Empty(_peers.Removed);
+
+        _room.Raise(new ConnectionEvent(RoomConnectionState.Reconnecting));
+        _clock.Advance(10000);
+        _room.Raise(new ConnectionEvent(RoomConnectionState.Open));
+        Assert.Equal(["a", "b"], _peers.Removed.Order());
+    }
+
+    [Fact]
+    public void A_guest_who_left_is_not_chased_with_new_offers()
+    {
+        Join("a");
+        _peers.RaiseStatus("a", PeerStatus.Failed);
+        _room.Raise(Presence());
+        _peers.Removed.Clear();
+        _clock.Advance(30000);
+        _ctl.Maintain();
+        Assert.Empty(_peers.Removed);
     }
 }

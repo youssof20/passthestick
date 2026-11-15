@@ -36,7 +36,7 @@ public static partial class UninstallCleanup
         foreach (var file in Directory.EnumerateFiles(dataDirectory))
         {
             var name = Path.GetFileName(file);
-            if (name.StartsWith("settings.json", StringComparison.Ordinal) || name.StartsWith("hidhide.json", StringComparison.Ordinal) || name.EndsWith(".tmp", StringComparison.Ordinal))
+            if (name.StartsWith("settings.json", StringComparison.Ordinal) || name.StartsWith("hidhide.json", StringComparison.Ordinal) || name == "room.dat" || name.EndsWith(".tmp", StringComparison.Ordinal))
             {
                 TryDelete(file, log);
             }

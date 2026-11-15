@@ -244,3 +244,36 @@ describe("clients", () => {
     expect(new Client(c.ws)).toBeDefined();
   });
 });
+
+describe("everyone-at-once mode", () => {
+  it("is announced to everyone and lets any guest's binary frames through, not only the holder's", async () => {
+    const { code, hostToken } = await createRoom();
+    const host = await joinHost(code, hostToken);
+    const a = await joinGuest(code, "Ann");
+    const b = await joinGuest(code, "Bo");
+    host.send({ t: "holder", id: null, epoch: 1, mode: "everyone" });
+    let seen: Msg = {};
+    for (let i = 0; i < 10 && seen.mode !== "everyone"; i++) seen = await b.c.until("presence");
+    expect(seen.mode).toBe("everyone");
+
+    a.c.send(new Uint8Array([1, 2, 3]));
+    b.c.send(new Uint8Array([4, 5, 6]));
+    expect(await binaryFrames(host, 400)).toBe(2);
+
+    host.send({ t: "holder", id: null, epoch: 2, mode: "one" });
+    await new Promise((r) => setTimeout(r, 150));
+    a.c.send(new Uint8Array([1, 2, 3]));
+    expect(await binaryFrames(host, 300)).toBe(0);
+  });
+
+  it("is part of the welcome a late joiner receives, and anything other than 'everyone' means one at a time", async () => {
+    const { code, hostToken } = await createRoom();
+    const host = await joinHost(code, hostToken);
+    host.send({ t: "holder", id: null, epoch: 1, mode: "everyone" });
+    await new Promise((r) => setTimeout(r, 150));
+    expect((await joinGuest(code, "Late")).welcome.mode).toBe("everyone");
+    host.send({ t: "holder", id: null, epoch: 2, mode: "chaos" });
+    await new Promise((r) => setTimeout(r, 150));
+    expect((await joinGuest(code, "Later")).welcome.mode).toBe("one");
+  });
+});

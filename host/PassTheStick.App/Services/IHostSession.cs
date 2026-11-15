@@ -18,7 +18,7 @@ public sealed record PlayerSnapshot(string Id, string Name, int Slot, bool Away,
 /// <summary>What a guest in test mode is pressing. <see cref="Active"/> false means they just left test mode.</summary>
 public sealed record ProbeInfo(string GuestName, bool Active, PadState Pad, IReadOnlyCollection<string> Keys);
 
-public sealed record GameStatus(bool IsPinned, string Title, bool IsForeground, bool NeedsElevation);
+public sealed record GameStatus(bool IsPinned, string Title, bool IsForeground, bool NeedsElevation, bool ExclusiveFullscreen = false);
 
 /// <summary>Everything the main view model needs from a running session. Faked in tests.</summary>
 public interface IHostSession : IAsyncDisposable
@@ -53,6 +53,16 @@ public interface IHostSession : IAsyncDisposable
 
     /// <summary>Approves a waiting request, or passes to the next player in the rotation.</summary>
     PassOutcome PassNext();
+
+    TurnMode Mode { get; }
+
+    void SetMode(TurnMode mode);
+
+    /// <summary>Seconds each guest keeps the stick; 0 means no limit.</summary>
+    int TurnSeconds { get; set; }
+
+    /// <summary>Seconds left on the current guest's turn, or null when nothing is timed.</summary>
+    int? TurnSecondsLeft { get; }
 
     /// <summary>Position and size of the pinned game window in screen pixels, when it is visible.</summary>
     bool TryGetGameRect(out (int Left, int Top, int Width, int Height) rect);

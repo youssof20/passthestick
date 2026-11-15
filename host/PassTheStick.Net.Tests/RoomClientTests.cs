@@ -220,8 +220,8 @@ public class RoomClientTests
         socket.Push(Welcome);
         await Next<PresenceEvent>(seen);
 
-        await client.SendHolderAsync("g1", 4, CancellationToken.None);
-        await client.SendHolderAsync(null, 5, CancellationToken.None);
+        await client.SendHolderAsync("g1", 4, false, CancellationToken.None);
+        await client.SendHolderAsync(null, 5, true, CancellationToken.None);
         await client.SendSignalAsync("g1", new JsonObject { ["sdp"] = new JsonObject { ["type"] = "offer", ["sdp"] = "s" } }, CancellationToken.None);
         await client.KickAsync("g2", CancellationToken.None);
 
@@ -230,11 +230,53 @@ public class RoomClientTests
         Assert.Equal("g1", (string?)sent[0]["id"]);
         Assert.Equal(4, (int?)sent[0]["epoch"]);
         Assert.Null(sent[1]["id"]);
+        Assert.Equal("one", (string?)sent[0]["mode"]);
+        Assert.Equal("everyone", (string?)sent[1]["mode"]);
         Assert.Equal("signal", (string?)sent[2]["t"]);
         Assert.Equal("g1", (string?)sent[2]["to"]);
         Assert.Equal("offer", (string?)sent[2]["sdp"]!["type"]);
         Assert.Equal("kick", (string?)sent[3]["t"]);
         await cts.CancelAsync();
         await run;
+    }
+}
+
+public class RoomProbeTests
+{
+    private static readonly Uri Base = new("wss://example.test");
+
+    private static Task<bool> Probe(FakeSocket socket, int timeoutMs = 2000) =>
+        RoomClient.ProbeAsync(new FakeFactory(socket), Base, "ABCDEF", "tok", TimeSpan.FromMilliseconds(timeoutMs), CancellationToken.None);
+
+    [Fact]
+    public async Task A_welcome_means_the_room_and_token_are_still_good_and_the_probe_says_hello_as_the_host()
+    {
+        var socket = new FakeSocket();
+        socket.Push("{\"t\":\"welcome\",\"v\":1,\"you\":\"host\",\"players\":[],\"holder\":\"host\",\"epoch\":0,\"hostAway\":true}");
+        Assert.True(await Probe(socket));
+        Assert.Contains("\"role\":\"host\"", socket.Sent[0], StringComparison.Ordinal);
+        Assert.Contains("\"hostToken\":\"tok\"", socket.Sent[0], StringComparison.Ordinal);
+        Assert.True(socket.Disposed);
+    }
+
+    [Theory]
+    [InlineData("room_not_found")]
+    [InlineData("bad_token")]
+    [InlineData("host_exists")]
+    public async Task An_error_means_do_not_resume(string code)
+    {
+        var socket = new FakeSocket();
+        socket.Push($"{{\"t\":\"error\",\"code\":\"{code}\",\"message\":\"m\"}}");
+        Assert.False(await Probe(socket));
+    }
+
+    [Fact]
+    public async Task A_dead_server_a_silent_server_and_a_closed_socket_all_mean_do_not_resume()
+    {
+        Assert.False(await Probe(new FakeSocket { FailConnect = true }));
+        Assert.False(await Probe(new FakeSocket(), 150));
+        var closed = new FakeSocket();
+        closed.Close();
+        Assert.False(await Probe(closed));
     }
 }

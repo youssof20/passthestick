@@ -24,12 +24,30 @@ public interface IClipboardService
     bool TrySetText(string text);
 }
 
+/// <summary>One option in a segmented choice, such as a turn mode or a turn length.</summary>
+public sealed partial class ChoiceViewModel : ObservableObject
+{
+    public ChoiceViewModel(string label, int value)
+    {
+        Label = label;
+        Value = value;
+    }
+
+    public string Label { get; }
+
+    public int Value { get; }
+
+    [ObservableProperty]
+    private bool _isSelected;
+}
+
 public sealed partial class PlayerViewModel : ObservableObject
 {
     private readonly Action<string> _pass;
 
-    public PlayerViewModel(PlayerSnapshot snapshot, Action<string> pass)
+    public PlayerViewModel(PlayerSnapshot snapshot, Action<string> pass, bool everyone = false)
     {
+        Everyone = everyone;
         Id = snapshot.Id;
         Name = snapshot.Name;
         SlotText = $"Player {snapshot.Slot + 1}";
@@ -51,9 +69,14 @@ public sealed partial class PlayerViewModel : ObservableObject
 
     public bool Away { get; }
 
-    public string Status => HasStick ? "Has the stick" : Away ? "Reconnecting" : "Waiting for a turn";
+    public bool Everyone { get; }
 
-    public bool CanPass => !HasStick && !Away;
+    public string Status => Away ? "Reconnecting" : Everyone ? "Playing" : HasStick ? "Has the stick" : "Waiting for a turn";
+
+    /// <summary>Players take turns only in one-at-a-time mode.</summary>
+    public bool ShowPass => !Everyone && !HasStick;
+
+    public bool CanPass => !Everyone && !HasStick && !Away;
 
     [RelayCommand(CanExecute = nameof(CanPass))]
     private void Pass() => _pass(Id);
@@ -110,10 +133,60 @@ public sealed partial class MainViewModel : ObservableObject
         _session.PlayersChanged += () => _ui.Post(RefreshPlayers);
         _session.StickRequested += name => _ui.Post(() => OnStickRequested(name));
         _session.ProbeChanged += info => _ui.Post(() => Probe.Apply(info));
+        _session.TurnSeconds = settings.TurnSeconds;
+        SyncChoices();
         RefreshWindows();
     }
 
     public ProbeViewModel Probe { get; } = new();
+
+    public ObservableCollection<ChoiceViewModel> ModeChoices { get; } = [new("One at a time", (int)TurnMode.OneAtATime), new("Everyone at once", (int)TurnMode.Everyone)];
+
+    public ObservableCollection<ChoiceViewModel> TimerChoices { get; } =
+    [
+        new("No limit", 0), new("30 s", 30), new("1 min", 60), new("2 min", 120), new("5 min", 300),
+    ];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowTurnControls))]
+    private bool _isEveryone;
+
+    /// <summary>Passing and timing only mean something when players take turns.</summary>
+    public bool ShowTurnControls => !IsEveryone;
+
+    [ObservableProperty]
+    private string _turnLeftText = string.Empty;
+
+    [RelayCommand]
+    private void ChooseMode(ChoiceViewModel choice)
+    {
+        _session.SetMode((TurnMode)choice.Value);
+        SyncChoices();
+    }
+
+    [RelayCommand]
+    private void ChooseTimer(ChoiceViewModel choice)
+    {
+        _session.TurnSeconds = choice.Value;
+        _settings = _settings with { TurnSeconds = choice.Value };
+        TrySave();
+        SyncChoices();
+    }
+
+    private void SyncChoices()
+    {
+        foreach (var c in ModeChoices)
+        {
+            c.IsSelected = c.Value == (int)_session.Mode;
+        }
+
+        foreach (var c in TimerChoices)
+        {
+            c.IsSelected = c.Value == _session.TurnSeconds;
+        }
+
+        IsEveryone = _session.Mode == TurnMode.Everyone;
+    }
 
     /// <summary>Non-null until the first-run wizard is finished or skipped.</summary>
     [ObservableProperty]
@@ -318,6 +391,9 @@ public sealed partial class MainViewModel : ObservableObject
             case PassOutcome.ApprovedRequest:
                 Say("Passed the stick to the guest who asked.");
                 break;
+            case PassOutcome.NotApplicable:
+                Say("Everyone is playing at once, so there is no stick to pass. Switch to One at a time to take turns.");
+                break;
             case PassOutcome.NoOneToPass:
                 Say("Nobody else is in the session yet. Send them the invite link.");
                 break;
@@ -424,6 +500,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         var game = _session.Game;
         HasGame = game.IsPinned;
+        TurnLeftText = _session.TurnSecondsLeft is { } left ? $"{left} s left on this turn" : string.Empty;
         GameTitle = game.IsPinned ? game.Title : string.Empty;
         if (!game.IsPinned)
         {
@@ -434,10 +511,12 @@ public sealed partial class MainViewModel : ObservableObject
         }
 
         GameText = game.IsForeground ? "Input is going to this window." : "Not in front. Input is paused until you click it.";
-        GameWarningVisible = game.NeedsElevation;
+        GameWarningVisible = game.NeedsElevation || game.ExclusiveFullscreen;
         GameWarning = game.NeedsElevation
             ? "This game runs as administrator, so Windows blocks input from PassTheStick. Restart PassTheStick as administrator."
-            : string.Empty;
+            : game.ExclusiveFullscreen
+                ? "This game looks like it is in exclusive fullscreen, so the overlay cannot show over it. Switch the game to borderless or windowed to see who has the stick."
+                : string.Empty;
     }
 
     private void OnPhase(SessionPhase phase, string? message)
@@ -466,13 +545,14 @@ public sealed partial class MainViewModel : ObservableObject
         Players.Clear();
         foreach (var p in _session.Players)
         {
-            Players.Add(new PlayerViewModel(p, id => _session.PassTo(id)));
+            Players.Add(new PlayerViewModel(p, id => _session.PassTo(id), _session.Mode == TurnMode.Everyone));
         }
 
         OnPropertyChanged(nameof(HasPlayers));
         OnPropertyChanged(nameof(NoPlayers));
         OnPropertyChanged(nameof(PlayersSummary));
-        HolderText = _session.HostHoldsStick ? "You have the stick" : $"{_session.Players.FirstOrDefault(p => p.HasStick)?.Name ?? "A guest"} has the stick";
+        SyncChoices();
+        HolderText = _session.Mode == TurnMode.Everyone ? "Everyone is playing" : _session.HostHoldsStick ? "You have the stick" : $"{_session.Players.FirstOrDefault(p => p.HasStick)?.Name ?? "A guest"} has the stick";
     }
 
     private void TrySave()

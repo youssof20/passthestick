@@ -31,6 +31,8 @@ let link: HostLink | null = null;
 let wakeLock: WakeLockSentinel | null = null;
 let motionOn = false;
 let testing = false;
+/** Everyone-at-once mode: every guest sends, and nobody holds the stick. */
+let everyone = false;
 let lastEchoAt = 0;
 let lastInputAt = 0;
 
@@ -39,7 +41,7 @@ const panic = new PanicKey(1000);
 const virtualPad: PadState = { ...NEUTRAL_PAD };
 const iHaveStick = (): boolean => me !== "" && holder === me;
 /** Input is sent while holding the stick, or in test mode (the host shows it but never injects it for a non-holder). */
-const sending = (): boolean => iHaveStick() || testing;
+const sending = (): boolean => iHaveStick() || everyone || testing;
 const nextSeq = (): number => (seq = (seq + 1) & 0xffff);
 
 function say(el: HTMLElement, text: string): void {
@@ -57,13 +59,13 @@ function nameOf(id: string): string {
 
 function renderHolder(): void {
   const mine = iHaveStick();
-  say(view.holder, mine ? "You have the stick" : `${nameOf(holder)} has the stick`);
+  say(view.holder, everyone ? "Everyone is playing" : mine ? "You have the stick" : `${nameOf(holder)} has the stick`);
   view.session.classList.toggle("is-holder", mine);
-  if (mine && testing) setTesting(false);
+  if ((mine || everyone) && testing) setTesting(false);
   view.surface.hidden = !sending();
   view.touch.hidden = !sending();
-  view.request.hidden = mine;
-  view.test.hidden = mine;
+  view.request.hidden = mine || everyone;
+  view.test.hidden = mine || everyone;
   view.surfaceHint.hidden = !sending();
   if (!sending()) releaseEverything();
   say(view.players, players.map((p) => p.name + (p.id === holder ? " (stick)" : "")).join(", "));
@@ -202,6 +204,7 @@ function connect(code: string, name: string): void {
       } else if (m.t === "holder" && typeof m.id === "string") {
         holder = m.id;
         epoch = Number(m.epoch) || epoch;
+        everyone = m.mode === "everyone";
         renderHolder();
       }
     },
@@ -234,6 +237,7 @@ async function onMessage(m: ServerMessage): Promise<void> {
       players = m.players;
       holder = m.holder;
       epoch = m.epoch;
+      everyone = m.mode === "everyone";
       renderHolder();
       say(view.status, m.hostAway ? "The host lost connection. Waiting for them to come back" : "Connected");
       break;

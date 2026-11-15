@@ -54,6 +54,19 @@ public class XInputMapTests
     }
 }
 
+public class FullscreenPolicyTests
+{
+    [Theory]
+    [InlineData(3, true)]
+    [InlineData(1, false)]
+    [InlineData(2, false)]
+    [InlineData(4, false)]
+    [InlineData(5, false)]
+    [InlineData(0, false)]
+    public void Only_a_running_d3d_full_screen_application_counts(int state, bool expected) =>
+        Assert.Equal(expected, FullscreenPolicy.IsExclusive(state));
+}
+
 public class ForegroundPolicyTests
 {
     private static nint NoOwner(nint w) => w;
@@ -241,5 +254,67 @@ public sealed class HidHideGuardTests : IDisposable
         Assert.Equal(1, doc.RootElement.GetProperty("Version").GetInt32());
         Assert.Equal("HID\\A", doc.RootElement.GetProperty("AddedInstanceIds")[0].GetString());
         Assert.False(doc.RootElement.GetProperty("WasActive").GetBoolean());
+    }
+}
+
+public sealed class RoomVaultTests : IDisposable
+{
+    private readonly string _dir = Path.Combine(Path.GetTempPath(), "pts-vault-" + Guid.NewGuid().ToString("N"));
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_dir))
+        {
+            Directory.Delete(_dir, true);
+        }
+    }
+
+    private static byte[] Flip(byte[] data) => [.. data.Select(b => (byte)(b ^ 0x5A))];
+
+    [Fact]
+    public void Saves_and_loads_a_room_and_the_file_does_not_contain_the_token_in_the_clear()
+    {
+        var vault = new RoomVault(Path.Combine(_dir, "room.dat"), Flip, Flip);
+        vault.Save(new SavedRoom("https://s.example", "K7M2QX", "secret-host-token"));
+        Assert.Equal(new SavedRoom("https://s.example", "K7M2QX", "secret-host-token"), vault.Load());
+        Assert.DoesNotContain("secret-host-token", File.ReadAllText(Path.Combine(_dir, "room.dat")), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_real_windows_protection_round_trips_for_the_current_user()
+    {
+        var vault = new RoomVault(Path.Combine(_dir, "room.dat"));
+        vault.Save(new SavedRoom("https://s.example", "ABCDEF", "tok"));
+        Assert.Equal("tok", vault.Load()?.HostToken);
+        Assert.DoesNotContain("tok", File.ReadAllText(Path.Combine(_dir, "room.dat")), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Missing_damaged_undecryptable_or_incomplete_files_load_as_nothing()
+    {
+        var path = Path.Combine(_dir, "room.dat");
+        var vault = new RoomVault(path, Flip, Flip);
+        Assert.Null(vault.Load());
+
+        Directory.CreateDirectory(_dir);
+        File.WriteAllBytes(path, [1, 2, 3]);
+        Assert.Null(vault.Load());
+
+        var real = new RoomVault(path);
+        File.WriteAllBytes(path, [9, 9, 9, 9]);
+        Assert.Null(real.Load());
+
+        vault.Save(new SavedRoom("", "", ""));
+        Assert.Null(vault.Load());
+    }
+
+    [Fact]
+    public void Clear_removes_the_file_and_is_safe_when_there_is_none()
+    {
+        var vault = new RoomVault(Path.Combine(_dir, "room.dat"), Flip, Flip);
+        vault.Clear();
+        vault.Save(new SavedRoom("s", "c", "t"));
+        vault.Clear();
+        Assert.Null(vault.Load());
     }
 }

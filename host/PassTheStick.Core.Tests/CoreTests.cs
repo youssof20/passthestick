@@ -591,3 +591,209 @@ public sealed class PassCoordinatorTests : IDisposable
         Assert.Equal("b", _session.Holder);
     }
 }
+
+public sealed class EveryoneModeTests : IDisposable
+{
+    private readonly StickSession _session = new("host");
+    private readonly FakeInjector _inj = new();
+    private readonly FakePad _pad = new();
+    private readonly ManualClock _clock = new();
+    private readonly InputPipeline _pipe;
+
+    public EveryoneModeTests()
+    {
+        foreach (var id in new[] { "a", "b", "c", "d", "e" })
+        {
+            _session.AddPlayer(id, id.ToUpperInvariant());
+        }
+
+        _pipe = new InputPipeline(_session, _inj, _pad, _clock);
+    }
+
+    public void Dispose() => _pipe.Dispose();
+
+    private static PadState Pad(PadButtons b) => new(b, 0, 0, 0, 0, 0, 0);
+
+    [Fact]
+    public void In_one_at_a_time_mode_the_holder_always_drives_pad_one_whatever_their_slot()
+    {
+        _session.PassTo("d");
+        Assert.Equal(InputResult.Accepted, _pipe.HandlePad("d", _session.Epoch, 1, Pad(PadButtons.A)));
+        Assert.Equal(PadButtons.A, _pad.State[0].Buttons);
+        Assert.Single(_pad.State);
+    }
+
+    [Fact]
+    public void Switching_to_everyone_lets_every_guest_play_on_their_own_pad_and_bumps_the_epoch()
+    {
+        var before = _session.Epoch;
+        Assert.True(_session.SetMode(TurnMode.Everyone));
+        Assert.Equal(before + 1, _session.Epoch);
+        Assert.False(_session.SetMode(TurnMode.Everyone));
+
+        foreach (var (id, slot) in new[] { ("a", 0), ("b", 1), ("c", 2), ("d", 3) })
+        {
+            Assert.Equal(InputResult.Accepted, _pipe.HandlePad(id, _session.Epoch, 1, Pad(PadButtons.A)));
+            Assert.Equal(PadButtons.A, _pad.State[slot].Buttons);
+        }
+    }
+
+    [Fact]
+    public void A_fifth_player_gets_no_pad_because_windows_games_read_four()
+    {
+        _session.SetMode(TurnMode.Everyone);
+        Assert.Equal(InputResult.NoPadSlot, _pipe.HandlePad("e", _session.Epoch, 1, Pad(PadButtons.A)));
+        Assert.False(_pad.State.ContainsKey(4));
+    }
+
+    [Fact]
+    public void The_keyboard_belongs_to_the_first_player_only_and_the_host_and_strangers_never_send()
+    {
+        _session.SetMode(TurnMode.Everyone);
+        Assert.Equal(InputResult.Accepted, _pipe.HandleKey("a", _session.Epoch, "KeyW", true));
+        Assert.Equal(InputResult.NotKeyboardOwner, _pipe.HandleKey("b", _session.Epoch, "KeyS", true));
+        Assert.Equal(InputResult.NotHolder, _pipe.HandleKey("host", _session.Epoch, "KeyS", true));
+        Assert.Equal(InputResult.NotHolder, _pipe.HandleKey("stranger", _session.Epoch, "KeyS", true));
+        Assert.Single(_inj.Down);
+    }
+
+    [Fact]
+    public void Switching_modes_releases_everything()
+    {
+        _session.SetMode(TurnMode.Everyone);
+        _pipe.HandlePad("a", _session.Epoch, 1, Pad(PadButtons.B));
+        _pipe.HandlePad("b", _session.Epoch, 1, Pad(PadButtons.B));
+        _pipe.HandleKey("a", _session.Epoch, "KeyW", true);
+        _session.SetMode(TurnMode.OneAtATime);
+        Assert.Empty(_inj.Down);
+        Assert.All(_pad.State.Values, s => Assert.Equal(PadState.Neutral, s));
+        Assert.Equal(InputResult.NotHolder, _pipe.HandlePad("a", _session.Epoch, 2, Pad(PadButtons.A)));
+    }
+
+    [Fact]
+    public void A_player_who_leaves_loses_only_their_own_held_buttons()
+    {
+        _session.SetMode(TurnMode.Everyone);
+        _pipe.HandlePad("a", _session.Epoch, 1, Pad(PadButtons.A));
+        _pipe.HandlePad("b", _session.Epoch, 1, Pad(PadButtons.B));
+        _session.RemovePlayer("a");
+        Assert.Equal(PadState.Neutral, _pad.State[0]);
+        Assert.Equal(PadButtons.B, _pad.State[1].Buttons);
+    }
+
+    [Fact]
+    public void A_player_who_goes_quiet_is_released_while_a_chatty_one_stays_held()
+    {
+        _session.SetMode(TurnMode.Everyone);
+        _pipe.HandlePad("a", _session.Epoch, 1, Pad(PadButtons.A));
+        _pipe.HandlePad("b", _session.Epoch, 1, Pad(PadButtons.B));
+        for (var i = 0; i < 6; i++)
+        {
+            _clock.Advance(TimeSpan.FromMilliseconds(200));
+            _pipe.HandleKeepalive("b", _session.Epoch);
+            _pipe.Tick();
+        }
+
+        Assert.Equal(PadState.Neutral, _pad.State[0]);
+        Assert.Equal(PadButtons.B, _pad.State[1].Buttons);
+    }
+
+    [Fact]
+    public void Each_player_has_their_own_sequence_numbers()
+    {
+        _session.SetMode(TurnMode.Everyone);
+        Assert.Equal(InputResult.Accepted, _pipe.HandlePad("a", _session.Epoch, 500, Pad(PadButtons.A)));
+        Assert.Equal(InputResult.Accepted, _pipe.HandlePad("b", _session.Epoch, 3, Pad(PadButtons.A)));
+        Assert.Equal(InputResult.StaleSequence, _pipe.HandlePad("a", _session.Epoch, 400, Pad(PadButtons.A)));
+    }
+
+    [Fact]
+    public void Passing_means_nothing_when_everyone_is_playing_and_the_rotation_resumes_afterwards()
+    {
+        using var coordinator = new PassCoordinator(_session);
+        _session.SetMode(TurnMode.Everyone);
+        Assert.Equal(PassOutcome.NotApplicable, coordinator.Pass());
+        _session.SetMode(TurnMode.OneAtATime);
+        Assert.Equal(PassOutcome.PassedToNext, coordinator.Pass());
+    }
+}
+
+public sealed class TurnTimerTests : IDisposable
+{
+    private readonly StickSession _session = new("host");
+    private readonly ManualClock _clock = new();
+    private readonly PassCoordinator _pass;
+    private readonly TurnTimer _timer;
+
+    public TurnTimerTests()
+    {
+        _session.AddPlayer("a", "A");
+        _session.AddPlayer("b", "B");
+        _pass = new PassCoordinator(_session);
+        _timer = new TurnTimer(_session, _pass, _clock) { Limit = TimeSpan.FromSeconds(30) };
+    }
+
+    public void Dispose()
+    {
+        _timer.Dispose();
+        _pass.Dispose();
+    }
+
+    [Fact]
+    public void A_guests_turn_ends_when_the_time_is_up_and_the_stick_goes_to_the_next_player()
+    {
+        _session.PassTo("a");
+        _clock.Advance(TimeSpan.FromSeconds(29));
+        _timer.Tick();
+        Assert.Equal("a", _session.Holder);
+        Assert.Equal(TimeSpan.FromSeconds(1), _timer.Remaining);
+
+        _clock.Advance(TimeSpan.FromSeconds(1));
+        _timer.Tick();
+        Assert.Equal("b", _session.Holder);
+        Assert.Equal(TimeSpan.FromSeconds(30), _timer.Remaining);
+    }
+
+    [Fact]
+    public void The_rotation_returns_to_the_host_whose_own_turns_are_not_timed()
+    {
+        _session.PassTo("b");
+        _clock.Advance(TimeSpan.FromSeconds(31));
+        _timer.Tick();
+        Assert.Equal("host", _session.Holder);
+        Assert.Null(_timer.Remaining);
+        _clock.Advance(TimeSpan.FromHours(1));
+        _timer.Tick();
+        Assert.Equal("host", _session.Holder);
+    }
+
+    [Fact]
+    public void No_limit_or_everyone_mode_means_nothing_is_timed()
+    {
+        _session.PassTo("a");
+        _timer.Limit = TimeSpan.Zero;
+        _clock.Advance(TimeSpan.FromHours(1));
+        _timer.Tick();
+        Assert.Equal("a", _session.Holder);
+        Assert.Null(_timer.Remaining);
+
+        _timer.Limit = TimeSpan.FromSeconds(30);
+        _session.SetMode(TurnMode.Everyone);
+        _clock.Advance(TimeSpan.FromHours(1));
+        _timer.Tick();
+        Assert.Null(_timer.Remaining);
+        Assert.Equal("host", _session.Holder);
+    }
+
+    [Fact]
+    public void A_pass_by_hand_gives_the_next_player_a_full_turn_and_changing_the_limit_restarts_the_clock()
+    {
+        _session.PassTo("a");
+        _clock.Advance(TimeSpan.FromSeconds(25));
+        _session.PassTo("b");
+        Assert.Equal(TimeSpan.FromSeconds(30), _timer.Remaining);
+        _clock.Advance(TimeSpan.FromSeconds(20));
+        _timer.Limit = TimeSpan.FromSeconds(60);
+        Assert.Equal(TimeSpan.FromSeconds(60), _timer.Remaining);
+    }
+}

@@ -53,7 +53,7 @@ public partial class App : Application
                 s.AddSingleton<IClipboardService, WpfClipboard>();
                 s.AddSingleton<DeferredNotifier>();
                 s.AddSingleton<INotifier>(sp => sp.GetRequiredService<DeferredNotifier>());
-                s.AddSingleton<IHostSession>(sp => new HostSession(store, sp.GetRequiredService<ILoggerFactory>()));
+                s.AddSingleton<IHostSession>(sp => new HostSession(store, new RoomVault(Path.Combine(Path.GetDirectoryName(SettingsStore.DefaultPath)!, "room.dat")), sp.GetRequiredService<ILoggerFactory>()));
                 s.AddSingleton<IUpdateClient>(_ => new VelopackUpdateClient(RepositoryUrl));
                 s.AddSingleton(sp => new UpdateCoordinator(
                     sp.GetRequiredService<IUpdateClient>(),

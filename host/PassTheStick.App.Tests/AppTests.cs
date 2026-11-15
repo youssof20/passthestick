@@ -95,6 +95,18 @@ internal sealed class FakeSession : IHostSession
 
     public PassOutcome Outcome { get; set; } = PassOutcome.PassedToNext;
 
+    public TurnMode Mode { get; private set; }
+
+    public void SetMode(TurnMode mode)
+    {
+        Mode = mode;
+        PlayersChanged?.Invoke();
+    }
+
+    public int TurnSeconds { get; set; }
+
+    public int? TurnSecondsLeft { get; set; }
+
     public PassOutcome PassNext() => Outcome;
 
     public bool TryGetGameRect(out (int Left, int Top, int Width, int Height) rect)
@@ -1087,5 +1099,90 @@ public sealed class UninstallCleanupTests : IDisposable
         File.WriteAllText(Path.Combine(_dir, "hidhide.json"), "{}");
         UninstallCleanup.Run(_dir, () => throw new InvalidOperationException("HidHide is not installed"), Log);
         Assert.False(File.Exists(Path.Combine(_dir, "hidhide.json")));
+    }
+}
+
+public sealed class TurnModeViewTests : IDisposable
+{
+    private readonly string _dir = Path.Combine(Path.GetTempPath(), "pts-mode-" + Guid.NewGuid().ToString("N"));
+    private readonly FakeSession _session = new();
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_dir))
+        {
+            Directory.Delete(_dir, true);
+        }
+    }
+
+    private MainViewModel Make(int turnSeconds = 0) =>
+        new(_session, new InlineUi(), new FakeClipboard(), new FakeNotifier(), new SettingsStore(Path.Combine(_dir, "s.json")), new AppSettings { OnboardingCompleted = true, TurnSeconds = turnSeconds }, null);
+
+    [Fact]
+    public void Starts_in_one_at_a_time_with_the_saved_turn_length_selected()
+    {
+        var vm = Make(60);
+        Assert.Equal("One at a time", vm.ModeChoices.Single(c => c.IsSelected).Label);
+        Assert.Equal("1 min", vm.TimerChoices.Single(c => c.IsSelected).Label);
+        Assert.Equal(60, _session.TurnSeconds);
+        Assert.True(vm.ShowTurnControls);
+    }
+
+    [Fact]
+    public void Choosing_everyone_at_once_switches_the_session_hides_turn_controls_and_relabels_the_players()
+    {
+        var vm = Make();
+        _session.Players = [new PlayerSnapshot("a", "Ann", 0, false, false), new PlayerSnapshot("b", "Bo", 1, false, false)];
+        vm.ChooseModeCommand.Execute(vm.ModeChoices[1]);
+        Assert.Equal(TurnMode.Everyone, _session.Mode);
+        Assert.True(vm.IsEveryone);
+        Assert.False(vm.ShowTurnControls);
+        Assert.Equal("Everyone at once", vm.ModeChoices.Single(c => c.IsSelected).Label);
+        Assert.Equal("Everyone is playing", vm.HolderText);
+        Assert.All(vm.Players, p => Assert.Equal("Playing", p.Status));
+        Assert.All(vm.Players, p => Assert.False(p.ShowPass));
+    }
+
+    [Fact]
+    public void Choosing_a_turn_length_applies_and_saves_it()
+    {
+        var vm = Make();
+        vm.ChooseTimerCommand.Execute(vm.TimerChoices.Single(c => c.Value == 120));
+        Assert.Equal(120, _session.TurnSeconds);
+        Assert.Equal(120, new SettingsStore(Path.Combine(_dir, "s.json")).Load().Settings.TurnSeconds);
+        Assert.Equal("2 min", vm.TimerChoices.Single(c => c.IsSelected).Label);
+    }
+
+    [Fact]
+    public void The_time_left_on_a_turn_is_shown_only_while_one_is_being_timed()
+    {
+        var vm = Make();
+        vm.RefreshGame();
+        Assert.Equal(string.Empty, vm.TurnLeftText);
+        _session.TurnSecondsLeft = 24;
+        vm.RefreshGame();
+        Assert.Equal("24 s left on this turn", vm.TurnLeftText);
+    }
+
+    [Fact]
+    public void Passing_in_everyone_mode_explains_why_nothing_happened()
+    {
+        var vm = Make();
+        _session.Outcome = PassOutcome.NotApplicable;
+        vm.PassNextCommand.Execute(null);
+        Assert.Contains("no stick to pass", vm.Notice);
+    }
+
+    [Fact]
+    public void A_game_in_exclusive_fullscreen_gets_a_plain_warning_about_the_overlay()
+    {
+        var vm = Make();
+        _session.Game = new GameStatus(true, "Game", true, false, ExclusiveFullscreen: true);
+        vm.RefreshGame();
+        Assert.True(vm.GameWarningVisible);
+        Assert.Contains("borderless or windowed", vm.GameWarning);
+        _session.Game = new GameStatus(true, "Game", true, false);
+        vm.RefreshGame();
+        Assert.False(vm.GameWarningVisible);
     }
 }

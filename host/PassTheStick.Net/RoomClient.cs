@@ -40,7 +40,7 @@ public interface IRoomLink
 {
     event Action<RoomEvent>? Received;
 
-    Task SendHolderAsync(string? guestId, uint epoch, CancellationToken cancellationToken);
+    Task SendHolderAsync(string? guestId, uint epoch, bool everyone, CancellationToken cancellationToken);
 
     Task SendSignalAsync(string guestId, JsonObject payload, CancellationToken cancellationToken);
 
@@ -83,6 +83,36 @@ public sealed class RoomClient : IRoomLink
         response.EnsureSuccessStatusCode();
         var created = await response.Content.ReadFromJsonAsync<CreatedRoom>(cancellationToken).ConfigureAwait(false);
         return created is { Code.Length: > 0, HostToken.Length: > 0 } ? created : throw new InvalidOperationException("The server did not return a room.");
+    }
+
+    /// <summary>
+    /// Checks that a saved room still exists and the token is still good, without taking it over: connects, says hello as
+    /// the host, and reads the first answer. True only on a welcome. The socket is closed again either way.
+    /// </summary>
+    public static async Task<bool> ProbeAsync(IMessageSocketFactory sockets, Uri wsBase, string code, string hostToken, TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        await using var socket = sockets.Create();
+        using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        limit.CancelAfter(timeout);
+        try
+        {
+            await socket.ConnectAsync(new Uri(wsBase, $"/v1/room/{code}"), limit.Token).ConfigureAwait(false);
+            var hello = new JsonObject { ["t"] = "hello", ["v"] = ProtocolInfo.Version, ["role"] = "host", ["hostToken"] = hostToken };
+            await socket.SendTextAsync(hello.ToJsonString(), limit.Token).ConfigureAwait(false);
+            while (await socket.ReceiveAsync(limit.Token).ConfigureAwait(false) is { IsText: true } message)
+            {
+                if (JsonNode.Parse(message.Data) is JsonObject json)
+                {
+                    return (string?)json["t"] == "welcome";
+                }
+            }
+
+            return false;
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or System.Net.WebSockets.WebSocketException or HttpRequestException or IOException or JsonException)
+        {
+            return false;
+        }
     }
 
     /// <summary>Delay before reconnect attempt n (0-based): 0.5 s doubling to 8 s.</summary>
@@ -154,8 +184,8 @@ public sealed class RoomClient : IRoomLink
         Raise(new ConnectionEvent(RoomConnectionState.Closed));
     }
 
-    public Task SendHolderAsync(string? guestId, uint epoch, CancellationToken cancellationToken) =>
-        SendJsonAsync(new JsonObject { ["t"] = "holder", ["id"] = guestId, ["epoch"] = epoch }, cancellationToken);
+    public Task SendHolderAsync(string? guestId, uint epoch, bool everyone, CancellationToken cancellationToken) =>
+        SendJsonAsync(new JsonObject { ["t"] = "holder", ["id"] = guestId, ["epoch"] = epoch, ["mode"] = everyone ? "everyone" : "one" }, cancellationToken);
 
     public Task SendSignalAsync(string guestId, JsonObject payload, CancellationToken cancellationToken)
     {

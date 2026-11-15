@@ -7,6 +7,14 @@ public enum HolderChangeReason
     HolderLeft,
     GuestRequestApproved,
     Reset,
+    ModeChanged,
+}
+
+/// <summary>Whether players take turns holding the stick, or everyone plays at once.</summary>
+public enum TurnMode
+{
+    OneAtATime,
+    Everyone,
 }
 
 public sealed record Player(string Id, string Name, int Slot);
@@ -24,6 +32,7 @@ public sealed class StickSession
     private readonly int _maxPlayers;
     private string _holder;
     private uint _epoch;
+    private TurnMode _mode;
 
     public StickSession(string hostId, int maxPlayers = 8)
     {
@@ -38,7 +47,52 @@ public sealed class StickSession
 
     public event Action<Player>? StickRequested;
 
+    /// <summary>A guest left the room (raised after any holder change they caused).</summary>
+    public event Action<string>? PlayerRemoved;
+
     public string HostId { get; }
+
+    public TurnMode Mode
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _mode;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Whether this guest's input may be applied right now: the holder in one-at-a-time mode, any guest in
+    /// everyone-at-once mode. The host's own id never qualifies, since the host plays on the real keyboard.
+    /// </summary>
+    public bool MaySend(string id)
+    {
+        lock (_gate)
+        {
+            return id != HostId && (_mode == TurnMode.Everyone ? _players.ContainsKey(id) : _holder == id);
+        }
+    }
+
+    /// <summary>Switches mode. The epoch changes and everything held is released, so nothing carries over.</summary>
+    public bool SetMode(TurnMode mode)
+    {
+        HolderChange change;
+        lock (_gate)
+        {
+            if (_mode == mode)
+            {
+                return false;
+            }
+
+            _mode = mode;
+            change = SetHolderLocked(HostId, HolderChangeReason.ModeChanged);
+        }
+
+        Raise(change);
+        return true;
+    }
 
     public string Holder
     {
@@ -113,6 +167,11 @@ public sealed class StickSession
         }
 
         Raise(change);
+        if (removed)
+        {
+            PlayerRemoved?.Invoke(id);
+        }
+
         return removed;
     }
 
@@ -183,9 +242,11 @@ public sealed class StickSession
     {
         lock (_gate)
         {
-            return _holder == id && _epoch == epoch;
+            return MaySendLocked(id) && _epoch == epoch;
         }
     }
+
+    private bool MaySendLocked(string id) => id != HostId && (_mode == TurnMode.Everyone ? _players.ContainsKey(id) : _holder == id);
 
     private HolderChange SetHolderLocked(string next, HolderChangeReason reason)
     {

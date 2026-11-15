@@ -62,10 +62,10 @@ public sealed class ChaosTests
             var epoch = session.Epoch;
             var holder = session.Holder;
             var who = Ids[rng.Next(Ids.Length)];
-            var isHolder = who == holder;
+            var isHolder = session.MaySend(who);
             var before = Snapshot();
 
-            var action = rng.Next(14);
+            var action = rng.Next(15);
             switch (action)
             {
                 case 0:
@@ -113,8 +113,12 @@ public sealed class ChaosTests
                 case 12:
                     session.RequestStick(who);
                     break;
+                case 13:
+                    session.SetMode(rng.Next(2) == 0 ? TurnMode.Everyone : TurnMode.OneAtATime);
+                    break;
                 default:
                     controller.FlushEchoes();
+                    controller.Maintain();
                     break;
             }
 
@@ -127,7 +131,7 @@ public sealed class ChaosTests
                 Assert.Fail($"step {step}: state changed without the holder or epoch changing for non-holder {who}");
             }
 
-            if (session.HostHoldsStick)
+            if (session.Mode == TurnMode.OneAtATime && session.HostHoldsStick)
             {
                 Assert.Empty(inj.Down);
                 Assert.All(pad.State.Values, s => Assert.Equal(PadState.Neutral, s));

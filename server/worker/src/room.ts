@@ -23,6 +23,7 @@ interface Meta {
   lastActivity: number;
   holder: string | null; // null means the host
   epoch: number;
+  mode: "one" | "everyone";
   players: Record<string, StoredPlayer>;
 }
 
@@ -72,6 +73,7 @@ export class Room extends DurableObject {
         lastActivity: Date.now(),
         holder: null,
         epoch: 0,
+        mode: "one",
         players: {},
       };
       await this.ctx.storage.put("meta", meta);
@@ -265,6 +267,7 @@ export class Room extends DurableObject {
         if (typeof msg.epoch !== "number" || !Number.isInteger(msg.epoch) || msg.epoch < meta.epoch) return this.fail(ws, "bad_message");
         meta.holder = id;
         meta.epoch = msg.epoch;
+        meta.mode = msg.mode === "everyone" ? "everyone" : "one";
         await this.ctx.storage.put("meta", meta);
         this.broadcastPresence(meta);
         break;
@@ -314,7 +317,8 @@ export class Room extends DurableObject {
     if (!meta) return;
 
     if (att.role === "guest") {
-      const holder = meta.holder === att.id;
+      // In everyone-at-once mode every guest may send; otherwise only the holder.
+      const holder = meta.holder === att.id || meta.mode === "everyone";
       const cap = holder ? LIMITS.relayFramesPerSecondHolder : LIMITS.relayFramesPerSecond;
       if (now - att.relayWinStart >= 1000) {
         att.relayWinStart = now;
@@ -406,13 +410,13 @@ export class Room extends DurableObject {
   private welcome(meta: Meta, you: string): Record<string, unknown> {
     return {
       t: "welcome", v: PROTOCOL_VERSION, you, players: this.players(meta),
-      holder: meta.holder ?? HOST_ID, epoch: meta.epoch, hostAway: meta.hostGoneAt !== null, maxPlayers: LIMITS.maxPlayers,
+      holder: meta.holder ?? HOST_ID, epoch: meta.epoch, mode: meta.mode, hostAway: meta.hostGoneAt !== null, maxPlayers: LIMITS.maxPlayers,
     };
   }
 
   private broadcastPresence(meta: Meta): void {
     const frame = {
-      t: "presence", players: this.players(meta), holder: meta.holder ?? HOST_ID, epoch: meta.epoch, hostAway: meta.hostGoneAt !== null,
+      t: "presence", players: this.players(meta), holder: meta.holder ?? HOST_ID, epoch: meta.epoch, mode: meta.mode, hostAway: meta.hostGoneAt !== null,
     };
     for (const ws of this.ctx.getWebSockets()) if ((ws.deserializeAttachment() as Attachment).id !== null) this.send(ws, frame);
   }
