@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dolphin and phone motion | PassTheStick docs</title>
+  <meta name="description" content="Use a phone as a Wii Remote in Dolphin over the internet. PassTheStick feeds phone gyro and motion to Dolphin as a DSU controller.">
+  <link rel="canonical" href="https://youssof20.github.io/passthestick/docs/dolphin.html">
+  <meta name="theme-color" content="#14161A">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../favicon.ico" sizes="any">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="PassTheStick">
+  <meta property="og:title" content="Dolphin and phone motion | PassTheStick docs">
+  <meta property="og:description" content="Use a phone as a Wii Remote in Dolphin over the internet. PassTheStick feeds phone gyro and motion to Dolphin as a DSU controller.">
+  <meta property="og:image" content="https://youssof20.github.io/passthestick/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preload" href="../fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="../css/fonts.css">
+  <link rel="stylesheet" href="../css/tokens.css">
+  <link rel="stylesheet" href="../css/site.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to the content</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../"><img src="../favicon.svg" alt="" width="32" height="32">PassTheStick</a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="../#how">How it works</a>
+        <a href="./" aria-current="page">Docs</a>
+        <a href="https://github.com/youssof20/passthestick">GitHub</a>
+      </nav>
+    </div>
+  </header>
+  <div class="wrap">
+    <nav class="doc-nav" aria-label="Docs">
+        <a href="index.html">Get started</a>
+        <a href="dolphin.html" aria-current="page">Dolphin and phone motion</a>
+        <a href="self-hosting.html">Run your own server</a>
+        <a href="troubleshooting.html">Troubleshooting</a>
+    </nav>
+  </div>
+  <main id="main" class="doc">
+    <div class="wrap">
+      <h1>Dolphin and phone motion</h1>
+      <p>Wii Sports bowling, tennis and golf read motion. PassTheStick turns a friend's phone into a motion source for Dolphin, so they can swing it like a Wii Remote.</p>
+
+      <div class="note"><p>Status: the PassTheStick side of this follows the DSU protocol and is tested against it. It has not yet been checked against every Dolphin version, and Dolphin's menu wording changes between releases. If a label below does not match your version, look for the DSU Client and the motion mapping fields.</p></div>
+
+      <h2>How it works</h2>
+      <p>PassTheStick runs a small DSU server on your PC at <code>127.0.0.1</code>, port <code>26760</code>. It listens on your own machine only. Dolphin connects to it as an alternate input source and reads each guest's phone as a controller. The first guest is slot 0, the second is slot 1, and so on up to four.</p>
+
+      <h2>Set up Dolphin once</h2>
+      <ol>
+        <li>In Dolphin, open <strong>Controllers</strong>.</li>
+        <li>Under <strong>Alternate Input Sources</strong>, enable <strong>DSU Client</strong> and add a server with address <code>127.0.0.1</code> and port <code>26760</code>.</li>
+        <li>Set Port 1 to <strong>Emulated Wii Remote</strong> and open <strong>Configure</strong>.</li>
+        <li>Choose the DSU device for the first guest in the device list (it starts with <code>DSUClient/0</code>).</li>
+        <li>In the motion sections (accelerometer and gyroscope), map the matching DSU motion inputs. Dolphin's own motion mapping dialog shows live values while you move the phone, which is the easiest way to check each axis.</li>
+        <li>Buttons still come from the keyboard or controller the guest sends. Map the Wii Remote buttons to those as usual.</li>
+      </ol>
+
+      <h2>On the phone</h2>
+      <ol>
+        <li>Open the invite link and join.</li>
+        <li>Tap <strong>Use phone motion</strong>. An iPhone asks for permission to read motion. Allow it.</li>
+        <li>Keep the screen on. The page asks the phone to stay awake.</li>
+        <li>When you pass the stick to this guest, their motion starts reaching Dolphin. Motion from anyone who does not hold the stick is ignored.</li>
+      </ol>
+
+      <h2>If nothing moves</h2>
+      <ul>
+        <li>Check that PassTheStick started its motion server. If another program already uses port 26760, PassTheStick says motion will not reach emulators.</li>
+        <li>Make sure the guest holds the stick and the Dolphin window is in front.</li>
+        <li>On iPhone, motion needs a secure page (https). Use the hosted link, not a plain http address.</li>
+      </ul>
+
+    </div>
+  </main>
+  <footer>
+    <div class="wrap">
+      <span>PassTheStick is free and open source under the MIT license.</span>
+      <span><a href="https://github.com/youssof20/passthestick/issues">Report a problem</a> &middot; <a href="../">Home</a></span>
+    </div>
+  </footer>
+</body>
+</html>

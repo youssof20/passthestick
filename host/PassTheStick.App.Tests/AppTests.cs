@@ -164,7 +164,7 @@ public sealed class MainViewModelTests : IDisposable
         await vm.StartCommand.ExecuteAsync(null);
         Assert.True(vm.IsLive);
         Assert.Equal("K7M2QX", vm.RoomCode);
-        Assert.Equal("https://pts.example.com/join#K7M2QX", vm.InviteLink);
+        Assert.Equal("https://youssof20.github.io/passthestick/join/?server=wss://pts.example.com#K7M2QX", vm.InviteLink);
         Assert.Equal(new Uri("https://pts.example.com/"), _session.StartedWith);
         Assert.Equal("https://pts.example.com", _store.Load().Settings.ServerUrl);
     }
@@ -828,5 +828,31 @@ public sealed class LayoutStateTests : IDisposable
         _clipboard.Works = false;
         vm.CopyCodeCommand.Execute(null);
         Assert.True(vm.NoticeIsProblem);
+    }
+}
+
+
+public class InviteLinkTests
+{
+    [Fact]
+    public void The_default_server_needs_no_query_because_the_page_is_built_for_it()
+    {
+        Assert.Equal("https://site.example/join/#K7M2QX", MainViewModel.BuildInviteLink("https://site.example/", AppSettings.DefaultServerUrl, "K7M2QX"));
+    }
+
+    [Theory]
+    [InlineData("https://rooms.example.com", "wss://rooms.example.com")]
+    [InlineData("http://192.168.1.20:8787/", "ws://192.168.1.20:8787")]
+    public void A_custom_server_travels_in_the_link_so_the_page_talks_to_the_right_one(string server, string expected)
+    {
+        Assert.Equal($"https://site.example/join/?server={expected}#ABCDEF", MainViewModel.BuildInviteLink("https://site.example", server, "ABCDEF"));
+    }
+
+    [Fact]
+    public void An_unparseable_server_leaves_the_query_off_and_the_code_stays_in_the_fragment()
+    {
+        var link = MainViewModel.BuildInviteLink("https://site.example", "not a url", "ABCDEF");
+        Assert.Equal("https://site.example/join/#ABCDEF", link);
+        Assert.DoesNotContain("?", link.Split('#')[1], StringComparison.Ordinal);
     }
 }

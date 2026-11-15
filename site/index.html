@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PassTheStick: pass the controller online, free</title>
+  <meta name="description" content="Play single-player games with friends online. You run the game; friends join from a link and send keyboard, controller or phone input. Free, open source.">
+  <link rel="canonical" href="https://youssof20.github.io/passthestick/">
+  <meta name="theme-color" content="#14161A">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="PassTheStick">
+  <meta property="og:title" content="PassTheStick: pass the controller online, free">
+  <meta property="og:description" content="You run the game. Friends join from a link and send their keyboard, controller or phone. No account, no video, open source.">
+  <meta property="og:url" content="https://youssof20.github.io/passthestick/">
+  <meta property="og:image" content="https://youssof20.github.io/passthestick/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="PassTheStick: pass the controller online, free">
+  <meta name="twitter:description" content="You run the game. Friends join from a link and send their keyboard, controller or phone.">
+  <meta name="twitter:image" content="https://youssof20.github.io/passthestick/og-image.png">
+  <link rel="preload" href="fonts/familjen-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/fonts.css">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/site.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "PassTheStick",
+    "description": "Lets friends play a single-player game over the internet. The host runs the game; guests send keyboard, controller or phone input from a browser link.",
+    "operatingSystem": "Windows 10, Windows 11",
+    "applicationCategory": "GameApplication",
+    "url": "https://youssof20.github.io/passthestick/",
+    "downloadUrl": "https://github.com/youssof20/passthestick/releases/latest",
+    "license": "https://github.com/youssof20/passthestick/blob/main/LICENSE",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+  }
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to the content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="favicon.svg" alt="" width="32" height="32">PassTheStick</a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="#how">How it works</a>
+        <a href="#uses">Ways to play</a>
+        <a href="#compare">Compared</a>
+        <a href="#faq">Questions</a>
+        <a href="docs/">Docs</a>
+        <a href="https://github.com/youssof20/passthestick">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="wrap hero">
+      <h1>One copy of the game. Everyone gets a turn.</h1>
+      <p class="lead">You run the game on your PC. Friends open a link in their browser and send their keyboard, controller or phone to it. Everyone watches your Discord screen share.</p>
+
+      <div class="actions">
+        <div>
+          <a class="btn primary" id="download" href="https://github.com/youssof20/passthestick/releases/latest">Download for Windows</a>
+          <p class="fine" id="download-note">Windows 10 or 11. Free and open source (MIT).</p>
+        </div>
+        <form class="join-form" id="join-form" action="join/" novalidate>
+          <label for="join-code">Have a room code?</label>
+          <div class="join-row">
+            <input id="join-code" name="code" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="40" aria-describedby="join-error" placeholder="K7M2QX">
+            <button class="btn" type="submit">Join</button>
+          </div>
+          <p class="form-error" id="join-error" role="alert"></p>
+        </form>
+      </div>
+
+      <figure class="demo">
+        <svg viewBox="0 0 640 260" role="img" aria-labelledby="demo-title demo-desc">
+          <title id="demo-title">The stick moving between four players</title>
+          <desc id="demo-desc">A yellow stick hops from one player to the next every few seconds. Whoever has it is playing.</desc>
+          <g>
+            <circle class="seat-ring first" cx="80" cy="150" r="42" style="--i:0"/>
+            <circle class="seat-ring" cx="240" cy="150" r="42" style="--i:1"/>
+            <circle class="seat-ring" cx="400" cy="150" r="42" style="--i:2"/>
+            <circle class="seat-ring" cx="560" cy="150" r="42" style="--i:3"/>
+            <circle class="seat-body" cx="80" cy="150" r="34"/>
+            <circle class="seat-body" cx="240" cy="150" r="34"/>
+            <circle class="seat-body" cx="400" cy="150" r="34"/>
+            <circle class="seat-body" cx="560" cy="150" r="34"/>
+            <text class="seat-name" x="80" y="214">You</text><text class="seat-sub" x="80" y="236">runs the game</text>
+            <text class="seat-name" x="240" y="214">Maya</text><text class="seat-sub" x="240" y="236">in a browser</text>
+            <text class="seat-name" x="400" y="214">Jonas</text><text class="seat-sub" x="400" y="236">on a phone</text>
+            <text class="seat-name" x="560" y="214">Ali</text><text class="seat-sub" x="560" y="236">with a controller</text>
+          </g>
+          <g class="ball-group">
+            <ellipse class="stick-base" cx="80" cy="104" rx="22" ry="6"/>
+            <line class="stick-line" x1="80" y1="102" x2="92" y2="68"/>
+            <circle class="stick-ball" cx="96" cy="54" r="16"/>
+          </g>
+        </svg>
+        <figcaption>The yellow stick is the turn. Whoever holds it is playing, and the host passes it on with one key.</figcaption>
+      </figure>
+    </div>
+
+    <section id="how" aria-labelledby="how-title">
+      <div class="wrap">
+        <h2 id="how-title">How it works</h2>
+        <ol class="steps">
+          <li>
+            <h3>Start a session</h3>
+            <p>Open your game, pick its window in PassTheStick, and press Start. You get a six-character room code and an invite link.</p>
+          </li>
+          <li>
+            <h3>Send the link</h3>
+            <p>Paste it in Discord. Friends click it and they are in. Nothing to install, no account, no ports to open.</p>
+          </li>
+          <li>
+            <h3>Pass the stick</h3>
+            <p>Only the player holding the stick controls the game. Pass it with a hotkey, the tray icon, or the Pass button, and take it back the same way.</p>
+          </li>
+        </ol>
+        <p class="fine">PassTheStick sends input only. It does not capture or stream your screen. The picture your friends see is the Discord screen share you already have open.</p>
+      </div>
+    </section>
+
+    <section id="uses" aria-labelledby="uses-title">
+      <div class="wrap">
+        <h2 id="uses-title">Ways to play</h2>
+        <div class="stories">
+          <div>
+            <h3>Wii Sports bowling over the internet</h3>
+            <p>Run Dolphin with Wii Sports. A friend opens the link on their phone, taps Use phone motion, and swings it like a Wii Remote. The next friend takes a turn. <a href="docs/dolphin.html">Set up phone motion in Dolphin.</a></p>
+          </div>
+          <div>
+            <h3>The deathless relay</h3>
+            <p>Souls, a horror game, any run where dying means the next person goes. One key passes the stick the moment someone dies, so nobody alt-tabs mid-boss.</p>
+          </div>
+          <div>
+            <h3>Two or four on one machine</h3>
+            <p>A local multiplayer game, a fighting game, an emulated party game. Each guest gets their own virtual controller at the same time. This needs ViGEmBus on the host.</p>
+          </div>
+          <div>
+            <h3>A room full of people</h3>
+            <p>Guests can ask for the stick and you approve with the same key you use to pass. Good for a Discord stage with ten people and one console.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="compare" aria-labelledby="compare-title">
+      <div class="wrap">
+        <h2 id="compare-title">Compared with the other ways to do this</h2>
+        <p>Each of these is the right tool for something. Here is where PassTheStick fits and where it does not.</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col"></th>
+                <th scope="col" class="us">PassTheStick</th>
+                <th scope="col">Steam Remote Play Together</th>
+                <th scope="col">Parsec</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">What it sends</th><td class="us">Input only. You use Discord for the picture.</td><td>Video and input, from Steam.</td><td>Video and input, built for low latency.</td></tr>
+              <tr><th scope="row">Which games</th><td class="us">Any window: emulators, old games, non-Steam games, single-player games.</td><td>Steam games that support Remote Play Together.</td><td>Anything on the host PC.</td></tr>
+              <tr><th scope="row">What friends need</th><td class="us">A browser. A controller or phone is optional.</td><td>Steam, signed in.</td><td>The Parsec app and an account.</td></tr>
+              <tr><th scope="row">Picture quality</th><td class="us">Whatever your Discord share gives you.</td><td>Steam's stream.</td><td>Best of the three.</td></tr>
+              <tr><th scope="row">Cost</th><td class="us">Free, open source.</td><td>Free with Steam.</td><td>Free tier, paid plans for more.</td></tr>
+              <tr><th scope="row">Pick it when</th><td class="us">The game is not on Steam, or you already share your screen and only need controls.</td><td>The game is on Steam and supports it.</td><td>You want the sharpest remote picture and do not mind accounts.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="fine">The idea of everyone controlling one screen is not new. Pop did it for pair programming. PassTheStick applies it to games and keeps it to input.</p>
+      </div>
+    </section>
+
+    <section id="faq" aria-labelledby="faq-title">
+      <div class="wrap narrow">
+        <h2 id="faq-title">Questions</h2>
+        <details>
+          <summary>Does my friend need to install anything?</summary>
+          <p>No. They open your link in any current browser. Controllers work through the browser. On a phone they get on-screen buttons, and they can turn on phone motion for games that read it.</p>
+        </details>
+        <details>
+          <summary>What about lag?</summary>
+          <p>Input goes straight from your friend's browser to your PC when their network allows it, so it adds the internet round trip between the two of you and nothing else. The page shows whether you are connected directly and the measured round trip. If a direct link is not possible, input goes through a small relay server, and only the player holding the stick can send that way. I have not published real-world numbers yet.</p>
+        </details>
+        <details>
+          <summary>Do I need to install a driver?</summary>
+          <p>Not for keyboards. Virtual controllers need ViGEmBus. The project is archived but its last release still works, and PassTheStick tells you if it is missing. Setup does not install it for you.</p>
+        </details>
+        <details>
+          <summary>Will it get me banned?</summary>
+          <p>Possibly, in online games. Virtual controllers and injected keys look like cheating tools to kernel-level anti-cheat. Use PassTheStick for single-player and local games only. It is not built for competitive or online modes.</p>
+        </details>
+        <details>
+          <summary>What can the people I invite see or do?</summary>
+          <p>They can send input to the one window you picked, and only while they hold the stick. Their keyboard is captured only while they click the capture box on the page, with a visible badge, and holding Escape for a second stops it. The room code is random and not stored by the website. You can end the session at any time.</p>
+        </details>
+        <details>
+          <summary>Does it work on Mac or Linux?</summary>
+          <p>Guests can use any system with a browser. The host runs on Windows today. The code is split so a Linux host is possible later, but it does not exist yet.</p>
+        </details>
+        <details>
+          <summary>What if the game runs as administrator?</summary>
+          <p>Windows blocks input from a normal program to an elevated one. PassTheStick notices this and tells you to restart it as administrator. It does not ask for that on every launch.</p>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>PassTheStick is free and open source under the MIT license.</span>
+      <span><a href="docs/">Docs</a> &middot; <a href="https://github.com/youssof20/passthestick">Source</a> &middot; <a href="https://github.com/youssof20/passthestick/issues">Report a problem</a></span>
+    </div>
+  </footer>
+  <script src="js/site.js" defer></script>
+</body>
+</html>

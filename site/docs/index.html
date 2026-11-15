@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Get started | PassTheStick docs</title>
+  <meta name="description" content="Install PassTheStick, pick your game window, send an invite link, and pass the stick. Everything the first session needs.">
+  <link rel="canonical" href="https://youssof20.github.io/passthestick/docs/">
+  <meta name="theme-color" content="#14161A">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../favicon.ico" sizes="any">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="PassTheStick">
+  <meta property="og:title" content="Get started | PassTheStick docs">
+  <meta property="og:description" content="Install PassTheStick, pick your game window, send an invite link, and pass the stick. Everything the first session needs.">
+  <meta property="og:image" content="https://youssof20.github.io/passthestick/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preload" href="../fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="../css/fonts.css">
+  <link rel="stylesheet" href="../css/tokens.css">
+  <link rel="stylesheet" href="../css/site.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to the content</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../"><img src="../favicon.svg" alt="" width="32" height="32">PassTheStick</a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="../#how">How it works</a>
+        <a href="./" aria-current="page">Docs</a>
+        <a href="https://github.com/youssof20/passthestick">GitHub</a>
+      </nav>
+    </div>
+  </header>
+  <div class="wrap">
+    <nav class="doc-nav" aria-label="Docs">
+        <a href="index.html" aria-current="page">Get started</a>
+        <a href="dolphin.html">Dolphin and phone motion</a>
+        <a href="self-hosting.html">Run your own server</a>
+        <a href="troubleshooting.html">Troubleshooting</a>
+    </nav>
+  </div>
+  <main id="main" class="doc">
+    <div class="wrap">
+      <h1>Get started</h1>
+      <p>This takes about five minutes the first time. You need a Windows 10 or 11 PC that runs the game, and Discord or another way to share your screen. Your friends need a browser.</p>
+
+      <h2>Install</h2>
+      <p>Download the latest release from <a href="https://github.com/youssof20/passthestick/releases/latest">GitHub Releases</a> and run it. The first launch shows a short setup: pick the game window, then choose keyboard only or controllers too.</p>
+      <div class="note"><p>Keyboard sessions need no drivers. Controllers need ViGEmBus. Setup checks for it and tells you where to get it if it is missing. Restart the PC after installing it.</p></div>
+
+      <h2>Start a session</h2>
+      <ol>
+        <li>Open your game first, so its window exists.</li>
+        <li>In PassTheStick, search for the game in the window list and press <strong>Use this window</strong>. Input only goes to this window.</li>
+        <li>Press <strong>Start a session</strong>. You get a room code and an invite link.</li>
+        <li>Press <strong>Copy invite link</strong> and paste it in Discord. Start your screen share.</li>
+      </ol>
+
+      <h2>What your friends do</h2>
+      <ol>
+        <li>Click the link and type a name.</li>
+        <li>Wait for you to pass them the stick. They see who has it at the top of the page.</li>
+        <li>With the stick, a keyboard player clicks the capture box and types. A controller works as soon as it is plugged in and a button is pressed. On a phone, the page shows on-screen buttons.</li>
+        <li>To stop the keyboard capture, hold <kbd>Esc</kbd> for one second.</li>
+      </ol>
+      <p>Before you start playing, ask each friend to press <strong>Test my controls</strong>. You see their buttons light up in a panel in PassTheStick, and they see what arrived. Nothing in test mode reaches the game.</p>
+
+      <h2>Passing the stick</h2>
+      <ul>
+        <li><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Right</kbd> hands the stick to the next player: you, then the guests in order, then you again.</li>
+        <li>If a guest has asked for the stick, the same key gives it to them first.</li>
+        <li><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Left</kbd> takes the stick back at once.</li>
+        <li>The window buttons and the tray icon menu do the same. Closing the window while you host hides it to the tray, so a stray click does not end the session.</li>
+      </ul>
+      <p>When the stick moves, every key and button the previous player was holding is released, so nothing gets stuck.</p>
+
+      <h2>If the game runs as administrator</h2>
+      <p>Windows does not let a normal program send input to an elevated one. If your game was started as administrator, PassTheStick shows a warning. Close it and start PassTheStick as administrator too.</p>
+
+    </div>
+  </main>
+  <footer>
+    <div class="wrap">
+      <span>PassTheStick is free and open source under the MIT license.</span>
+      <span><a href="https://github.com/youssof20/passthestick/issues">Report a problem</a> &middot; <a href="../">Home</a></span>
+    </div>
+  </footer>
+</body>
+</html>

@@ -13,7 +13,12 @@ public sealed record AppSettings
 
     public int Version { get; init; } = CurrentVersion;
 
+    /// <summary>Where the guest page lives. Invite links point here. The release build keeps this; self-hosters change it.</summary>
+    public const string DefaultSiteUrl = "https://youssof20.github.io/passthestick";
+
     public string ServerUrl { get; init; } = DefaultServerUrl;
+
+    public string SiteUrl { get; init; } = DefaultSiteUrl;
 
     public IReadOnlyList<string> IceServers { get; init; } = ["stun:stun.cloudflare.com:3478"];
 

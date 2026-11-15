@@ -216,10 +216,21 @@ public sealed partial class MainViewModel : ObservableObject
         _ => $"{Players.Count} players",
     };
 
-    public string InviteLink => HasRoom ? $"{InviteBase}/join#{RoomCode}" : string.Empty;
+    public string InviteLink => HasRoom ? BuildInviteLink(_settings.SiteUrl, ServerUrl, RoomCode) : string.Empty;
 
-    /// <summary>The page that hosts the web guest. Defaults to the server address; the release build points it at the site.</summary>
-    public string InviteBase => ServerUrl.TrimEnd('/');
+    /// <summary>
+    /// The link friends open: the guest page on the site, the room code in the fragment (so it never reaches the site's
+    /// server), and the signaling server in the query only when it is not the one the page was built for.
+    /// </summary>
+    public static string BuildInviteLink(string siteUrl, string serverUrl, string code)
+    {
+        var site = siteUrl.TrimEnd('/');
+        var server = serverUrl.Trim().TrimEnd('/');
+        var query = string.Equals(server, AppSettings.DefaultServerUrl, StringComparison.OrdinalIgnoreCase) || !Uri.TryCreate(server, UriKind.Absolute, out var uri)
+            ? string.Empty
+            : "?server=" + (uri.Scheme == Uri.UriSchemeHttps ? "wss" : "ws") + "://" + uri.Authority;
+        return $"{site}/join/{query}#{code}";
+    }
 
     public string PhaseText => Phase switch
     {

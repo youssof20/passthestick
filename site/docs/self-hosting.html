@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Run your own server | PassTheStick docs</title>
+  <meta name="description" content="Run the PassTheStick signaling server on Cloudflare Workers, or locally for testing. How the pieces fit and what to change in the app.">
+  <link rel="canonical" href="https://youssof20.github.io/passthestick/docs/self-hosting.html">
+  <meta name="theme-color" content="#14161A">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../favicon.ico" sizes="any">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="PassTheStick">
+  <meta property="og:title" content="Run your own server | PassTheStick docs">
+  <meta property="og:description" content="Run the PassTheStick signaling server on Cloudflare Workers, or locally for testing. How the pieces fit and what to change in the app.">
+  <meta property="og:image" content="https://youssof20.github.io/passthestick/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preload" href="../fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="../css/fonts.css">
+  <link rel="stylesheet" href="../css/tokens.css">
+  <link rel="stylesheet" href="../css/site.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to the content</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../"><img src="../favicon.svg" alt="" width="32" height="32">PassTheStick</a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="../#how">How it works</a>
+        <a href="./" aria-current="page">Docs</a>
+        <a href="https://github.com/youssof20/passthestick">GitHub</a>
+      </nav>
+    </div>
+  </header>
+  <div class="wrap">
+    <nav class="doc-nav" aria-label="Docs">
+        <a href="index.html">Get started</a>
+        <a href="dolphin.html">Dolphin and phone motion</a>
+        <a href="self-hosting.html" aria-current="page">Run your own server</a>
+        <a href="troubleshooting.html">Troubleshooting</a>
+    </nav>
+  </div>
+  <main id="main" class="doc">
+    <div class="wrap">
+      <h1>Run your own server</h1>
+      <p>Friends join through a small signaling server. It introduces your PC and your friend's browser to each other and carries input only when a direct connection fails. The project's server is one Cloudflare Worker with one Durable Object per room. You can run the same code yourself.</p>
+
+      <h2>Try it on your own PC</h2>
+      <pre><code>cd server/worker
+npm install
+npx wrangler dev --port 8787</code></pre>
+      <p>PassTheStick uses <code>http://127.0.0.1:8787</code> as its server address by default in development builds. To test the guest page locally, build it and serve the <code>site</code> folder:</p>
+      <pre><code>cd web/guest
+npm install
+node build.mjs
+cd ../../site
+python -m http.server 8123</code></pre>
+      <p>Then open <code>http://localhost:8123/join/</code>.</p>
+
+      <h2>Deploy it</h2>
+      <pre><code>cd server/worker
+npx wrangler login
+npx wrangler deploy</code></pre>
+      <p>This needs a free Cloudflare account. Wrangler prints the address of your Worker. Put that address in PassTheStick under <strong>Server address</strong>, in the setup that appears before you start a session.</p>
+      <p>Build the guest page for your server so it does not need a query string:</p>
+      <pre><code>PTS_SIGNALING_URL=wss://your-worker.example.workers.dev node web/guest/build.mjs</code></pre>
+      <p>Host the files in <code>site</code> anywhere that serves static pages. Invite links point at the page named by the <code>SiteUrl</code> field in <code>%LOCALAPPDATA%\PassTheStick\settings.json</code>, and carry your server address in the link when it differs from the default.</p>
+
+      <h2>What it limits</h2>
+      <ul>
+        <li>Up to eight guests per room.</li>
+        <li>Six-character room codes from a random source, with no look-alike letters. A room ends 60 seconds after the host leaves, or after 30 quiet minutes.</li>
+        <li>Message size, message rate and join attempts are capped per connection.</li>
+        <li>The host and each guest hold a secret token that the server stores only as a hash.</li>
+      </ul>
+      <div class="note"><p>A version of the server for people who do not use Cloudflare, such as a small Node program with a Dockerfile, is planned and does not exist yet.</p></div>
+
+    </div>
+  </main>
+  <footer>
+    <div class="wrap">
+      <span>PassTheStick is free and open source under the MIT license.</span>
+      <span><a href="https://github.com/youssof20/passthestick/issues">Report a problem</a> &middot; <a href="../">Home</a></span>
+    </div>
+  </footer>
+</body>
+</html>
