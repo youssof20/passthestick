@@ -44,7 +44,7 @@ public partial class App : Application
         var loaded = store.Load();
 
         _host = Host.CreateDefaultBuilder()
-            .ConfigureLogging(l => l.ClearProviders().AddDebug())
+            .ConfigureLogging(l => l.ClearProviders().AddDebug().AddProvider(new FileLoggerProvider(Path.Combine(Path.GetDirectoryName(SettingsStore.DefaultPath)!, "logs"))))
             .ConfigureServices(s =>
             {
                 s.AddSingleton(store);
@@ -54,6 +54,11 @@ public partial class App : Application
                 s.AddSingleton<DeferredNotifier>();
                 s.AddSingleton<INotifier>(sp => sp.GetRequiredService<DeferredNotifier>());
                 s.AddSingleton<IHostSession>(sp => new HostSession(store, new RoomVault(Path.Combine(Path.GetDirectoryName(SettingsStore.DefaultPath)!, "room.dat")), sp.GetRequiredService<ILoggerFactory>()));
+                s.AddSingleton<IDiagnosticsService>(_ => new DiagnosticsService(
+                    Path.Combine(Path.GetDirectoryName(SettingsStore.DefaultPath)!, "logs"),
+                    SettingsStore.DefaultPath,
+                    Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+                    () => new RoomVault(Path.Combine(Path.GetDirectoryName(SettingsStore.DefaultPath)!, "room.dat")).Load() is { } saved ? [saved.HostToken, saved.Code] : []));
                 s.AddSingleton<IUpdateClient>(_ => new VelopackUpdateClient(RepositoryUrl));
                 s.AddSingleton(sp => new UpdateCoordinator(
                     sp.GetRequiredService<IUpdateClient>(),
@@ -68,7 +73,8 @@ public partial class App : Application
                     store,
                     loaded.Settings,
                     loaded.Notice,
-                    sp.GetRequiredService<UpdateCoordinator>()));
+                    sp.GetRequiredService<UpdateCoordinator>(),
+                    sp.GetRequiredService<IDiagnosticsService>()));
             })
             .Build();
 

@@ -147,6 +147,13 @@ public sealed class InputPipeline : IDisposable
 
             _padSeq[fromId] = (seq, true);
             Touch(fromId);
+            if (state == PadState.Neutral && !_padOwner.ContainsKey(slot.Value))
+            {
+                // A resent neutral snapshot from someone with no pad pressed: nothing to apply, and it must not
+                // create a virtual controller for a keyboard-only player.
+                return InputResult.Accepted;
+            }
+
             _pad.Submit(slot.Value, state);
             if (state == PadState.Neutral)
             {

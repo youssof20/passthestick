@@ -90,11 +90,13 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly INotifier _notifier;
     private readonly SettingsStore _store;
     private readonly UpdateCoordinator? _updates;
+    private readonly IDiagnosticsService? _diagnostics;
     private AppSettings _settings;
 
-    public MainViewModel(IHostSession session, IUiThread ui, IClipboardService clipboard, INotifier notifier, SettingsStore store, AppSettings settings, string? startupNotice, UpdateCoordinator? updates = null)
+    public MainViewModel(IHostSession session, IUiThread ui, IClipboardService clipboard, INotifier notifier, SettingsStore store, AppSettings settings, string? startupNotice, UpdateCoordinator? updates = null, IDiagnosticsService? diagnostics = null)
     {
         _updates = updates;
+        _diagnostics = diagnostics;
         _session = session;
         _ui = ui;
         _clipboard = clipboard;
@@ -331,6 +333,25 @@ public sealed partial class MainViewModel : ObservableObject
     {
         Notice = text;
         NoticeIsProblem = true;
+    }
+
+    [RelayCommand]
+    private void ExportDiagnostics()
+    {
+        if (_diagnostics is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var path = _diagnostics.Export();
+            Say($"Saved {Path.GetFileName(path)} to your desktop. Tokens, room codes, addresses and your user name are removed. Attach it to a GitHub issue.");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Warn("Could not save the diagnostics file. Check that your desktop folder is writable.");
+        }
     }
 
     [RelayCommand]

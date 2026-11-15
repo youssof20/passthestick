@@ -797,3 +797,66 @@ public sealed class TurnTimerTests : IDisposable
         Assert.Equal(TimeSpan.FromSeconds(60), _timer.Remaining);
     }
 }
+
+public sealed class SnapshotResendTests : IDisposable
+{
+    private readonly StickSession _session = new("host");
+    private readonly FakeInjector _inj = new();
+    private readonly CountingPad _pad = new();
+    private readonly InputPipeline _pipe;
+
+    public SnapshotResendTests()
+    {
+        _session.AddPlayer("a", "A");
+        _session.PassTo("a");
+        _pipe = new InputPipeline(_session, _inj, _pad);
+    }
+
+    public void Dispose() => _pipe.Dispose();
+
+    private sealed class CountingPad : IVirtualPadBackend
+    {
+        public int Submits { get; private set; }
+
+        public PadState Last { get; private set; }
+
+        public void Submit(int slot, in PadState state)
+        {
+            Submits++;
+            Last = state;
+        }
+
+        public void Neutralize(int slot) => Last = PadState.Neutral;
+    }
+
+    [Fact]
+    public void Resent_neutral_snapshots_from_a_keyboard_only_player_never_touch_the_virtual_pad()
+    {
+        for (ushort i = 1; i < 50; i++)
+        {
+            Assert.Equal(InputResult.Accepted, _pipe.HandlePad("a", _session.Epoch, i, PadState.Neutral));
+        }
+
+        Assert.Equal(0, _pad.Submits);
+    }
+
+    [Fact]
+    public void A_lost_release_is_repaired_by_the_next_resent_snapshot()
+    {
+        var pressed = new PadState(PadButtons.A, 0, 0, 0, 0, 0, 0);
+        _pipe.HandlePad("a", _session.Epoch, 1, pressed);
+        Assert.Equal(PadButtons.A, _pad.Last.Buttons);
+        // the release frame (seq 2) is lost on the wire; the next resent snapshot (seq 3) carries the same release
+        Assert.Equal(InputResult.Accepted, _pipe.HandlePad("a", _session.Epoch, 3, PadState.Neutral));
+        Assert.Equal(PadState.Neutral, _pad.Last);
+    }
+
+    [Fact]
+    public void A_neutral_snapshot_after_a_press_still_releases_the_pad()
+    {
+        _pipe.HandlePad("a", _session.Epoch, 1, new PadState(PadButtons.A, 0, 0, 0, 0, 0, 0));
+        _pipe.HandlePad("a", _session.Epoch, 2, PadState.Neutral);
+        Assert.Equal(PadState.Neutral, _pad.Last);
+        Assert.Equal(2, _pad.Submits);
+    }
+}

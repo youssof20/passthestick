@@ -125,10 +125,12 @@
             </StackPanel>
           </Border>
 
-          <Expander Header="Server address" Style="{StaticResource PtsExpander}">
+          <Expander Header="Advanced" Style="{StaticResource PtsExpander}">
             <StackPanel Margin="{StaticResource PtsSpace3Top}">
               <TextBlock Style="{StaticResource PtsMuted}" Text="Where rooms are created. Leave this alone unless you run your own server." Margin="{StaticResource PtsSpace2Bottom}"/>
               <TextBox Text="{Binding ServerUrl, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Server address"/>
+              <TextBlock Style="{StaticResource PtsMuted}" Text="Having trouble? Save a bundle of logs for a bug report. Secrets are removed first." Margin="{StaticResource PtsSpace4Top}"/>
+              <Button Content="Save diagnostics" Command="{Binding ExportDiagnosticsCommand}" HorizontalAlignment="Left" Margin="{StaticResource PtsSpace2Top}"/>
             </StackPanel>
           </Expander>
         </StackPanel>

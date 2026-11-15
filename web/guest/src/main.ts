@@ -3,7 +3,7 @@ import { SignalingClient, type ConnectionState, type PlayerInfo, type ServerMess
 import { KeyCapture, PanicKey, describeProbe, mergePads, motionFromEvent, type Probe } from "./keys";
 import { parseRoomCode, signalingBase } from "./link";
 import {
-  NEUTRAL_PAD, PadButton, encodeKeepalive, encodeMotion, encodePad, padEquals, padFromGamepad, type PadState,
+  NEUTRAL_PAD, PadButton, encodeMotion, encodePad, padEquals, padFromGamepad, type PadState,
 } from "./wire";
 
 // Replaced at build time (see build.mjs) so a deployment points at its own Worker.
@@ -35,6 +35,9 @@ let testing = false;
 let everyone = false;
 let lastEchoAt = 0;
 let lastInputAt = 0;
+
+/** How often the current pad state is resent when nothing changes. */
+const SNAPSHOT_MS = 100;
 
 const keys = new KeyCapture();
 const panic = new PanicKey(1000);
@@ -145,9 +148,11 @@ function frame(now: number): void {
     lastSentAt = now;
     if (!padEquals(merged, NEUTRAL_PAD)) lastInputAt = now;
     link.sendState(encodePad(nextSeq(), merged));
-  } else if (now - lastSentAt >= 250) {
+  } else if (now - lastSentAt >= SNAPSHOT_MS) {
+    // The state channel drops packets on purpose, so the current state is resent while it holds. A lost release then
+    // fixes itself within a tenth of a second instead of leaving a button down until the next change.
     lastSentAt = now;
-    link.sendState(encodeKeepalive(nextSeq()));
+    link.sendState(encodePad(nextSeq(), merged));
   }
 }
 requestAnimationFrame(frame);

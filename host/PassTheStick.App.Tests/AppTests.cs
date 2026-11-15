@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using PassTheStick.App.Services;
 using PassTheStick.App.ViewModels;
 using PassTheStick.Core;
@@ -1184,5 +1185,122 @@ public sealed class TurnModeViewTests : IDisposable
         _session.Game = new GameStatus(true, "Game", true, false);
         vm.RefreshGame();
         Assert.False(vm.GameWarningVisible);
+    }
+}
+
+public sealed class DiagnosticsTests : IDisposable
+{
+    private readonly string _dir = Path.Combine(Path.GetTempPath(), "pts-diag-" + Guid.NewGuid().ToString("N"));
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_dir))
+        {
+            Directory.Delete(_dir, true);
+        }
+    }
+
+    [Theory]
+    [InlineData("{\"t\":\"hello\",\"hostToken\":\"abcDEF_123-xyzABC\"}", "abcDEF_123", "[token]")]
+    [InlineData("{\"resumeToken\": \"zzzzzzzzzzzzzzzz\"}", "zzzzzzzz", "[token]")]
+    [InlineData("opened https://site.example/join/?server=wss://x.example#K7M2QX", "K7M2QX", "#[code]")]
+    [InlineData("GET wss://rooms.example/v1/room/ABCDEF failed", "ABCDEF", "/v1/room/[code]")]
+    [InlineData("peer 203.0.113.77 port 5000", "203.0.113.77", "[address]")]
+    [InlineData("candidate 2001:db8:85a3:8d3:1319:8a2e:370:7348 typ host", "2001:db8", "[address]")]
+    [InlineData(@"path C:\Users\Alice\AppData\Local\PassTheStick\x.log", "Alice", @"C:\Users\[user]")]
+    public void Secrets_addresses_and_the_user_name_are_replaced(string input, string mustVanish, string mustAppear)
+    {
+        var output = Redactor.Redact(input);
+        Assert.DoesNotContain(mustVanish, output, StringComparison.Ordinal);
+        Assert.Contains(mustAppear, output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Known_secrets_are_removed_wherever_they_appear_and_short_ones_are_ignored()
+    {
+        var output = Redactor.Redact("token=hunter2hunter2 and code ab", ["hunter2hunter2", "ab"]);
+        Assert.DoesNotContain("hunter2", output, StringComparison.Ordinal);
+        Assert.Contains("code ab", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Ordinary_text_is_left_alone()
+    {
+        const string text = "Pinned window Dolphin, session live, 3 players";
+        Assert.Equal(text, Redactor.Redact(text));
+    }
+
+    [Fact]
+    public void The_bundle_contains_system_info_settings_and_logs_with_nothing_secret_in_any_of_them()
+    {
+        var logs = Path.Combine(_dir, "logs");
+        Directory.CreateDirectory(logs);
+        File.WriteAllText(Path.Combine(logs, "pts-20260101.log"), @"joined https://x.example/join/#K7M2QX from 198.51.100.5 token=SECRETSECRET1 in C:\Users\Bob\x");
+        var settings = Path.Combine(_dir, "settings.json");
+        File.WriteAllText(settings, "{\"ServerUrl\":\"https://s.example\",\"hostToken\":\"SECRETSECRET1\"}");
+
+        var service = new DiagnosticsService(logs, settings, Path.Combine(_dir, "out"), () => ["SECRETSECRET1"], () => new DateTime(2026, 11, 15, 9, 30, 0));
+        var path = service.Export();
+        Assert.EndsWith("PassTheStick-diagnostics-20261115-0930.zip", path, StringComparison.Ordinal);
+
+        using var zip = System.IO.Compression.ZipFile.OpenRead(path);
+        var names = zip.Entries.Select(e => e.FullName).Order(StringComparer.Ordinal).ToList();
+        Assert.Equal(["README.txt", "logs/pts-20260101.log", "settings.json", "system.txt"], names);
+        foreach (var entry in zip.Entries)
+        {
+            using var reader = new StreamReader(entry.Open());
+            var text = reader.ReadToEnd();
+            Assert.DoesNotContain("SECRETSECRET1", text, StringComparison.Ordinal);
+            Assert.DoesNotContain("K7M2QX", text, StringComparison.Ordinal);
+            Assert.DoesNotContain("198.51.100.5", text, StringComparison.Ordinal);
+            Assert.DoesNotContain("Bob", text, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void The_file_logger_writes_information_and_above_and_keeps_only_the_last_few_files()
+    {
+        var logs = Path.Combine(_dir, "l");
+        Directory.CreateDirectory(logs);
+        for (var i = 1; i <= 8; i++)
+        {
+            File.WriteAllText(Path.Combine(logs, $"pts-2025010{i}.log"), "old");
+        }
+
+        using var provider = new FileLoggerProvider(logs, keepFiles: 5);
+        var log = provider.CreateLogger("Test");
+        log.Log(LogLevel.Information, default, "hello 1", null, (m, _) => m);
+        log.Log(LogLevel.Debug, default, "not written", null, (m, _) => m);
+        log.Log(LogLevel.Error, default, "it broke", new InvalidOperationException("boom"), (m, _) => m);
+
+        Assert.True(Directory.GetFiles(logs).Length <= 6);
+        var today = File.ReadAllText(Directory.GetFiles(logs, $"pts-{DateTime.UtcNow:yyyyMMdd}.log").Single());
+        Assert.Contains("hello 1", today, StringComparison.Ordinal);
+        Assert.Contains("InvalidOperationException: boom", today, StringComparison.Ordinal);
+        Assert.DoesNotContain("not written", today, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_window_reports_where_the_bundle_went_and_a_failure_in_plain_words()
+    {
+        var ok = new StubDiagnostics { Result = Path.Combine(_dir, "PassTheStick-diagnostics-x.zip") };
+        var vm = new MainViewModel(new FakeSession(), new InlineUi(), new FakeClipboard(), new FakeNotifier(), new SettingsStore(Path.Combine(_dir, "s.json")), new AppSettings { OnboardingCompleted = true }, null, null, ok);
+        vm.ExportDiagnosticsCommand.Execute(null);
+        Assert.Contains("PassTheStick-diagnostics-x.zip", vm.Notice, StringComparison.Ordinal);
+        Assert.False(vm.NoticeIsProblem);
+
+        ok.Throw = true;
+        vm.ExportDiagnosticsCommand.Execute(null);
+        Assert.True(vm.NoticeIsProblem);
+        Assert.Contains("desktop", vm.Notice, StringComparison.Ordinal);
+    }
+
+    private sealed class StubDiagnostics : IDiagnosticsService
+    {
+        public string Result { get; set; } = string.Empty;
+
+        public bool Throw { get; set; }
+
+        public string Export() => Throw ? throw new IOException("denied") : Result;
     }
 }

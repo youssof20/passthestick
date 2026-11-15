@@ -51,10 +51,13 @@ public sealed partial class PeerHub : IPeerLink, IDisposable
     private readonly IRoomLink _room;
     private readonly ICollection<string> _iceServers;
     private readonly ILogger _log;
+    private readonly string? _bindAddress;
     private readonly ConcurrentDictionary<string, Peer> _peers = new(StringComparer.Ordinal);
 
-    public PeerHub(IRoomLink room, IEnumerable<string> iceServers, ILogger log)
+    /// <param name="bindAddress">Restricts the local interface used for media, for example 127.0.0.1 in tests. Null uses all interfaces.</param>
+    public PeerHub(IRoomLink room, IEnumerable<string> iceServers, ILogger log, string? bindAddress = null)
     {
+        _bindAddress = bindAddress;
         _room = room;
         _iceServers = [.. iceServers];
         _log = log;
@@ -136,7 +139,7 @@ public sealed partial class PeerHub : IPeerLink, IDisposable
 
     private Peer Create(string guestId)
     {
-        var connection = new RtcPeerConnection(new RtcPeerConfiguration { IceServers = _iceServers });
+        var connection = new RtcPeerConnection(new RtcPeerConfiguration { IceServers = _iceServers, BindAddress = _bindAddress });
         var peer = new Peer(connection);
 
         connection.OnLocalDescriptionSafe += (_, d) =>
