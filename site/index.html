@@ -64,48 +64,24 @@
         <h1 id="hero-title"><span>One game.</span> <span>Everyone gets a turn.</span></h1>
         <p class="lead">Run the game on your PC. Friends open a link and send their keyboard, controller or phone to it. Everyone watches your Discord screen share.</p>
 
-        <div class="cta">
-          <a class="btn primary" id="download" href="https://github.com/youssof20/passthestick/releases/latest">Download for Windows</a>
-          <form class="join-form" id="join-form" action="join/" novalidate>
-            <label class="sr-only" for="join-code">Room code</label>
-            <input id="join-code" name="code" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="40" aria-describedby="join-error" placeholder="Room code">
-            <button class="btn" type="submit">Join a room</button>
-          </form>
+        <div class="choices">
+          <div class="choice">
+            <h2>Host a game</h2>
+            <p>Run the game on your PC and send friends a link.</p>
+            <a class="btn primary big" id="download" href="https://github.com/youssof20/passthestick/releases/latest">Download for Windows</a>
+            <p class="fine" id="download-note">Windows 10 or 11. Free and open source (MIT).</p>
+          </div>
+          <div class="choice">
+            <h2>Join a game</h2>
+            <p>Got a room code or an invite link? Enter it here.</p>
+            <form class="join-form" id="join-form" action="join/" novalidate>
+              <label class="sr-only" for="join-code">Room code</label>
+              <input id="join-code" name="code" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="40" aria-describedby="join-error" placeholder="Room code">
+              <button class="btn big" type="submit">Join</button>
+            </form>
+            <p class="form-error" id="join-error" role="alert"></p>
+          </div>
         </div>
-        <p class="fine" id="download-note">Windows 10 or 11. Free and open source (MIT).</p>
-        <p class="form-error" id="join-error" role="alert"></p>
-
-        <figure class="stage">
-          <svg viewBox="0 0 640 230" role="img" aria-labelledby="demo-title demo-desc">
-            <title id="demo-title">The stick moving between four players</title>
-            <desc id="demo-desc">A yellow stick hops from one player to the next every few seconds. Whoever has it is playing.</desc>
-            <line class="rail" x1="80" y1="150" x2="560" y2="150"/>
-            <g>
-              <circle class="seat-ring first" cx="80" cy="150" r="42" style="--i:0"/>
-              <circle class="seat-ring" cx="240" cy="150" r="42" style="--i:1"/>
-              <circle class="seat-ring" cx="400" cy="150" r="42" style="--i:2"/>
-              <circle class="seat-ring" cx="560" cy="150" r="42" style="--i:3"/>
-              <circle class="seat-body" cx="80" cy="150" r="34"/>
-              <circle class="seat-body" cx="240" cy="150" r="34"/>
-              <circle class="seat-body" cx="400" cy="150" r="34"/>
-              <circle class="seat-body" cx="560" cy="150" r="34"/>
-              <text class="seat-initial" x="80" y="157">Y</text>
-              <text class="seat-initial" x="240" y="157">M</text>
-              <text class="seat-initial" x="400" y="157">J</text>
-              <text class="seat-initial" x="560" y="157">A</text>
-              <text class="seat-name" x="80" y="212">You</text>
-              <text class="seat-name" x="240" y="212">Maya</text>
-              <text class="seat-name" x="400" y="212">Jonas</text>
-              <text class="seat-name" x="560" y="212">Ali</text>
-            </g>
-            <g class="ball-group">
-              <ellipse class="stick-base" cx="80" cy="108" rx="18" ry="5"/>
-              <line class="stick-line" x1="80" y1="106" x2="80" y2="62"/>
-              <circle class="stick-ball" cx="80" cy="52" r="14"/>
-            </g>
-          </svg>
-          <figcaption>The yellow stick is the turn. Whoever holds it is playing.</figcaption>
-        </figure>
       </div>
     </section>
 
